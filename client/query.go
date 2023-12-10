@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cosmos/cosmos-sdk/codec"
 	abcitypes "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/bytes"
 
@@ -69,4 +70,16 @@ func (c *Context) QuerySubspace(ctx context.Context, store string, data bytes.He
 
 	// Call the generic ABCIQueryWithOptions method
 	return c.ABCIQueryWithOptions(ctx, path, data, opts)
+}
+
+// QueryGRPC performs a gRPC query with specified options.
+func (c *Context) QueryGRPC(ctx context.Context, method string, req codec.ProtoMarshaler, opts *options.QueryOptions) (*abcitypes.ResponseQuery, error) {
+	// Marshal the request into binary data
+	data, err := c.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Perform the ABCI query with the specified gRPC method, data, and options
+	return c.ABCIQueryWithOptions(ctx, method, data, opts)
 }

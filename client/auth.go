@@ -9,10 +9,18 @@ import (
 	"github.com/sentinel-official/sentinel-sdk/v1/client/options"
 )
 
-// Account queries the account information for a given account address.
+// Account queries the account information for a given account address using gRPC.
 func (c *Context) Account(ctx context.Context, accAddr sdk.AccAddress, opts *options.QueryOptions) (res authtypes.AccountI, err error) {
-	// Query the account information using the generic QueryKey method
-	resp, err := c.QueryKey(ctx, authtypes.StoreKey, authtypes.AddressStoreKey(accAddr), opts)
+	// gRPC method for querying account information
+	method := "/cosmos.auth.v1beta1.Query/Account"
+
+	// Create a request for querying the account
+	req := &authtypes.QueryAccountRequest{
+		Address: accAddr.String(),
+	}
+
+	// Query the account information using the generic QueryGRPC method
+	resp, err := c.QueryGRPC(ctx, method, req, opts)
 	if err != nil {
 		return nil, err
 	}
