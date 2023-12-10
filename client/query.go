@@ -15,6 +15,11 @@ import (
 
 // ABCIQueryWithOptions performs an ABCI query with specified options.
 func (c *Context) ABCIQueryWithOptions(ctx context.Context, path string, data bytes.HexBytes, opts *options.QueryOptions) (*abcitypes.ResponseQuery, error) {
+	// If options are nil, use default options
+	if opts == nil {
+		opts = options.Query()
+	}
+
 	// Create a new HTTP client with the provided options
 	client, err := http.NewFromQueryOptions(opts)
 	if err != nil {
