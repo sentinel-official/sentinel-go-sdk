@@ -3,6 +3,7 @@ package options
 import (
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/tendermint/tendermint/rpc/client"
 )
 
@@ -42,6 +43,17 @@ func (q *QueryOptions) ABCIQueryOptions() client.ABCIQueryOptions {
 	return client.ABCIQueryOptions{
 		Height: q.Height,
 		Prove:  q.Prove,
+	}
+}
+
+// PageRequest returns a PageRequest instance based on the current QueryOptions.
+func (q *QueryOptions) PageRequest() *query.PageRequest {
+	return &query.PageRequest{
+		Key:        q.PageKey,
+		Offset:     q.PageOffset,
+		Limit:      q.PageLimit,
+		CountTotal: q.PageCountTotal,
+		Reverse:    q.PageReverse,
 	}
 }
 
