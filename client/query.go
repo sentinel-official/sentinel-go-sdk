@@ -10,76 +10,88 @@ import (
 	abcitypes "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/bytes"
 
-	"github.com/sentinel-official/sentinel-sdk/v1/client/http"
 	"github.com/sentinel-official/sentinel-sdk/v1/client/options"
 )
 
-// ABCIQueryWithOptions performs an ABCI query with specified options.
+// ABCIQueryWithOptions performs an ABCI query with configurable options.
+// It retries the query according to the specified maximum number of retries.
 func (c *Context) ABCIQueryWithOptions(ctx context.Context, path string, data bytes.HexBytes, opts *options.QueryOptions) (*abcitypes.ResponseQuery, error) {
-	// If options are nil, use default options
-	if opts == nil {
-		opts = options.Query()
-	}
-
-	// Create a new HTTP client with the provided options
-	client, err := http.NewFromQueryOptions(opts)
+	// Get the ABCI client from the provided options.
+	client, err := opts.Client()
 	if err != nil {
 		return nil, err
 	}
 
-	// Retry the query for a maximum number of times specified by MaxRetries option
+	// Retry the query for the specified number of times.
 	for t := 0; t < opts.MaxRetries; t++ {
-		// Perform the ABCI query using the HTTP client
+		// Perform the ABCI query with options.
 		result, err := client.ABCIQueryWithOptions(ctx, path, data, opts.ABCIQueryOptions())
 		if err != nil {
-			// Retry on certain errors
+			// Retry on specific errors, such as EOF or invalid character.
 			if strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "invalid character '<' looking for beginning of value") {
 				continue
 			}
 
-			// Return the error if it is not a retryable error
+			// Return other errors.
 			return nil, err
 		}
 
-		// If the result is nil, return nil
+		// If the result is nil, return nil.
 		if result == nil {
 			return nil, nil
 		}
 
-		// Return the response from the successful query
+		// Return the response from the successful query.
 		return &result.Response, nil
 	}
 
-	// Return an error if the maximum retry limit is reached
+	// Return an error if the maximum retry limit is reached.
 	return nil, errors.New("reached max retry limit")
 }
 
 // QueryKey performs an ABCI query for a specific key in a store.
 func (c *Context) QueryKey(ctx context.Context, store string, data bytes.HexBytes, opts *options.QueryOptions) (*abcitypes.ResponseQuery, error) {
-	// Construct the path for the ABCI query
+	// Construct the path for querying a key in the store.
 	path := fmt.Sprintf("/store/%s/key", store)
 
-	// Call the generic ABCIQueryWithOptions method
+	// Delegate the ABCI query to ABCIQueryWithOptions.
 	return c.ABCIQueryWithOptions(ctx, path, data, opts)
 }
 
-// QuerySubspace performs an ABCI query for a specific subspace in a store.
+// QuerySubspace performs an ABCI query for a subspace in a store.
 func (c *Context) QuerySubspace(ctx context.Context, store string, data bytes.HexBytes, opts *options.QueryOptions) (*abcitypes.ResponseQuery, error) {
-	// Construct the path for the ABCI query
+	// Construct the path for querying a subspace in the store.
 	path := fmt.Sprintf("/store/%s/subspace", store)
 
-	// Call the generic ABCIQueryWithOptions method
+	// Delegate the ABCI query to ABCIQueryWithOptions.
 	return c.ABCIQueryWithOptions(ctx, path, data, opts)
 }
 
-// QueryGRPC performs a gRPC query with specified options.
-func (c *Context) QueryGRPC(ctx context.Context, method string, req codec.ProtoMarshaler, opts *options.QueryOptions) (*abcitypes.ResponseQuery, error) {
-	// Marshal the request into binary data
+// QueryGRPC performs a gRPC query using ABCI with configurable options.
+// It marshals the request, queries with ABCI, and unmarshals the response.
+func (c *Context) QueryGRPC(ctx context.Context, method string, req, resp codec.ProtoMarshaler, opts *options.QueryOptions) error {
+	// Marshal the gRPC request.
 	data, err := c.Marshal(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// Perform the ABCI query with the specified gRPC method, data, and options
-	return c.ABCIQueryWithOptions(ctx, method, data, opts)
+	// Perform ABCI query with options.
+	reply, err := c.ABCIQueryWithOptions(ctx, method, data, opts)
+	if err != nil {
+		return err
+	}
+
+	// Check for a nil reply.
+	if reply == nil {
+		return errors.New("nil reply")
+	}
+
+	// Unmarshal the ABCI response value into the provided response object.
+	if err := c.Unmarshal(reply.Value, resp); err != nil {
+		return err
+	}
+
+	// Return nil on success.
+	return nil
 }
