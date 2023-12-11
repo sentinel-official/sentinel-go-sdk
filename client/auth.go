@@ -55,7 +55,7 @@ func (c *Context) Accounts(ctx context.Context, opts *options.QueryOptions) (res
 	}
 
 	// Initialize a slice to store the accounts.
-	res = make([]authtypes.AccountI, 0, len(resp.Accounts))
+	res = make([]authtypes.AccountI, len(resp.Accounts))
 
 	// Unpack each Any type account from the response and add it to the result slice.
 	for i := 0; i < len(resp.Accounts); i++ {
