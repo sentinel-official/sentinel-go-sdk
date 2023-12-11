@@ -1,20 +1,24 @@
 package options
 
 import (
+	"errors"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/tendermint/tendermint/rpc/client"
+	"github.com/tendermint/tendermint/rpc/client/http"
+
+	"github.com/sentinel-official/sentinel-sdk/v1/utils"
 )
 
-// Default values for query options
+// Default values for query options.
 const (
 	DefaultQueryTimeout    = 15 * time.Second
 	DefaultQueryMaxRetries = 60
 	DefaultQueryWSEndpoint = "/websocket"
 )
 
-// QueryOptions represents options for making queries.
+// QueryOptions defines a set of options for making queries, including RPC and WebSocket configurations.
 type QueryOptions struct {
 	Height         int64         `json:"height,omitempty"`
 	MaxRetries     int           `json:"max_retries,omitempty"`
@@ -29,7 +33,7 @@ type QueryOptions struct {
 	WSEndpoint     string        `json:"ws_endpoint,omitempty"`
 }
 
-// Query initializes and returns a new QueryOptions with default values.
+// Query creates and returns a new QueryOptions instance with default values.
 func Query() *QueryOptions {
 	return &QueryOptions{
 		MaxRetries: DefaultQueryMaxRetries,
@@ -40,14 +44,31 @@ func Query() *QueryOptions {
 
 // ABCIQueryOptions returns an ABCIQueryOptions instance based on the current QueryOptions.
 func (q *QueryOptions) ABCIQueryOptions() client.ABCIQueryOptions {
+	if q == nil {
+		return client.ABCIQueryOptions{}
+	}
+
 	return client.ABCIQueryOptions{
 		Height: q.Height,
 		Prove:  q.Prove,
 	}
 }
 
+// Client creates and returns an HTTP client based on the current QueryOptions.
+func (q *QueryOptions) Client() (*http.HTTP, error) {
+	if q == nil {
+		return nil, errors.New("nil query options")
+	}
+
+	return http.NewWithTimeout(q.RPCAddr, q.WSEndpoint, utils.UIntSecondsFromDuration(q.Timeout))
+}
+
 // PageRequest returns a PageRequest instance based on the current QueryOptions.
 func (q *QueryOptions) PageRequest() *query.PageRequest {
+	if q == nil {
+		return nil
+	}
+
 	return &query.PageRequest{
 		Key:        q.PageKey,
 		Offset:     q.PageOffset,
@@ -57,67 +78,67 @@ func (q *QueryOptions) PageRequest() *query.PageRequest {
 	}
 }
 
-// WithHeight sets the block height for the query.
+// WithHeight sets the height in the current QueryOptions and returns the modified instance.
 func (q *QueryOptions) WithHeight(v int64) *QueryOptions {
 	q.Height = v
 	return q
 }
 
-// WithMaxRetries sets the maximum number of retries for the query.
+// WithMaxRetries sets the max retries in the current QueryOptions and returns the modified instance.
 func (q *QueryOptions) WithMaxRetries(v int) *QueryOptions {
 	q.MaxRetries = v
 	return q
 }
 
-// WithPageCountTotal sets whether to include the total number of pages in the query response.
+// WithPageCountTotal sets the page count total flag in the current QueryOptions and returns the modified instance.
 func (q *QueryOptions) WithPageCountTotal(v bool) *QueryOptions {
 	q.PageCountTotal = v
 	return q
 }
 
-// WithPageKey sets the page key for the query.
+// WithPageKey sets the page key in the current QueryOptions and returns the modified instance.
 func (q *QueryOptions) WithPageKey(v []byte) *QueryOptions {
 	q.PageKey = v
 	return q
 }
 
-// WithPageLimit sets the page limit for the query.
+// WithPageLimit sets the page limit in the current QueryOptions and returns the modified instance.
 func (q *QueryOptions) WithPageLimit(v uint64) *QueryOptions {
 	q.PageLimit = v
 	return q
 }
 
-// WithPageOffset sets the page offset for the query.
+// WithPageOffset sets the page offset in the current QueryOptions and returns the modified instance.
 func (q *QueryOptions) WithPageOffset(v uint64) *QueryOptions {
 	q.PageOffset = v
 	return q
 }
 
-// WithPageReverse sets whether to reverse the order of the pages in the query response.
+// WithPageReverse sets the page reverse flag in the current QueryOptions and returns the modified instance.
 func (q *QueryOptions) WithPageReverse(v bool) *QueryOptions {
 	q.PageReverse = v
 	return q
 }
 
-// WithProve sets whether to include proofs in the query response.
+// WithProve sets the prove flag in the current QueryOptions and returns the modified instance.
 func (q *QueryOptions) WithProve(v bool) *QueryOptions {
 	q.Prove = v
 	return q
 }
 
-// WithRPCAddr sets the RPC address for the query.
+// WithRPCAddr sets the RPC address in the current QueryOptions and returns the modified instance.
 func (q *QueryOptions) WithRPCAddr(v string) *QueryOptions {
 	q.RPCAddr = v
 	return q
 }
 
-// WithTimeout sets the timeout for the query.
+// WithTimeout sets the timeout in the current QueryOptions and returns the modified instance.
 func (q *QueryOptions) WithTimeout(v time.Duration) *QueryOptions {
 	q.Timeout = v
 	return q
 }
 
-// WithWSEndpoint sets the WebSocket endpoint for the query.
+// WithWSEndpoint sets the WebSocket endpoint in the current QueryOptions and returns the modified instance.
 func (q *QueryOptions) WithWSEndpoint(v string) *QueryOptions {
 	q.WSEndpoint = v
 	return q
