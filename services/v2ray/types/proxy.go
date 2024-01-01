@@ -28,6 +28,11 @@ func (p Proxy) String() string {
 	}
 }
 
+// Tag returns a human-readable string representation of the Proxy type.
+func (p Proxy) Tag() string {
+	return p.String()
+}
+
 // Account generates an Any message containing the proxy account information.
 func (p Proxy) Account(uid uuid.UUID) *anypb.Any {
 	switch p {
