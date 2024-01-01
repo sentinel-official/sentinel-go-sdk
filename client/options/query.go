@@ -8,7 +8,7 @@ import (
 	"github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/http"
 
-	"github.com/sentinel-official/sentinel-sdk/v1/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v1/utils"
 )
 
 // Default values for query options.

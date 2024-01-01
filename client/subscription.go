@@ -7,7 +7,7 @@ import (
 	hubtypes "github.com/sentinel-official/hub/types"
 	subscriptiontypes "github.com/sentinel-official/hub/x/subscription/types"
 
-	"github.com/sentinel-official/sentinel-sdk/v1/client/options"
+	"github.com/sentinel-official/sentinel-go-sdk/v1/client/options"
 )
 
 // Subscription queries and returns information about a specific subscription based on the provided subscription ID.

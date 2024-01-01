@@ -6,7 +6,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
-	"github.com/sentinel-official/sentinel-sdk/v1/client/options"
+	"github.com/sentinel-official/sentinel-go-sdk/v1/client/options"
 )
 
 // Account queries and returns an account using the given address and options.

@@ -6,7 +6,7 @@ import (
 	hubtypes "github.com/sentinel-official/hub/types"
 	plantypes "github.com/sentinel-official/hub/x/plan/types"
 
-	"github.com/sentinel-official/sentinel-sdk/v1/client/options"
+	"github.com/sentinel-official/sentinel-go-sdk/v1/client/options"
 )
 
 // Plan queries and returns information about a specific plan based on the provided plan ID.

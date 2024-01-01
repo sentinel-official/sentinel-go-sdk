@@ -10,7 +10,7 @@ import (
 	abcitypes "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/bytes"
 
-	"github.com/sentinel-official/sentinel-sdk/v1/client/options"
+	"github.com/sentinel-official/sentinel-go-sdk/v1/client/options"
 )
 
 // ABCIQueryWithOptions performs an ABCI query with configurable options.

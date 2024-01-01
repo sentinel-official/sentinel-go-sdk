@@ -7,7 +7,7 @@ import (
 	hubtypes "github.com/sentinel-official/hub/types"
 	sessiontypes "github.com/sentinel-official/hub/x/session/types"
 
-	"github.com/sentinel-official/sentinel-sdk/v1/client/options"
+	"github.com/sentinel-official/sentinel-go-sdk/v1/client/options"
 )
 
 // Session queries and returns information about a specific session based on the provided session ID.

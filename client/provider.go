@@ -6,7 +6,7 @@ import (
 	hubtypes "github.com/sentinel-official/hub/types"
 	providertypes "github.com/sentinel-official/hub/x/provider/types"
 
-	"github.com/sentinel-official/sentinel-sdk/v1/client/options"
+	"github.com/sentinel-official/sentinel-go-sdk/v1/client/options"
 )
 
 // Provider queries and returns information about a specific provider based on the provided provider address.

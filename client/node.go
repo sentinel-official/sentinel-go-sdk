@@ -6,7 +6,7 @@ import (
 	hubtypes "github.com/sentinel-official/hub/types"
 	nodetypes "github.com/sentinel-official/hub/x/node/types"
 
-	"github.com/sentinel-official/sentinel-sdk/v1/client/options"
+	"github.com/sentinel-official/sentinel-go-sdk/v1/client/options"
 )
 
 // Node queries and returns information about a specific node based on the provided node address.
