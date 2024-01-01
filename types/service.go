@@ -1,7 +1,7 @@
 package types
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"context"
 )
 
 // ServiceType represents different types of network services supported by the system.
@@ -42,9 +42,9 @@ func ServiceTypeFromString(s string) ServiceType {
 
 // PeerStatistic represents statistics for a peer's network activity.
 type PeerStatistic struct {
-	Download sdk.Int
-	Key      string
-	Upload   sdk.Int
+	Download int64  `json:"download"`
+	Key      string `json:"key"`
+	Upload   int64  `json:"upload"`
 }
 
 // ClientService defines the interface for client-side network services.
@@ -56,19 +56,19 @@ type ClientService interface {
 	PostUp() error
 	PreDown() error
 	PreUp() error
-	Statistics() (sdk.Int, sdk.Int, error)
+	Statistics() (int64, int64, error)
 	Up() error
 }
 
 // ServerService defines the interface for server-side network services.
 type ServerService interface {
-	AddPeer(data []byte) ([]byte, error)
-	HasPeer(data []byte) bool
+	AddPeer(context.Context, []byte) ([]byte, error)
+	HasPeer(context.Context, []byte) (bool, error)
 	Info() []byte
-	Init(homeDir string) error
+	Init() error
 	PeerCount() int
-	PeerStatistics() ([]*PeerStatistic, error)
-	RemovePeer(data []byte) error
+	PeerStatistics(context.Context) ([]*PeerStatistic, error)
+	RemovePeer(context.Context, []byte) error
 	Start() error
 	Stop() error
 	Type() ServiceType
