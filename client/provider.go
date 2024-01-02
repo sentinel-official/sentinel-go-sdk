@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	hubtypes "github.com/sentinel-official/hub/types"
+	sentinelhub "github.com/sentinel-official/hub/types"
 	providertypes "github.com/sentinel-official/hub/x/provider/types"
 
 	"github.com/sentinel-official/sentinel-go-sdk/v1/client/options"
@@ -12,7 +12,7 @@ import (
 // Provider queries and returns information about a specific provider based on the provided provider address.
 // It uses gRPC to send a request to the "/sentinel.provider.v2.QueryService/QueryProvider" endpoint.
 // The result is a pointer to providertypes.Provider and an error if the query fails.
-func (c *Context) Provider(ctx context.Context, provAddr hubtypes.ProvAddress, opts *options.QueryOptions) (res *providertypes.Provider, err error) {
+func (c *Context) Provider(ctx context.Context, provAddr sentinelhub.ProvAddress, opts *options.QueryOptions) (res *providertypes.Provider, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   providertypes.QueryProviderResponse
@@ -34,7 +34,7 @@ func (c *Context) Provider(ctx context.Context, provAddr hubtypes.ProvAddress, o
 // Providers queries and returns a list of providers based on the provided status and options.
 // It uses gRPC to send a request to the "/sentinel.provider.v2.QueryService/QueryProviders" endpoint.
 // The result is a slice of providertypes.Provider and an error if the query fails.
-func (c *Context) Providers(ctx context.Context, status hubtypes.Status, opts *options.QueryOptions) (res []providertypes.Provider, err error) {
+func (c *Context) Providers(ctx context.Context, status sentinelhub.Status, opts *options.QueryOptions) (res []providertypes.Provider, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   providertypes.QueryProvidersResponse

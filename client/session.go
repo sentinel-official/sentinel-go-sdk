@@ -3,8 +3,8 @@ package client
 import (
 	"context"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	hubtypes "github.com/sentinel-official/hub/types"
+	cosmossdk "github.com/cosmos/cosmos-sdk/types"
+	sentinelhub "github.com/sentinel-official/hub/types"
 	sessiontypes "github.com/sentinel-official/hub/x/session/types"
 
 	"github.com/sentinel-official/sentinel-go-sdk/v1/client/options"
@@ -58,7 +58,7 @@ func (c *Context) Sessions(ctx context.Context, opts *options.QueryOptions) (res
 // based on the provided account address and options.
 // It uses gRPC to send a request to the "/sentinel.session.v2.QueryService/QuerySessionsForAccount" endpoint.
 // The result is a slice of sessiontypes.Session and an error if the query fails.
-func (c *Context) SessionsForAccount(ctx context.Context, accAddr sdk.AccAddress, opts *options.QueryOptions) (res []sessiontypes.Session, err error) {
+func (c *Context) SessionsForAccount(ctx context.Context, accAddr cosmossdk.AccAddress, opts *options.QueryOptions) (res []sessiontypes.Session, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   sessiontypes.QuerySessionsForAccountResponse
@@ -82,7 +82,7 @@ func (c *Context) SessionsForAccount(ctx context.Context, accAddr sdk.AccAddress
 // based on the provided node address and options.
 // It uses gRPC to send a request to the "/sentinel.session.v2.QueryService/QuerySessionsForNode" endpoint.
 // The result is a slice of sessiontypes.Session and an error if the query fails.
-func (c *Context) SessionsForNode(ctx context.Context, nodeAddr hubtypes.NodeAddress, opts *options.QueryOptions) (res []sessiontypes.Session, err error) {
+func (c *Context) SessionsForNode(ctx context.Context, nodeAddr sentinelhub.NodeAddress, opts *options.QueryOptions) (res []sessiontypes.Session, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   sessiontypes.QuerySessionsForNodeResponse
@@ -130,7 +130,7 @@ func (c *Context) SessionsForSubscription(ctx context.Context, id uint64, opts *
 // based on the provided subscription ID, account address, and options.
 // It uses gRPC to send a request to the "/sentinel.session.v2.QueryService/QuerySessionsForAllocation" endpoint.
 // The result is a slice of sessiontypes.Session and an error if the query fails.
-func (c *Context) SessionsForSubscriptionAllocation(ctx context.Context, id uint64, accAddr sdk.AccAddress, opts *options.QueryOptions) (res []sessiontypes.Session, err error) {
+func (c *Context) SessionsForSubscriptionAllocation(ctx context.Context, id uint64, accAddr cosmossdk.AccAddress, opts *options.QueryOptions) (res []sessiontypes.Session, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   sessiontypes.QuerySessionsForAllocationResponse

@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	hubtypes "github.com/sentinel-official/hub/types"
+	sentinelhub "github.com/sentinel-official/hub/types"
 	nodetypes "github.com/sentinel-official/hub/x/node/types"
 
 	"github.com/sentinel-official/sentinel-go-sdk/v1/client/options"
@@ -12,7 +12,7 @@ import (
 // Node queries and returns information about a specific node based on the provided node address.
 // It uses gRPC to send a request to the "/sentinel.node.v2.QueryService/QueryNode" endpoint.
 // The result is a pointer to nodetypes.Node and an error if the query fails.
-func (c *Context) Node(ctx context.Context, nodeAddr hubtypes.NodeAddress, opts *options.QueryOptions) (res *nodetypes.Node, err error) {
+func (c *Context) Node(ctx context.Context, nodeAddr sentinelhub.NodeAddress, opts *options.QueryOptions) (res *nodetypes.Node, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   nodetypes.QueryNodeResponse
@@ -34,7 +34,7 @@ func (c *Context) Node(ctx context.Context, nodeAddr hubtypes.NodeAddress, opts 
 // Nodes queries and returns a list of nodes based on the provided status and options.
 // It uses gRPC to send a request to the "/sentinel.node.v2.QueryService/QueryNodes" endpoint.
 // The result is a slice of nodetypes.Node and an error if the query fails.
-func (c *Context) Nodes(ctx context.Context, status hubtypes.Status, opts *options.QueryOptions) (res []nodetypes.Node, err error) {
+func (c *Context) Nodes(ctx context.Context, status sentinelhub.Status, opts *options.QueryOptions) (res []nodetypes.Node, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   nodetypes.QueryNodesResponse
@@ -58,7 +58,7 @@ func (c *Context) Nodes(ctx context.Context, status hubtypes.Status, opts *optio
 // based on the provided plan ID, status, and options.
 // It uses gRPC to send a request to the "/sentinel.node.v2.QueryService/QueryNodesForPlan" endpoint.
 // The result is a slice of nodetypes.Node and an error if the query fails.
-func (c *Context) NodesForPlan(ctx context.Context, id uint64, status hubtypes.Status, opts *options.QueryOptions) (res []nodetypes.Node, err error) {
+func (c *Context) NodesForPlan(ctx context.Context, id uint64, status sentinelhub.Status, opts *options.QueryOptions) (res []nodetypes.Node, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   nodetypes.QueryNodesForPlanResponse

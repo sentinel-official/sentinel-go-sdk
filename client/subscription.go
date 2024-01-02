@@ -3,8 +3,8 @@ package client
 import (
 	"context"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	hubtypes "github.com/sentinel-official/hub/types"
+	cosmossdk "github.com/cosmos/cosmos-sdk/types"
+	sentinelhub "github.com/sentinel-official/hub/types"
 	subscriptiontypes "github.com/sentinel-official/hub/x/subscription/types"
 
 	"github.com/sentinel-official/sentinel-go-sdk/v1/client/options"
@@ -68,8 +68,8 @@ func (c *Context) Subscriptions(ctx context.Context, opts *options.QueryOptions)
 // SubscriptionsForAccount queries and returns a list of subscriptions associated with a specific account.
 // It uses gRPC to send a request to the "/sentinel.subscription.v2.QueryService/QuerySubscriptionsForAccount" endpoint.
 // The result is a slice of subscriptiontypes.Subscription and an error if the query fails.
-// The account is identified by the provided sdk.AccAddress.
-func (c *Context) SubscriptionsForAccount(ctx context.Context, accAddr sdk.AccAddress, opts *options.QueryOptions) (res []subscriptiontypes.Subscription, err error) {
+// The account is identified by the provided cosmossdk.AccAddress.
+func (c *Context) SubscriptionsForAccount(ctx context.Context, accAddr cosmossdk.AccAddress, opts *options.QueryOptions) (res []subscriptiontypes.Subscription, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   subscriptiontypes.QuerySubscriptionsForAccountResponse
@@ -99,8 +99,8 @@ func (c *Context) SubscriptionsForAccount(ctx context.Context, accAddr sdk.AccAd
 // SubscriptionsForNode queries and returns a list of subscriptions associated with a specific node.
 // It uses gRPC to send a request to the "/sentinel.subscription.v2.QueryService/QuerySubscriptionsForNode" endpoint.
 // The result is a slice of subscriptiontypes.Subscription and an error if the query fails.
-// The node is identified by the provided hubtypes.NodeAddress.
-func (c *Context) SubscriptionsForNode(ctx context.Context, nodeAddr hubtypes.NodeAddress, opts *options.QueryOptions) (res []subscriptiontypes.Subscription, err error) {
+// The node is identified by the provided sentinelhub.NodeAddress.
+func (c *Context) SubscriptionsForNode(ctx context.Context, nodeAddr sentinelhub.NodeAddress, opts *options.QueryOptions) (res []subscriptiontypes.Subscription, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   subscriptiontypes.QuerySubscriptionsForNodeResponse
@@ -161,7 +161,7 @@ func (c *Context) SubscriptionsForPlan(ctx context.Context, id uint64, opts *opt
 // SubscriptionAllocation queries and returns information about a specific allocation within a subscription.
 // It uses gRPC to send a request to the "/sentinel.subscription.v2.QueryService/QueryAllocation" endpoint.
 // The result is a pointer to subscriptiontypes.Allocation and an error if the query fails.
-func (c *Context) SubscriptionAllocation(ctx context.Context, id uint64, accAddr sdk.AccAddress, opts *options.QueryOptions) (res *subscriptiontypes.Allocation, err error) {
+func (c *Context) SubscriptionAllocation(ctx context.Context, id uint64, accAddr cosmossdk.AccAddress, opts *options.QueryOptions) (res *subscriptiontypes.Allocation, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   subscriptiontypes.QueryAllocationResponse
@@ -251,8 +251,8 @@ func (c *Context) SubscriptionPayouts(ctx context.Context, opts *options.QueryOp
 // SubscriptionPayoutsForAccount queries and returns a list of payouts associated with a specific account.
 // It uses gRPC to send a request to the "/sentinel.subscription.v2.QueryService/QueryPayoutsForAccount" endpoint.
 // The result is a slice of subscriptiontypes.Payout and an error if the query fails.
-// The account is identified by the provided sdk.AccAddress.
-func (c *Context) SubscriptionPayoutsForAccount(ctx context.Context, accAddr sdk.AccAddress, opts *options.QueryOptions) (res []subscriptiontypes.Payout, err error) {
+// The account is identified by the provided cosmossdk.AccAddress.
+func (c *Context) SubscriptionPayoutsForAccount(ctx context.Context, accAddr cosmossdk.AccAddress, opts *options.QueryOptions) (res []subscriptiontypes.Payout, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   subscriptiontypes.QueryPayoutsForAccountResponse
@@ -275,8 +275,8 @@ func (c *Context) SubscriptionPayoutsForAccount(ctx context.Context, accAddr sdk
 // SubscriptionPayoutsForNode queries and returns a list of payouts associated with a specific node.
 // It uses gRPC to send a request to the "/sentinel.subscription.v2.QueryService/QueryPayoutsForNode" endpoint.
 // The result is a slice of subscriptiontypes.Payout and an error if the query fails.
-// The node is identified by the provided hubtypes.NodeAddress.
-func (c *Context) SubscriptionPayoutsForNode(ctx context.Context, nodeAddr hubtypes.NodeAddress, opts *options.QueryOptions) (res []subscriptiontypes.Payout, err error) {
+// The node is identified by the provided sentinelhub.NodeAddress.
+func (c *Context) SubscriptionPayoutsForNode(ctx context.Context, nodeAddr sentinelhub.NodeAddress, opts *options.QueryOptions) (res []subscriptiontypes.Payout, err error) {
 	// Initialize variables for the query.
 	var (
 		resp   subscriptiontypes.QueryPayoutsForNodeResponse
