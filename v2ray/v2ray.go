@@ -18,8 +18,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/sentinel-official/sentinel-go-sdk/v1/services/v2ray/types"
 	sentinelsdk "github.com/sentinel-official/sentinel-go-sdk/v1/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v1/v2ray/types"
 )
 
 const (
