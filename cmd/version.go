@@ -11,7 +11,7 @@ func NewVersionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Print the application version",
-		Long: `Prints the current version of the application along with the Git commit hash 
+		Long: `Prints the current version of the application, including the Git commit and tag
 used to build it. Information is provided by the sentinel-go-sdk/version package.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Print the version information from the sdk.

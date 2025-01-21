@@ -5,22 +5,22 @@ import (
 )
 
 var (
-	GitCommit = ""
-	Version   = ""
+	Commit = ""
+	Tag    = ""
 )
 
 type Info struct {
-	GitCommit string `json:"git_commit"`
-	Version   string `json:"version"`
+	Commit string `json:"commit"`
+	Tag    string `json:"tag"`
 }
 
 func (i *Info) String() string {
-	return fmt.Sprintf("Git Commit: %s\nVersion: %s", i.GitCommit, i.Version)
+	return fmt.Sprintf("Commit: %s\nTag: %s", i.Commit, i.Tag)
 }
 
 func Get() *Info {
 	return &Info{
-		GitCommit: GitCommit,
-		Version:   Version,
+		Commit: Commit,
+		Tag:    Tag,
 	}
 }
