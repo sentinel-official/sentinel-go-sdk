@@ -32,7 +32,7 @@ func calculateFees(gasPrices cosmossdk.DecCoins, gasLimit uint64) cosmossdk.Coin
 
 // Simulate simulates the execution of a transaction before broadcasting it.
 // Takes transaction bytes as input and returns the simulation response or an error.
-func (c *Client) Simulate(ctx context.Context, buf []byte) (*tx.SimulateResponse, error) {
+func (c *BaseClient) Simulate(ctx context.Context, buf []byte) (*tx.SimulateResponse, error) {
 	var (
 		resp tx.SimulateResponse
 		req  = &tx.SimulateRequest{TxBytes: buf}
@@ -48,7 +48,7 @@ func (c *Client) Simulate(ctx context.Context, buf []byte) (*tx.SimulateResponse
 
 // gasSimulateTx calculates the gas usage of a transaction.
 // Returns the gas used and any error encountered.
-func (c *Client) gasSimulateTx(ctx context.Context, txb client.TxBuilder) (uint64, error) {
+func (c *BaseClient) gasSimulateTx(ctx context.Context, txb client.TxBuilder) (uint64, error) {
 	// Encode the transaction into bytes.
 	buf, err := c.txConfig.TxEncoder()(txb.GetTx())
 	if err != nil {
@@ -67,7 +67,7 @@ func (c *Client) gasSimulateTx(ctx context.Context, txb client.TxBuilder) (uint6
 
 // broadcastTxSync broadcasts a transaction synchronously.
 // Returns the broadcast result or an error if the operation fails.
-func (c *Client) broadcastTxSync(ctx context.Context, txb client.TxBuilder) (*core.ResultBroadcastTx, error) {
+func (c *BaseClient) broadcastTxSync(ctx context.Context, txb client.TxBuilder) (*core.ResultBroadcastTx, error) {
 	// Encode the transaction into bytes.
 	buf, err := c.txConfig.TxEncoder()(txb.GetTx())
 	if err != nil {
@@ -91,7 +91,7 @@ func (c *Client) broadcastTxSync(ctx context.Context, txb client.TxBuilder) (*co
 
 // signTx signs a transaction using the provided key and account information.
 // Returns an error if the signing process fails.
-func (c *Client) signTx(txb client.TxBuilder, key *keyring.Record, account auth.AccountI) error {
+func (c *BaseClient) signTx(txb client.TxBuilder, key *keyring.Record, account auth.AccountI) error {
 	// Prepare the single signature data.
 	singleSignatureData := txsigning.SingleSignatureData{
 		SignMode:  txsigning.SignMode_SIGN_MODE_DIRECT,
@@ -149,7 +149,7 @@ func (c *Client) signTx(txb client.TxBuilder, key *keyring.Record, account auth.
 
 // prepareTx prepares a transaction for broadcasting by setting fees, gas, and other parameters.
 // Returns the transaction builder and any error encountered.
-func (c *Client) prepareTx(ctx context.Context, key *keyring.Record, account auth.AccountI, msgs []cosmossdk.Msg) (client.TxBuilder, error) {
+func (c *BaseClient) prepareTx(ctx context.Context, key *keyring.Record, account auth.AccountI, msgs []cosmossdk.Msg) (client.TxBuilder, error) {
 	// Create a new transaction builder.
 	txb := c.txConfig.NewTxBuilder()
 	if err := txb.SetMsgs(msgs...); err != nil {
@@ -205,7 +205,7 @@ func (c *Client) prepareTx(ctx context.Context, key *keyring.Record, account aut
 }
 
 // BroadcastTx broadcasts a signed transaction and returns the broadcast result or an error.
-func (c *Client) BroadcastTx(ctx context.Context, msgs []cosmossdk.Msg) (*core.ResultBroadcastTx, error) {
+func (c *BaseClient) BroadcastTx(ctx context.Context, msgs []cosmossdk.Msg) (*core.ResultBroadcastTx, error) {
 	// Retrieve the signing key.
 	key, err := c.Key(c.txFromName)
 	if err != nil {
@@ -246,7 +246,7 @@ func (c *Client) BroadcastTx(ctx context.Context, msgs []cosmossdk.Msg) (*core.R
 
 // Tx retrieves a transaction from the blockchain using its hash.
 // Returns the transaction result or an error.
-func (c *Client) Tx(ctx context.Context, hash []byte) (*core.ResultTx, error) {
+func (c *BaseClient) Tx(ctx context.Context, hash []byte) (*core.ResultTx, error) {
 	// Get the HTTP client for querying the blockchain.
 	http, err := c.HTTP()
 	if err != nil {

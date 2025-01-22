@@ -21,7 +21,7 @@ const (
 
 // Subscription retrieves details of a specific subscription by its ID.
 // Returns the subscription details and any error encountered.
-func (c *Client) Subscription(ctx context.Context, id uint64) (res *v3.Subscription, err error) {
+func (c *BaseClient) Subscription(ctx context.Context, id uint64) (res *v3.Subscription, err error) {
 	var (
 		resp v3.QuerySubscriptionResponse
 		req  = &v3.QuerySubscriptionRequest{Id: id}
@@ -37,7 +37,7 @@ func (c *Client) Subscription(ctx context.Context, id uint64) (res *v3.Subscript
 
 // Subscriptions retrieves a paginated list of all subscriptions.
 // Returns the subscriptions, pagination details, and any error encountered.
-func (c *Client) Subscriptions(ctx context.Context, pageReq *query.PageRequest) (res []v3.Subscription, pageRes *query.PageResponse, err error) {
+func (c *BaseClient) Subscriptions(ctx context.Context, pageReq *query.PageRequest) (res []v3.Subscription, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QuerySubscriptionsResponse
 		req  = &v3.QuerySubscriptionsRequest{Pagination: pageReq}
@@ -53,7 +53,7 @@ func (c *Client) Subscriptions(ctx context.Context, pageReq *query.PageRequest) 
 
 // SubscriptionsForAccount retrieves subscriptions associated with a specific account.
 // Returns the subscriptions, pagination details, and any error encountered.
-func (c *Client) SubscriptionsForAccount(ctx context.Context, accAddr types.AccAddress, pageReq *query.PageRequest) (res []v3.Subscription, pageRes *query.PageResponse, err error) {
+func (c *BaseClient) SubscriptionsForAccount(ctx context.Context, accAddr types.AccAddress, pageReq *query.PageRequest) (res []v3.Subscription, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QuerySubscriptionsForAccountResponse
 		req  = &v3.QuerySubscriptionsForAccountRequest{
@@ -72,7 +72,7 @@ func (c *Client) SubscriptionsForAccount(ctx context.Context, accAddr types.AccA
 
 // SubscriptionsForPlan retrieves subscriptions associated with a specific plan.
 // Returns the subscriptions, pagination details, and any error encountered.
-func (c *Client) SubscriptionsForPlan(ctx context.Context, id uint64, pageReq *query.PageRequest) (res []v3.Subscription, pageRes *query.PageResponse, err error) {
+func (c *BaseClient) SubscriptionsForPlan(ctx context.Context, id uint64, pageReq *query.PageRequest) (res []v3.Subscription, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QuerySubscriptionsForPlanResponse
 		req  = &v3.QuerySubscriptionsForPlanRequest{
@@ -91,7 +91,7 @@ func (c *Client) SubscriptionsForPlan(ctx context.Context, id uint64, pageReq *q
 
 // SubscriptionAllocation retrieves details of a specific allocation within a subscription.
 // Returns the allocation details and any error encountered.
-func (c *Client) SubscriptionAllocation(ctx context.Context, id uint64, accAddr types.AccAddress) (res *v2.Allocation, err error) {
+func (c *BaseClient) SubscriptionAllocation(ctx context.Context, id uint64, accAddr types.AccAddress) (res *v2.Allocation, err error) {
 	var (
 		resp v2.QueryAllocationResponse
 		req  = &v2.QueryAllocationRequest{
@@ -110,7 +110,7 @@ func (c *Client) SubscriptionAllocation(ctx context.Context, id uint64, accAddr 
 
 // SubscriptionAllocations retrieves a paginated list of allocations within a specific subscription.
 // Returns the allocations, pagination details, and any error encountered.
-func (c *Client) SubscriptionAllocations(ctx context.Context, id uint64, pageReq *query.PageRequest) (res []v2.Allocation, pageRes *query.PageResponse, err error) {
+func (c *BaseClient) SubscriptionAllocations(ctx context.Context, id uint64, pageReq *query.PageRequest) (res []v2.Allocation, pageRes *query.PageResponse, err error) {
 	var (
 		resp v2.QueryAllocationsResponse
 		req  = &v2.QueryAllocationsRequest{

@@ -17,7 +17,7 @@ import (
 
 // KeysCmd returns a new Cobra command for key management sub-commands.
 func KeysCmd() *cobra.Command {
-	c := client.New()
+	c := client.NewBaseClient()
 	rootCmd := &cobra.Command{
 		Use:          "keys",
 		Short:        "Sub-commands for managing keys",
@@ -61,7 +61,7 @@ func KeysCmd() *cobra.Command {
 }
 
 // keysAddCmd creates a new key with the specified name, mnemonic, and bip39 passphrase.
-func keysAddCmd(c *client.Client) *cobra.Command {
+func keysAddCmd(c *client.BaseClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [name]",
 		Short: "Add a new key with the specified name and optional mnemonic",
@@ -142,7 +142,7 @@ func keysAddCmd(c *client.Client) *cobra.Command {
 }
 
 // keysDeleteCmd removes the key with the specified name.
-func keysDeleteCmd(c *client.Client) *cobra.Command {
+func keysDeleteCmd(c *client.BaseClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete [name]",
 		Short: "Delete the key with the specified name",
@@ -176,7 +176,7 @@ func keysDeleteCmd(c *client.Client) *cobra.Command {
 }
 
 // keysListCmd lists all the available keys.
-func keysListCmd(c *client.Client) *cobra.Command {
+func keysListCmd(c *client.BaseClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all available keys",
@@ -209,7 +209,7 @@ func keysListCmd(c *client.Client) *cobra.Command {
 }
 
 // keysShowCmd displays details of the key with the specified name.
-func keysShowCmd(c *client.Client) *cobra.Command {
+func keysShowCmd(c *client.BaseClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show [name]",
 		Short: "Show details of the key with the specified name",

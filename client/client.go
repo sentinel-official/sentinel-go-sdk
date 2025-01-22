@@ -7,17 +7,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/cosmos/cosmos-sdk/types"
+	cosmossdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/sentinel-official/hub/v12/types"
 )
 
-// contextKey is a custom type used as a key to store the Client struct in a context.
-type contextKey byte
-
-// ContextKey is the constant key value used for storing and retrieving the Client struct from a context.
-const ContextKey contextKey = 0
-
-// Client contains all necessary components for transaction handling, query management, and configuration settings.
-type Client struct {
+// BaseClient contains all necessary components for transaction handling, query management, and configuration settings.
+type BaseClient struct {
 	chainID              string                    // The chain ID used to identify the blockchain network
 	keyring              keyring.Keyring           // Keyring for managing private keys and signatures
 	protoCodec           codec.ProtoCodecMarshaler // Used for marshaling and unmarshaling protobuf data
@@ -28,133 +23,159 @@ type Client struct {
 	rpcAddr              string                    // RPC server address
 	rpcTimeout           time.Duration             // RPC timeout duration
 	txConfig             client.TxConfig           // Configuration related to transactions (e.g., signing modes)
-	txFeeGranterAddr     types.AccAddress          // Address that grants transaction fees
-	txFees               types.Coins               // Fees for transactions
+	txFeeGranterAddr     cosmossdk.AccAddress      // Address that grants transaction fees
+	txFees               cosmossdk.Coins           // Fees for transactions
 	txFromName           string                    // Sender name for transactions
 	txGasAdjustment      float64                   // Adjustment factor for gas estimation
-	txGasPrices          types.DecCoins            // Gas price settings for transactions
+	txGasPrices          cosmossdk.DecCoins        // Gas price settings for transactions
 	txGas                uint64                    // Gas limit for transactions
 	txMemo               string                    // Memo attached to transactions
 	txSimulateAndExecute bool                      // Flag for simulating and executing transactions
 	txTimeoutHeight      uint64                    // Transaction timeout height
 }
 
-// New initializes a new Client instance.
-func New() *Client {
-	return &Client{}
+// NewBaseClient initializes a new BaseClient instance.
+func NewBaseClient() *BaseClient {
+	return &BaseClient{}
 }
 
-// WithChainID sets the blockchain chain ID and returns the updated Client.
-func (c *Client) WithChainID(chainID string) *Client {
+// WithChainID sets the blockchain chain ID and returns the updated BaseClient.
+func (c *BaseClient) WithChainID(chainID string) *BaseClient {
 	c.chainID = chainID
 	return c
 }
 
-// WithKeyring assigns the keyring to the Client and returns the updated Client.
-func (c *Client) WithKeyring(keyring keyring.Keyring) *Client {
+// WithKeyring assigns the keyring to the BaseClient and returns the updated BaseClient.
+func (c *BaseClient) WithKeyring(keyring keyring.Keyring) *BaseClient {
 	c.keyring = keyring
 	return c
 }
 
-// WithProtoCodec sets the protobuf codec and returns the updated Client.
-func (c *Client) WithProtoCodec(protoCodec codec.ProtoCodecMarshaler) *Client {
+// WithProtoCodec sets the protobuf codec and returns the updated BaseClient.
+func (c *BaseClient) WithProtoCodec(protoCodec codec.ProtoCodecMarshaler) *BaseClient {
 	c.protoCodec = protoCodec
 	return c
 }
 
-// WithQueryProve sets the prove flag for queries and returns the updated Client.
-func (c *Client) WithQueryProve(prove bool) *Client {
+// WithQueryProve sets the prove flag for queries and returns the updated BaseClient.
+func (c *BaseClient) WithQueryProve(prove bool) *BaseClient {
 	c.queryProve = prove
 	return c
 }
 
-// WithQueryRetries sets the number of retries for queries and returns the updated Client.
-func (c *Client) WithQueryRetries(retries uint) *Client {
+// WithQueryRetries sets the number of retries for queries and returns the updated BaseClient.
+func (c *BaseClient) WithQueryRetries(retries uint) *BaseClient {
 	c.queryRetries = retries
 	return c
 }
 
-// WithQueryRetryDelay sets the retry delay duration for queries and returns the updated Client.
-func (c *Client) WithQueryRetryDelay(delay time.Duration) *Client {
+// WithQueryRetryDelay sets the retry delay duration for queries and returns the updated BaseClient.
+func (c *BaseClient) WithQueryRetryDelay(delay time.Duration) *BaseClient {
 	c.queryRetryDelay = delay
 	return c
 }
 
-// WithRPCAddr sets the RPC server address and returns the updated Client.
-func (c *Client) WithRPCAddr(rpcAddr string) *Client {
+// WithRPCAddr sets the RPC server address and returns the updated BaseClient.
+func (c *BaseClient) WithRPCAddr(rpcAddr string) *BaseClient {
 	c.rpcAddr = rpcAddr
 	return c
 }
 
-// WithRPCTimeout sets the RPC timeout duration and returns the updated Client.
-func (c *Client) WithRPCTimeout(timeout time.Duration) *Client {
+// WithRPCTimeout sets the RPC timeout duration and returns the updated BaseClient.
+func (c *BaseClient) WithRPCTimeout(timeout time.Duration) *BaseClient {
 	c.rpcTimeout = timeout
 	return c
 }
 
-// WithTxConfig sets the transaction configuration and returns the updated Client.
-func (c *Client) WithTxConfig(txConfig client.TxConfig) *Client {
+// WithTxConfig sets the transaction configuration and returns the updated BaseClient.
+func (c *BaseClient) WithTxConfig(txConfig client.TxConfig) *BaseClient {
 	c.txConfig = txConfig
 	return c
 }
 
-// WithTxFeeGranterAddr sets the transaction fee granter address and returns the updated Client.
-func (c *Client) WithTxFeeGranterAddr(addr types.AccAddress) *Client {
+// WithTxFeeGranterAddr sets the transaction fee granter address and returns the updated BaseClient.
+func (c *BaseClient) WithTxFeeGranterAddr(addr cosmossdk.AccAddress) *BaseClient {
 	c.txFeeGranterAddr = addr
 	return c
 }
 
-// WithTxFees assigns transaction fees and returns the updated Client.
-func (c *Client) WithTxFees(fees types.Coins) *Client {
+// WithTxFees assigns transaction fees and returns the updated BaseClient.
+func (c *BaseClient) WithTxFees(fees cosmossdk.Coins) *BaseClient {
 	c.txFees = fees
 	return c
 }
 
-// WithTxFromName sets the "from" name for transactions and returns the updated Client.
-func (c *Client) WithTxFromName(name string) *Client {
+// WithTxFromName sets the "from" name for transactions and returns the updated BaseClient.
+func (c *BaseClient) WithTxFromName(name string) *BaseClient {
 	c.txFromName = name
 	return c
 }
 
-// WithTxGasAdjustment sets the gas adjustment factor for transactions and returns the updated Client.
-func (c *Client) WithTxGasAdjustment(adjustment float64) *Client {
+// WithTxGasAdjustment sets the gas adjustment factor for transactions and returns the updated BaseClient.
+func (c *BaseClient) WithTxGasAdjustment(adjustment float64) *BaseClient {
 	c.txGasAdjustment = adjustment
 	return c
 }
 
-// WithTxGasPrices sets the gas prices for transactions and returns the updated Client.
-func (c *Client) WithTxGasPrices(prices types.DecCoins) *Client {
+// WithTxGasPrices sets the gas prices for transactions and returns the updated BaseClient.
+func (c *BaseClient) WithTxGasPrices(prices cosmossdk.DecCoins) *BaseClient {
 	c.txGasPrices = prices
 	return c
 }
 
-// WithTxGas sets the gas limit for transactions and returns the updated Client.
-func (c *Client) WithTxGas(gas uint64) *Client {
+// WithTxGas sets the gas limit for transactions and returns the updated BaseClient.
+func (c *BaseClient) WithTxGas(gas uint64) *BaseClient {
 	c.txGas = gas
 	return c
 }
 
-// WithTxMemo sets the memo for transactions and returns the updated Client.
-func (c *Client) WithTxMemo(memo string) *Client {
+// WithTxMemo sets the memo for transactions and returns the updated BaseClient.
+func (c *BaseClient) WithTxMemo(memo string) *BaseClient {
 	c.txMemo = memo
 	return c
 }
 
-// WithTxSimulateAndExecute sets the simulate and execute flag and returns the updated Client.
-func (c *Client) WithTxSimulateAndExecute(simulate bool) *Client {
+// WithTxSimulateAndExecute sets the simulate and execute flag and returns the updated BaseClient.
+func (c *BaseClient) WithTxSimulateAndExecute(simulate bool) *BaseClient {
 	c.txSimulateAndExecute = simulate
 	return c
 }
 
-// WithTxTimeoutHeight sets the timeout height for transactions and returns the updated Client.
-func (c *Client) WithTxTimeoutHeight(height uint64) *Client {
+// WithTxTimeoutHeight sets the timeout height for transactions and returns the updated BaseClient.
+func (c *BaseClient) WithTxTimeoutHeight(height uint64) *BaseClient {
 	c.txTimeoutHeight = height
 	return c
 }
 
 // HTTP creates an HTTP client for the given RPC address and timeout configuration.
 // Returns the HTTP client or an error if initialization fails.
-func (c *Client) HTTP() (*http.HTTP, error) {
+func (c *BaseClient) HTTP() (*http.HTTP, error) {
 	timeout := uint(c.rpcTimeout / time.Second)
 	return http.NewWithTimeout(c.rpcAddr, "/websocket", timeout)
+}
+
+// NodeClient is a struct for interacting with nodes.
+type NodeClient struct {
+	*BaseClient
+	addr    types.NodeAddress
+	timeout time.Duration
+}
+
+// NewNodeClient creates a new instance of NodeClient.
+func NewNodeClient(base *BaseClient) *NodeClient {
+	return &NodeClient{
+		BaseClient: base,
+	}
+}
+
+// WithAddr sets the address of the NodeClient and returns the updated instance.
+func (c *NodeClient) WithAddr(addr types.NodeAddress) *NodeClient {
+	c.addr = addr
+	return c
+}
+
+// WithTimeout sets the timeout of the NodeClient and returns the updated instance.
+func (c *NodeClient) WithTimeout(timeout time.Duration) *NodeClient {
+	c.timeout = timeout
+	return c
 }

@@ -16,7 +16,7 @@ const (
 
 // Account retrieves an account by its address using a gRPC query.
 // Returns the account interface and any potential error encountered.
-func (c *Client) Account(ctx context.Context, accAddr cosmossdk.AccAddress) (res auth.AccountI, err error) {
+func (c *BaseClient) Account(ctx context.Context, accAddr cosmossdk.AccAddress) (res auth.AccountI, err error) {
 	var (
 		resp auth.QueryAccountResponse
 		req  = &auth.QueryAccountRequest{Address: accAddr.String()}
@@ -37,7 +37,7 @@ func (c *Client) Account(ctx context.Context, accAddr cosmossdk.AccAddress) (res
 
 // Accounts retrieves a list of accounts with pagination support using a gRPC query.
 // Returns a slice of account interfaces, pagination details, and any potential error.
-func (c *Client) Accounts(ctx context.Context, pageReq *query.PageRequest) (res []auth.AccountI, pageRes *query.PageResponse, err error) {
+func (c *BaseClient) Accounts(ctx context.Context, pageReq *query.PageRequest) (res []auth.AccountI, pageRes *query.PageResponse, err error) {
 	var (
 		resp auth.QueryAccountsResponse
 		req  = &auth.QueryAccountsRequest{Pagination: pageReq}

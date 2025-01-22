@@ -18,7 +18,7 @@ const (
 
 // Lease retrieves details of a specific lease by ID.
 // Returns the lease information and any error encountered.
-func (c *Client) Lease(ctx context.Context, id uint64) (res *v1.Lease, err error) {
+func (c *BaseClient) Lease(ctx context.Context, id uint64) (res *v1.Lease, err error) {
 	var (
 		resp v1.QueryLeaseResponse
 		req  = &v1.QueryLeaseRequest{Id: id}
@@ -34,7 +34,7 @@ func (c *Client) Lease(ctx context.Context, id uint64) (res *v1.Lease, err error
 
 // Leases retrieves a paginated list of all leases.
 // Returns the leases, pagination details, and any error encountered.
-func (c *Client) Leases(ctx context.Context, pageReq *query.PageRequest) (res []v1.Lease, pageRes *query.PageResponse, err error) {
+func (c *BaseClient) Leases(ctx context.Context, pageReq *query.PageRequest) (res []v1.Lease, pageRes *query.PageResponse, err error) {
 	var (
 		resp v1.QueryLeasesResponse
 		req  = &v1.QueryLeasesRequest{Pagination: pageReq}
@@ -50,7 +50,7 @@ func (c *Client) Leases(ctx context.Context, pageReq *query.PageRequest) (res []
 
 // LeasesForNode retrieves leases associated with a specific node address.
 // Returns the leases, pagination details, and any error encountered.
-func (c *Client) LeasesForNode(ctx context.Context, nodeAddr types.NodeAddress, pageReq *query.PageRequest) (res []v1.Lease, pageRes *query.PageResponse, err error) {
+func (c *BaseClient) LeasesForNode(ctx context.Context, nodeAddr types.NodeAddress, pageReq *query.PageRequest) (res []v1.Lease, pageRes *query.PageResponse, err error) {
 	var (
 		resp v1.QueryLeasesForNodeResponse
 		req  = &v1.QueryLeasesForNodeRequest{
@@ -69,7 +69,7 @@ func (c *Client) LeasesForNode(ctx context.Context, nodeAddr types.NodeAddress, 
 
 // LeasesForProvider retrieves leases associated with a specific provider address.
 // Returns the leases, pagination details, and any error encountered.
-func (c *Client) LeasesForProvider(ctx context.Context, provAddr types.ProvAddress, pageReq *query.PageRequest) (res []v1.Lease, pageRes *query.PageResponse, err error) {
+func (c *BaseClient) LeasesForProvider(ctx context.Context, provAddr types.ProvAddress, pageReq *query.PageRequest) (res []v1.Lease, pageRes *query.PageResponse, err error) {
 	var (
 		resp v1.QueryLeasesForProviderResponse
 		req  = &v1.QueryLeasesForProviderRequest{

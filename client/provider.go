@@ -17,7 +17,7 @@ const (
 
 // Provider retrieves details of a specific provider by its address.
 // Returns the provider details and any error encountered.
-func (c *Client) Provider(ctx context.Context, provAddr types.ProvAddress) (res *v2.Provider, err error) {
+func (c *BaseClient) Provider(ctx context.Context, provAddr types.ProvAddress) (res *v2.Provider, err error) {
 	var (
 		resp v2.QueryProviderResponse
 		req  = &v2.QueryProviderRequest{Address: provAddr.String()}
@@ -33,7 +33,7 @@ func (c *Client) Provider(ctx context.Context, provAddr types.ProvAddress) (res 
 
 // Providers retrieves a paginated list of providers filtered by their status.
 // Returns the providers, pagination details, and any error encountered.
-func (c *Client) Providers(ctx context.Context, status v1.Status, pageReq *query.PageRequest) (res []v2.Provider, pageRes *query.PageResponse, err error) {
+func (c *BaseClient) Providers(ctx context.Context, status v1.Status, pageReq *query.PageRequest) (res []v2.Provider, pageRes *query.PageResponse, err error) {
 	var (
 		resp v2.QueryProvidersResponse
 		req  = &v2.QueryProvidersRequest{
