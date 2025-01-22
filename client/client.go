@@ -39,6 +39,11 @@ func NewBaseClient() *BaseClient {
 	return &BaseClient{}
 }
 
+// TxFromName returns the transaction sender name set in the base client.
+func (c *BaseClient) TxFromName() string {
+	return c.txFromName
+}
+
 // WithChainID sets the blockchain chain ID and returns the updated BaseClient.
 func (c *BaseClient) WithChainID(chainID string) *BaseClient {
 	c.chainID = chainID

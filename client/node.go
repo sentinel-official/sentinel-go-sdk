@@ -113,6 +113,9 @@ func (c *NodeClient) do(ctx context.Context, method, url string, reqBody, result
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// Set headers
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+
 	// Perform the HTTP request.
 	resp, err := client.Do(req)
 	if err != nil {
@@ -166,22 +169,22 @@ func (c *NodeClient) getURL(ctx context.Context, pathSuffix string) (string, err
 	return path, nil
 }
 
-// GetInfo retrieves information about a specific node.
-func (c *NodeClient) GetInfo(ctx context.Context, result interface{}) error {
+// AddSession adds a session to a node.
+func (c *NodeClient) AddSession(ctx context.Context, body, result interface{}) error {
+	path, err := c.getURL(ctx, "sessions")
+	if err != nil {
+		return fmt.Errorf("failed to get url: %w", err)
+	}
+
+	return c.do(ctx, http.MethodPost, path, body, result)
+}
+
+// Info retrieves information about a specific node.
+func (c *NodeClient) Info(ctx context.Context, result interface{}) error {
 	path, err := c.getURL(ctx, "")
 	if err != nil {
 		return fmt.Errorf("failed to get url: %w", err)
 	}
 
 	return c.do(ctx, http.MethodGet, path, nil, result)
-}
-
-// AddSession adds a session to a node.
-func (c *NodeClient) AddSession(ctx context.Context, id uint64, body, result interface{}) error {
-	path, err := c.getURL(ctx, fmt.Sprintf("sessions/%d/keys", id))
-	if err != nil {
-		return fmt.Errorf("failed to get url: %w", err)
-	}
-
-	return c.do(ctx, http.MethodPost, path, body, result)
 }
