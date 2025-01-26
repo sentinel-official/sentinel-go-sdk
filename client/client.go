@@ -8,7 +8,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/sentinel-official/hub/v12/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/tx"
+	sentinelhub "github.com/sentinel-official/hub/v12/types"
+
+	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
 
 // BaseClient contains all necessary components for transaction handling, query management, and configuration settings.
@@ -36,7 +39,16 @@ type BaseClient struct {
 
 // NewBaseClient initializes a new BaseClient instance.
 func NewBaseClient() *BaseClient {
-	return &BaseClient{}
+	// Create a codec for encoding/decoding protocol buffer messages.
+	protoCodec := types.NewProtoCodec()
+	txConfig := tx.NewTxConfig(protoCodec, tx.DefaultSignModes)
+
+	// Initialize BaseClient with default values and configurations.
+	bc := &BaseClient{}
+	bc.WithProtoCodec(protoCodec)
+	bc.WithTxConfig(txConfig)
+
+	return bc
 }
 
 // TxFromName returns the transaction sender name set in the base client.
@@ -162,7 +174,7 @@ func (c *BaseClient) HTTP() (*http.HTTP, error) {
 // NodeClient is a struct for interacting with nodes.
 type NodeClient struct {
 	*BaseClient
-	addr    types.NodeAddress
+	addr    sentinelhub.NodeAddress
 	timeout time.Duration
 }
 
@@ -174,7 +186,7 @@ func NewNodeClient(base *BaseClient) *NodeClient {
 }
 
 // WithAddr sets the address of the NodeClient and returns the updated instance.
-func (c *NodeClient) WithAddr(addr types.NodeAddress) *NodeClient {
+func (c *NodeClient) WithAddr(addr sentinelhub.NodeAddress) *NodeClient {
 	c.addr = addr
 	return c
 }
