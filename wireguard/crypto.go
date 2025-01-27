@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -31,6 +32,27 @@ func (k *Key) Public() *Key {
 	var pub [KeyLength]byte
 	curve25519.ScalarBaseMult(&pub, (*[KeyLength]byte)(k))
 	return (*Key)(&pub)
+}
+
+// MarshalJSON encodes the Key as a base64 string.
+func (k *Key) MarshalJSON() ([]byte, error) {
+	return json.Marshal(k.String())
+}
+
+// UnmarshalJSON decodes a base64 string into a Key.
+func (k *Key) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return fmt.Errorf("failed to unmarshal key: %w", err)
+	}
+
+	key, err := NewKeyFromString(s)
+	if err != nil {
+		return fmt.Errorf("failed to decode key: %w", err)
+	}
+
+	*k = *key
+	return nil
 }
 
 // NewPresharedKey generates a new random 32-byte key.
