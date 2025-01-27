@@ -40,8 +40,8 @@ func (c *ClientConfig) WriteToFile(name string) error {
 		return fmt.Errorf("failed to execute template to file: %w", err)
 	}
 
-	// Change file permissions to read-only.
-	if err := os.Chmod(name, 0400); err != nil {
+	// Change file permissions to read and write for the owner only.
+	if err := os.Chmod(name, 0600); err != nil {
 		return fmt.Errorf("failed to change file permissions: %w", err)
 	}
 
@@ -164,8 +164,8 @@ func (c *ServerConfig) WriteToFile(name string) error {
 		return fmt.Errorf("failed to execute template to file: %w", err)
 	}
 
-	// Change file permissions to read-only.
-	if err := os.Chmod(name, 0400); err != nil {
+	// Change file permissions to read and write for the owner only.
+	if err := os.Chmod(name, 0600); err != nil {
 		return fmt.Errorf("failed to change file permissions: %w", err)
 	}
 
