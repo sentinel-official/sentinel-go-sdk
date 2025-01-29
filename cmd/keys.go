@@ -12,6 +12,7 @@ import (
 	"github.com/sentinel-official/sentinel-go-sdk/client"
 	"github.com/sentinel-official/sentinel-go-sdk/client/input"
 	"github.com/sentinel-official/sentinel-go-sdk/config"
+	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // NewKeysCmd creates and returns a new Cobra command for key management sub-commands.
@@ -76,7 +77,7 @@ func keysAddCmd(c *client.BaseClient) *cobra.Command {
 			// Prompt for mnemonic
 			mnemonic, err := input.GetString("Enter your bip39 mnemonic, or hit enter to generate one:\n", reader)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get input: %w", err)
 			}
 
 			// Validate the provided mnemonic
@@ -87,14 +88,14 @@ func keysAddCmd(c *client.BaseClient) *cobra.Command {
 			// Prompt for bip39 passphrase
 			bip39Pass, err := input.GetPassword("Enter your bip39 passphrase, or hit enter to use the default:", reader)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get input: %w", err)
 			}
 
 			// Confirm passphrase if provided
 			if bip39Pass != "" {
 				confirmPass, err := input.GetPassword("Confirm bip39 passphrase:", reader)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to get input: %w", err)
 				}
 
 				if bip39Pass != confirmPass {
@@ -105,24 +106,31 @@ func keysAddCmd(c *client.BaseClient) *cobra.Command {
 			// Create the key with the provided details
 			newMnemonic, key, err := c.CreateKey(args[0], mnemonic, bip39Pass, coinType, account, index)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create new key: %w", err)
 			}
 
 			// Format the output for the created key
 			output, err := keyring.MkAccKeyOutput(key)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create key output: %w", err)
 			}
 
 			// Display a mnemonic warning if a new mnemonic is generated
 			if newMnemonic != mnemonic {
-				writeMnemonicWarningToCmd(cmd)
+				cmd.Printf("")
+				cmd.Printf("####################################################################")
+				cmd.Printf("WARNING: YOU MUST SAVE THE FOLLOWING MNEMONIC SECURELY!")
+				cmd.Printf("THIS MNEMONIC IS REQUIRED TO RECOVER YOUR KEY.")
+				cmd.Printf("IF YOU LOSE THIS MNEMONIC, YOU WILL NOT BE ABLE TO RECOVER YOUR KEY.")
+				cmd.Printf("####################################################################")
+				cmd.Printf("")
+
 				output.Mnemonic = newMnemonic
 			}
 
 			// Output the key details
-			if err := writeOutputToCmd(cmd, output, outputFormat); err != nil {
-				return err
+			if err := utils.Writeln(cmd.OutOrStdout(), output, outputFormat); err != nil {
+				return fmt.Errorf("failed to write to output: %w", err)
 			}
 
 			cmd.Println("Key created successfully")
@@ -148,7 +156,7 @@ func keysDeleteCmd(c *client.BaseClient) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check if the key exists
 			if _, err := c.Key(args[0]); err != nil {
-				return err
+				return fmt.Errorf("failed to retreive key: %w", err)
 			}
 
 			// Initialize a reader for user input
@@ -157,7 +165,7 @@ func keysDeleteCmd(c *client.BaseClient) *cobra.Command {
 			// Prompt for confirmation before deletion
 			confirm, err := input.GetConfirmation("Are you sure you want to delete this key? [y/N]:", reader)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get input: %w", err)
 			}
 			if !confirm {
 				return errors.New("deletion aborted")
@@ -165,7 +173,7 @@ func keysDeleteCmd(c *client.BaseClient) *cobra.Command {
 
 			// Delete the key
 			if err := c.DeleteKey(args[0]); err != nil {
-				return err
+				return fmt.Errorf("failed to delete key: %w", err)
 			}
 
 			cmd.Println("Key deleted successfully")
@@ -188,18 +196,18 @@ func keysListCmd(c *client.BaseClient) *cobra.Command {
 			// Fetch the list of keys from the client
 			keys, err := c.Keys()
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to retreive keys: %w", err)
 			}
 
 			// Format the keys for output
 			output, err := keyring.MkAccKeysOutput(keys)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create keys output: %w", err)
 			}
 
 			// Output the keys in the specified format
-			if err := writeOutputToCmd(cmd, output, outputFormat); err != nil {
-				return err
+			if err := utils.Writeln(cmd.OutOrStdout(), output, outputFormat); err != nil {
+				return fmt.Errorf("failed to write to output: %w", err)
 			}
 
 			return nil
@@ -225,18 +233,18 @@ func keysShowCmd(c *client.BaseClient) *cobra.Command {
 			// Retrieve key details from the client
 			key, err := c.Key(args[0])
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to retreive key: %w", err)
 			}
 
 			// Format the key for output
 			output, err := keyring.MkAccKeyOutput(key)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create key output: %w", err)
 			}
 
 			// Output the key details in the specified format
-			if err := writeOutputToCmd(cmd, output, outputFormat); err != nil {
-				return err
+			if err := utils.Writeln(cmd.OutOrStdout(), output, outputFormat); err != nil {
+				return fmt.Errorf("failed to write to output: %w", err)
 			}
 
 			return nil
