@@ -174,8 +174,9 @@ func (c *BaseClient) HTTP() (*http.HTTP, error) {
 // NodeClient is a struct for interacting with nodes.
 type NodeClient struct {
 	*BaseClient
-	addr    sentinelhub.NodeAddress
-	timeout time.Duration
+	addr     sentinelhub.NodeAddress
+	insecure bool
+	timeout  time.Duration
 }
 
 // NewNodeClient creates a new instance of NodeClient.
@@ -188,6 +189,12 @@ func NewNodeClient(base *BaseClient) *NodeClient {
 // WithAddr sets the address of the NodeClient and returns the updated instance.
 func (c *NodeClient) WithAddr(addr sentinelhub.NodeAddress) *NodeClient {
 	c.addr = addr
+	return c
+}
+
+// WithInsecure sets the insecure flag of the NodeClient and returns the updated instance.
+func (c *NodeClient) WithInsecure(insecure bool) *NodeClient {
+	c.insecure = insecure
 	return c
 }
 

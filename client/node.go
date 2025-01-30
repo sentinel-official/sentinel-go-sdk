@@ -91,7 +91,7 @@ func (c *NodeClient) do(ctx context.Context, method, url string, reqBody, result
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
+				InsecureSkipVerify: c.insecure,
 			},
 		},
 	}
