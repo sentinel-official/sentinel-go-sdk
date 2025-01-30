@@ -16,7 +16,6 @@ import (
 
 // BaseClient contains all necessary components for transaction handling, query management, and configuration settings.
 type BaseClient struct {
-	chainID              string                    // The chain ID used to identify the blockchain network
 	keyring              keyring.Keyring           // Keyring for managing private keys and signatures
 	protoCodec           codec.ProtoCodecMarshaler // Used for marshaling and unmarshaling protobuf data
 	queryHeight          int64                     // Query height for blockchain data
@@ -24,6 +23,7 @@ type BaseClient struct {
 	queryRetries         uint                      // Number of retries for queries
 	queryRetryDelay      time.Duration             // Delay between query retries
 	rpcAddr              string                    // RPC server address
+	rpcChainID           string                    // The chain ID used to identify the blockchain network
 	rpcTimeout           time.Duration             // RPC timeout duration
 	txConfig             client.TxConfig           // Configuration related to transactions (e.g., signing modes)
 	txFeeGranterAddr     cosmossdk.AccAddress      // Address that grants transaction fees
@@ -54,12 +54,6 @@ func NewBaseClient() *BaseClient {
 // TxFromName returns the transaction sender name set in the base client.
 func (c *BaseClient) TxFromName() string {
 	return c.txFromName
-}
-
-// WithChainID sets the blockchain chain ID and returns the updated BaseClient.
-func (c *BaseClient) WithChainID(chainID string) *BaseClient {
-	c.chainID = chainID
-	return c
 }
 
 // WithKeyring assigns the keyring to the BaseClient and returns the updated BaseClient.
@@ -95,6 +89,12 @@ func (c *BaseClient) WithQueryRetryDelay(delay time.Duration) *BaseClient {
 // WithRPCAddr sets the RPC server address and returns the updated BaseClient.
 func (c *BaseClient) WithRPCAddr(rpcAddr string) *BaseClient {
 	c.rpcAddr = rpcAddr
+	return c
+}
+
+// WithRPCChainID sets the blockchain chain ID and returns the updated BaseClient.
+func (c *BaseClient) WithRPCChainID(chainID string) *BaseClient {
+	c.rpcChainID = chainID
 	return c
 }
 

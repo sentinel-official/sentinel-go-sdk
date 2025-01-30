@@ -10,18 +10,12 @@ import (
 
 // TxConfig defines the configuration for transactions.
 type TxConfig struct {
-	ChainID            string  `mapstructure:"chain_id"`             // ChainID is the identifier of the blockchain network.
 	FeeGranterAddr     string  `mapstructure:"fee_granter_addr"`     // FeeGranterAddr is the address of the entity granting fees.
 	FromName           string  `mapstructure:"from_name"`            // FromName is the name of the sender's account.
 	Gas                uint64  `mapstructure:"gas"`                  // Gas is the gas limit for the transaction.
 	GasAdjustment      float64 `mapstructure:"gas_adjustment"`       // GasAdjustment is the adjustment factor for gas estimation.
 	GasPrices          string  `mapstructure:"gas_prices"`           // GasPrices is the price of gas for the transaction.
 	SimulateAndExecute bool    `mapstructure:"simulate_and_execute"` // SimulateAndExecute indicates whether to simulate the transaction before execution.
-}
-
-// GetChainID returns the ChainID field.
-func (c *TxConfig) GetChainID() string {
-	return c.ChainID
 }
 
 // GetFeeGranterAddr returns the FeeGranterAddr field.
@@ -70,11 +64,6 @@ func (c *TxConfig) GetSimulateAndExecute() bool {
 
 // Validate ensures the TxConfig has valid fields.
 func (c *TxConfig) Validate() error {
-	// Ensure ChainID is not empty.
-	if c.ChainID == "" {
-		return errors.New("chain_id cannot be empty")
-	}
-
 	// Validate FeeGranterAddr if it's not empty.
 	if c.FeeGranterAddr != "" {
 		if _, err := types.AccAddressFromBech32(c.FeeGranterAddr); err != nil {
@@ -104,7 +93,6 @@ func (c *TxConfig) Validate() error {
 
 // SetForFlags adds tx configuration flags to the specified FlagSet.
 func (c *TxConfig) SetForFlags(f *pflag.FlagSet) {
-	f.StringVar(&c.ChainID, "tx.chain-id", c.ChainID, "identifier of the blockchain network")
 	f.StringVar(&c.FeeGranterAddr, "tx.fee-granter-addr", c.FeeGranterAddr, "address of the entity granting fees")
 	f.StringVar(&c.FromName, "tx.from-name", c.FromName, "name of the sender's account")
 	f.Uint64Var(&c.Gas, "tx.gas", c.Gas, "gas limit for the transaction")
@@ -116,7 +104,6 @@ func (c *TxConfig) SetForFlags(f *pflag.FlagSet) {
 // DefaultTxConfig creates a TxConfig with default values.
 func DefaultTxConfig() *TxConfig {
 	return &TxConfig{
-		ChainID:            "sentinelhub-2",
 		FeeGranterAddr:     "",
 		FromName:           "default",
 		Gas:                200_000,

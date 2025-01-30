@@ -118,7 +118,7 @@ func (c *BaseClient) signTx(txb client.TxBuilder, key *keyring.Record, account a
 
 	// Prepare the signer data for signing the transaction.
 	signerData := authsigning.SignerData{
-		ChainID:       c.chainID,
+		ChainID:       c.rpcChainID,
 		AccountNumber: account.GetAccountNumber(),
 		Sequence:      account.GetSequence(),
 	}
