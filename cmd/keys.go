@@ -9,16 +9,16 @@ import (
 	"github.com/cosmos/go-bip39"
 	"github.com/spf13/cobra"
 
-	"github.com/sentinel-official/sentinel-go-sdk/client"
-	"github.com/sentinel-official/sentinel-go-sdk/client/input"
 	"github.com/sentinel-official/sentinel-go-sdk/config"
+	"github.com/sentinel-official/sentinel-go-sdk/core"
+	"github.com/sentinel-official/sentinel-go-sdk/core/input"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // NewKeysCmd creates and returns a new Cobra command for key management sub-commands.
 func NewKeysCmd(cfg *config.KeyringConfig) *cobra.Command {
 	// Initialize a base client
-	c := client.NewBaseClient()
+	c := core.NewBaseClient()
 
 	cmd := &cobra.Command{
 		Use:          "keys",
@@ -54,7 +54,7 @@ func NewKeysCmd(cfg *config.KeyringConfig) *cobra.Command {
 }
 
 // keysAddCmd creates a new key with the specified name, mnemonic, and bip39 passphrase.
-func keysAddCmd(c *client.BaseClient) *cobra.Command {
+func keysAddCmd(c *core.Client) *cobra.Command {
 	// Declare variables for flags
 	var account uint32
 	var coinType uint32
@@ -148,7 +148,7 @@ func keysAddCmd(c *client.BaseClient) *cobra.Command {
 }
 
 // keysDeleteCmd removes the key with the specified name.
-func keysDeleteCmd(c *client.BaseClient) *cobra.Command {
+func keysDeleteCmd(c *core.Client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete [name]",
 		Short: "Delete the key with the specified name",
@@ -185,7 +185,7 @@ func keysDeleteCmd(c *client.BaseClient) *cobra.Command {
 }
 
 // keysListCmd lists all the available keys.
-func keysListCmd(c *client.BaseClient) *cobra.Command {
+func keysListCmd(c *core.Client) *cobra.Command {
 	// Declare variables for flags
 	var outputFormat = "text"
 
@@ -221,7 +221,7 @@ func keysListCmd(c *client.BaseClient) *cobra.Command {
 }
 
 // keysShowCmd displays details of the key with the specified name.
-func keysShowCmd(c *client.BaseClient) *cobra.Command {
+func keysShowCmd(c *core.Client) *cobra.Command {
 	// Declare variables for flags
 	var outputFormat = "text"
 

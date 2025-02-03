@@ -1,4 +1,4 @@
-package client
+package core
 
 import (
 	"context"
@@ -21,7 +21,7 @@ const (
 
 // Session retrieves details of a specific session by its ID.
 // Returns the session details and any error encountered.
-func (c *BaseClient) Session(ctx context.Context, id uint64) (res v3.Session, err error) {
+func (c *Client) Session(ctx context.Context, id uint64) (res v3.Session, err error) {
 	var (
 		resp v3.QuerySessionResponse
 		req  = &v3.QuerySessionRequest{Id: id}
@@ -42,7 +42,7 @@ func (c *BaseClient) Session(ctx context.Context, id uint64) (res v3.Session, er
 
 // Sessions retrieves a paginated list of all sessions.
 // Returns the sessions, pagination details, and any error encountered.
-func (c *BaseClient) Sessions(ctx context.Context, pageReq *query.PageRequest) (res []v3.Session, pageRes *query.PageResponse, err error) {
+func (c *Client) Sessions(ctx context.Context, pageReq *query.PageRequest) (res []v3.Session, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QuerySessionsResponse
 		req  = &v3.QuerySessionsRequest{Pagination: pageReq}
@@ -66,7 +66,7 @@ func (c *BaseClient) Sessions(ctx context.Context, pageReq *query.PageRequest) (
 
 // SessionsForAccount retrieves sessions associated with a specific account address.
 // Returns the sessions, pagination details, and any error encountered.
-func (c *BaseClient) SessionsForAccount(ctx context.Context, accAddr cosmossdk.AccAddress, pageReq *query.PageRequest) (res []v3.Session, pageRes *query.PageResponse, err error) {
+func (c *Client) SessionsForAccount(ctx context.Context, accAddr cosmossdk.AccAddress, pageReq *query.PageRequest) (res []v3.Session, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QuerySessionsForAccountResponse
 		req  = &v3.QuerySessionsForAccountRequest{
@@ -93,7 +93,7 @@ func (c *BaseClient) SessionsForAccount(ctx context.Context, accAddr cosmossdk.A
 
 // SessionsForNode retrieves sessions associated with a specific node address.
 // Returns the sessions, pagination details, and any error encountered.
-func (c *BaseClient) SessionsForNode(ctx context.Context, nodeAddr sentinelhub.NodeAddress, pageReq *query.PageRequest) (res []v3.Session, pageRes *query.PageResponse, err error) {
+func (c *Client) SessionsForNode(ctx context.Context, nodeAddr sentinelhub.NodeAddress, pageReq *query.PageRequest) (res []v3.Session, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QuerySessionsForNodeResponse
 		req  = &v3.QuerySessionsForNodeRequest{
@@ -120,7 +120,7 @@ func (c *BaseClient) SessionsForNode(ctx context.Context, nodeAddr sentinelhub.N
 
 // SessionsForSubscription retrieves sessions associated with a specific subscription ID.
 // Returns the sessions, pagination details, and any error encountered.
-func (c *BaseClient) SessionsForSubscription(ctx context.Context, id uint64, pageReq *query.PageRequest) (res []v3.Session, pageRes *query.PageResponse, err error) {
+func (c *Client) SessionsForSubscription(ctx context.Context, id uint64, pageReq *query.PageRequest) (res []v3.Session, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QuerySessionsForSubscriptionResponse
 		req  = &v3.QuerySessionsForSubscriptionRequest{
@@ -147,7 +147,7 @@ func (c *BaseClient) SessionsForSubscription(ctx context.Context, id uint64, pag
 
 // SessionsForSubscriptionAllocation retrieves sessions associated with a specific subscription ID and account address.
 // Returns the sessions, pagination details, and any error encountered.
-func (c *BaseClient) SessionsForSubscriptionAllocation(ctx context.Context, id uint64, accAddr cosmossdk.AccAddress, pageReq *query.PageRequest) (res []v3.Session, pageRes *query.PageResponse, err error) {
+func (c *Client) SessionsForSubscriptionAllocation(ctx context.Context, id uint64, accAddr cosmossdk.AccAddress, pageReq *query.PageRequest) (res []v3.Session, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QuerySessionsForAllocationResponse
 		req  = &v3.QuerySessionsForAllocationRequest{

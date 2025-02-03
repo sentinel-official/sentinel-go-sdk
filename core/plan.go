@@ -1,4 +1,4 @@
-package client
+package core
 
 import (
 	"context"
@@ -18,7 +18,7 @@ const (
 
 // Plan retrieves details of a specific plan by its ID.
 // Returns the plan details and any error encountered.
-func (c *BaseClient) Plan(ctx context.Context, id uint64) (res *v3.Plan, err error) {
+func (c *Client) Plan(ctx context.Context, id uint64) (res *v3.Plan, err error) {
 	var (
 		resp v3.QueryPlanResponse
 		req  = &v3.QueryPlanRequest{Id: id}
@@ -34,7 +34,7 @@ func (c *BaseClient) Plan(ctx context.Context, id uint64) (res *v3.Plan, err err
 
 // Plans retrieves a paginated list of plans filtered by their status.
 // Returns the plans, pagination details, and any error encountered.
-func (c *BaseClient) Plans(ctx context.Context, status v1.Status, pageReq *query.PageRequest) (res []v3.Plan, pageRes *query.PageResponse, err error) {
+func (c *Client) Plans(ctx context.Context, status v1.Status, pageReq *query.PageRequest) (res []v3.Plan, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QueryPlansResponse
 		req  = &v3.QueryPlansRequest{
@@ -54,7 +54,7 @@ func (c *BaseClient) Plans(ctx context.Context, status v1.Status, pageReq *query
 // PlansForProvider retrieves a list of plans associated with a specific provider address.
 // Filters results by status and supports pagination.
 // Returns the plans, pagination details, and any error encountered.
-func (c *BaseClient) PlansForProvider(ctx context.Context, provAddr types.ProvAddress, status v1.Status, pageReq *query.PageRequest) (res []v3.Plan, pageRes *query.PageResponse, err error) {
+func (c *Client) PlansForProvider(ctx context.Context, provAddr types.ProvAddress, status v1.Status, pageReq *query.PageRequest) (res []v3.Plan, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QueryPlansForProviderResponse
 		req  = &v3.QueryPlansForProviderRequest{

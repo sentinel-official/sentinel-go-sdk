@@ -1,4 +1,4 @@
-package client
+package core
 
 import (
 	"bytes"
@@ -27,7 +27,7 @@ const (
 
 // Node retrieves details of a specific node by its address.
 // Returns the node details and any error encountered.
-func (c *BaseClient) Node(ctx context.Context, nodeAddr sentinelhub.NodeAddress) (res *v3.Node, err error) {
+func (c *Client) Node(ctx context.Context, nodeAddr sentinelhub.NodeAddress) (res *v3.Node, err error) {
 	var (
 		resp v3.QueryNodeResponse
 		req  = &v3.QueryNodeRequest{Address: nodeAddr.String()}
@@ -43,7 +43,7 @@ func (c *BaseClient) Node(ctx context.Context, nodeAddr sentinelhub.NodeAddress)
 
 // Nodes retrieves a paginated list of nodes filtered by their status.
 // Returns the nodes, pagination details, and any error encountered.
-func (c *BaseClient) Nodes(ctx context.Context, status v1.Status, pageReq *query.PageRequest) (res []v3.Node, pageRes *query.PageResponse, err error) {
+func (c *Client) Nodes(ctx context.Context, status v1.Status, pageReq *query.PageRequest) (res []v3.Node, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QueryNodesResponse
 		req  = &v3.QueryNodesRequest{
@@ -63,7 +63,7 @@ func (c *BaseClient) Nodes(ctx context.Context, status v1.Status, pageReq *query
 // NodesForPlan retrieves a list of nodes associated with a specific plan ID.
 // Filters results by status and supports pagination.
 // Returns the nodes, pagination details, and any error encountered.
-func (c *BaseClient) NodesForPlan(ctx context.Context, id uint64, status v1.Status, pageReq *query.PageRequest) (res []v3.Node, pageRes *query.PageResponse, err error) {
+func (c *Client) NodesForPlan(ctx context.Context, id uint64, status v1.Status, pageReq *query.PageRequest) (res []v3.Node, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QueryNodesForPlanResponse
 		req  = &v3.QueryNodesForPlanRequest{

@@ -1,4 +1,4 @@
-package client
+package core
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 
 // Key retrieves key information from the keyring based on the provided name.
 // Returns the key record or an error if the key cannot be found.
-func (c *BaseClient) Key(name string) (*keyring.Record, error) {
+func (c *Client) Key(name string) (*keyring.Record, error) {
 	key, err := c.keyring.Key(name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve key: %w", err)
@@ -22,7 +22,7 @@ func (c *BaseClient) Key(name string) (*keyring.Record, error) {
 
 // Sign signs the provided data using the key from the keyring identified by the given name.
 // Returns the signed bytes, the public key, and any error encountered.
-func (c *BaseClient) Sign(name string, buf []byte) ([]byte, types.PubKey, error) {
+func (c *Client) Sign(name string, buf []byte) ([]byte, types.PubKey, error) {
 	sig, pubKey, err := c.keyring.Sign(name, buf)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to sign data: %w", err)
@@ -33,7 +33,7 @@ func (c *BaseClient) Sign(name string, buf []byte) ([]byte, types.PubKey, error)
 
 // Keys retrieves a list of all keys from the keyring.
 // Returns the list of key records or an error if the operation fails.
-func (c *BaseClient) Keys() ([]*keyring.Record, error) {
+func (c *Client) Keys() ([]*keyring.Record, error) {
 	keys, err := c.keyring.List()
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve keys: %w", err)
@@ -44,7 +44,7 @@ func (c *BaseClient) Keys() ([]*keyring.Record, error) {
 
 // DeleteKey removes a key from the keyring based on the provided name.
 // Returns an error if the key cannot be deleted.
-func (c *BaseClient) DeleteKey(name string) error {
+func (c *Client) DeleteKey(name string) error {
 	if err := c.keyring.Delete(name); err != nil {
 		return fmt.Errorf("failed to delete key: %w", err)
 	}
@@ -54,7 +54,7 @@ func (c *BaseClient) DeleteKey(name string) error {
 
 // NewMnemonic generates a new mnemonic phrase using bip39 with 256 bits of entropy.
 // Returns the mnemonic or an error if the operation fails.
-func (c *BaseClient) NewMnemonic() (string, error) {
+func (c *Client) NewMnemonic() (string, error) {
 	// Generate new entropy for the mnemonic.
 	entropy, err := bip39.NewEntropy(256)
 	if err != nil {
@@ -73,7 +73,7 @@ func (c *BaseClient) NewMnemonic() (string, error) {
 // CreateKey generates and stores a new key in the keyring with the provided name, mnemonic, and options.
 // If no mnemonic is provided, it generates a new one.
 // Returns the mnemonic, the created key record, and any error encountered.
-func (c *BaseClient) CreateKey(name, mnemonic, bip39Pass string, coinType, account, index uint32) (s string, k *keyring.Record, err error) {
+func (c *Client) CreateKey(name, mnemonic, bip39Pass string, coinType, account, index uint32) (s string, k *keyring.Record, err error) {
 	// Generate a new mnemonic if none is provided.
 	if mnemonic == "" {
 		mnemonic, err = c.NewMnemonic()

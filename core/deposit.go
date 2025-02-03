@@ -1,4 +1,4 @@
-package client
+package core
 
 import (
 	"context"
@@ -16,7 +16,7 @@ const (
 
 // Deposit retrieves details of a specific deposit by its address.
 // Returns the deposit details and any error encountered.
-func (c *BaseClient) Deposit(ctx context.Context, accAddr types.AccAddress) (res *v1.Deposit, err error) {
+func (c *Client) Deposit(ctx context.Context, accAddr types.AccAddress) (res *v1.Deposit, err error) {
 	var (
 		resp v1.QueryDepositResponse
 		req  = &v1.QueryDepositRequest{Address: accAddr.String()}
@@ -32,7 +32,7 @@ func (c *BaseClient) Deposit(ctx context.Context, accAddr types.AccAddress) (res
 
 // Deposits retrieves a paginated list of deposits.
 // Returns the deposits, pagination details, and any error encountered.
-func (c *BaseClient) Deposits(ctx context.Context, pageReq *query.PageRequest) (res []v1.Deposit, pageRes *query.PageResponse, err error) {
+func (c *Client) Deposits(ctx context.Context, pageReq *query.PageRequest) (res []v1.Deposit, pageRes *query.PageResponse, err error) {
 	var (
 		resp v1.QueryDepositsResponse
 		req  = &v1.QueryDepositsRequest{

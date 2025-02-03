@@ -1,4 +1,4 @@
-package client
+package core
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 )
 
 // SetupKeyring initializes and configures a keyring for cryptographic key management.
-func (c *BaseClient) SetupKeyring(cfg *config.KeyringConfig) error {
+func (c *Client) SetupKeyring(cfg *config.KeyringConfig) error {
 	// Create a keyring instance using the provided configuration.
 	kr, err := keyring.New(cfg.GetName(), cfg.GetBackend(), cfg.GetHomeDir(), cfg.GetInput(), c.protoCodec)
 	if err != nil {

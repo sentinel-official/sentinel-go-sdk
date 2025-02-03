@@ -1,4 +1,4 @@
-package client
+package core
 
 import (
 	"time"
@@ -14,8 +14,8 @@ import (
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
 
-// BaseClient contains all necessary components for transaction handling, query management, and configuration settings.
-type BaseClient struct {
+// Client contains all necessary components for transaction handling, query management, and configuration settings.
+type Client struct {
 	keyring              keyring.Keyring           // Keyring for managing private keys and signatures
 	protoCodec           codec.ProtoCodecMarshaler // Used for marshaling and unmarshaling protobuf data
 	queryHeight          int64                     // Query height for blockchain data
@@ -37,14 +37,14 @@ type BaseClient struct {
 	txTimeoutHeight      uint64                    // Transaction timeout height
 }
 
-// NewBaseClient initializes a new BaseClient instance.
-func NewBaseClient() *BaseClient {
+// NewBaseClient initializes a new Client instance.
+func NewBaseClient() *Client {
 	// Create a codec for encoding/decoding protocol buffer messages.
 	protoCodec := types.NewProtoCodec()
 	txConfig := tx.NewTxConfig(protoCodec, tx.DefaultSignModes)
 
-	// Initialize BaseClient with default values and configurations.
-	bc := &BaseClient{}
+	// Initialize Client with default values and configurations.
+	bc := &Client{}
 	bc.WithProtoCodec(protoCodec)
 	bc.WithTxConfig(txConfig)
 
@@ -52,137 +52,137 @@ func NewBaseClient() *BaseClient {
 }
 
 // TxFromName returns the transaction sender name set in the base client.
-func (c *BaseClient) TxFromName() string {
+func (c *Client) TxFromName() string {
 	return c.txFromName
 }
 
-// WithKeyring assigns the keyring to the BaseClient and returns the updated BaseClient.
-func (c *BaseClient) WithKeyring(keyring keyring.Keyring) *BaseClient {
+// WithKeyring assigns the keyring to the Client and returns the updated Client.
+func (c *Client) WithKeyring(keyring keyring.Keyring) *Client {
 	c.keyring = keyring
 	return c
 }
 
-// WithProtoCodec sets the protobuf codec and returns the updated BaseClient.
-func (c *BaseClient) WithProtoCodec(protoCodec codec.ProtoCodecMarshaler) *BaseClient {
+// WithProtoCodec sets the protobuf codec and returns the updated Client.
+func (c *Client) WithProtoCodec(protoCodec codec.ProtoCodecMarshaler) *Client {
 	c.protoCodec = protoCodec
 	return c
 }
 
-// WithQueryProve sets the prove flag for queries and returns the updated BaseClient.
-func (c *BaseClient) WithQueryProve(prove bool) *BaseClient {
+// WithQueryProve sets the prove flag for queries and returns the updated Client.
+func (c *Client) WithQueryProve(prove bool) *Client {
 	c.queryProve = prove
 	return c
 }
 
-// WithQueryRetries sets the number of retries for queries and returns the updated BaseClient.
-func (c *BaseClient) WithQueryRetries(retries uint) *BaseClient {
+// WithQueryRetries sets the number of retries for queries and returns the updated Client.
+func (c *Client) WithQueryRetries(retries uint) *Client {
 	c.queryRetries = retries
 	return c
 }
 
-// WithQueryRetryDelay sets the retry delay duration for queries and returns the updated BaseClient.
-func (c *BaseClient) WithQueryRetryDelay(delay time.Duration) *BaseClient {
+// WithQueryRetryDelay sets the retry delay duration for queries and returns the updated Client.
+func (c *Client) WithQueryRetryDelay(delay time.Duration) *Client {
 	c.queryRetryDelay = delay
 	return c
 }
 
-// WithRPCAddr sets the RPC server address and returns the updated BaseClient.
-func (c *BaseClient) WithRPCAddr(rpcAddr string) *BaseClient {
+// WithRPCAddr sets the RPC server address and returns the updated Client.
+func (c *Client) WithRPCAddr(rpcAddr string) *Client {
 	c.rpcAddr = rpcAddr
 	return c
 }
 
-// WithRPCChainID sets the blockchain chain ID and returns the updated BaseClient.
-func (c *BaseClient) WithRPCChainID(chainID string) *BaseClient {
+// WithRPCChainID sets the blockchain chain ID and returns the updated Client.
+func (c *Client) WithRPCChainID(chainID string) *Client {
 	c.rpcChainID = chainID
 	return c
 }
 
-// WithRPCTimeout sets the RPC timeout duration and returns the updated BaseClient.
-func (c *BaseClient) WithRPCTimeout(timeout time.Duration) *BaseClient {
+// WithRPCTimeout sets the RPC timeout duration and returns the updated Client.
+func (c *Client) WithRPCTimeout(timeout time.Duration) *Client {
 	c.rpcTimeout = timeout
 	return c
 }
 
-// WithTxConfig sets the transaction configuration and returns the updated BaseClient.
-func (c *BaseClient) WithTxConfig(txConfig client.TxConfig) *BaseClient {
+// WithTxConfig sets the transaction configuration and returns the updated Client.
+func (c *Client) WithTxConfig(txConfig client.TxConfig) *Client {
 	c.txConfig = txConfig
 	return c
 }
 
-// WithTxFeeGranterAddr sets the transaction fee granter address and returns the updated BaseClient.
-func (c *BaseClient) WithTxFeeGranterAddr(addr cosmossdk.AccAddress) *BaseClient {
+// WithTxFeeGranterAddr sets the transaction fee granter address and returns the updated Client.
+func (c *Client) WithTxFeeGranterAddr(addr cosmossdk.AccAddress) *Client {
 	c.txFeeGranterAddr = addr
 	return c
 }
 
-// WithTxFees assigns transaction fees and returns the updated BaseClient.
-func (c *BaseClient) WithTxFees(fees cosmossdk.Coins) *BaseClient {
+// WithTxFees assigns transaction fees and returns the updated Client.
+func (c *Client) WithTxFees(fees cosmossdk.Coins) *Client {
 	c.txFees = fees
 	return c
 }
 
-// WithTxFromName sets the "from" name for transactions and returns the updated BaseClient.
-func (c *BaseClient) WithTxFromName(name string) *BaseClient {
+// WithTxFromName sets the "from" name for transactions and returns the updated Client.
+func (c *Client) WithTxFromName(name string) *Client {
 	c.txFromName = name
 	return c
 }
 
-// WithTxGasAdjustment sets the gas adjustment factor for transactions and returns the updated BaseClient.
-func (c *BaseClient) WithTxGasAdjustment(adjustment float64) *BaseClient {
+// WithTxGasAdjustment sets the gas adjustment factor for transactions and returns the updated Client.
+func (c *Client) WithTxGasAdjustment(adjustment float64) *Client {
 	c.txGasAdjustment = adjustment
 	return c
 }
 
-// WithTxGasPrices sets the gas prices for transactions and returns the updated BaseClient.
-func (c *BaseClient) WithTxGasPrices(prices cosmossdk.DecCoins) *BaseClient {
+// WithTxGasPrices sets the gas prices for transactions and returns the updated Client.
+func (c *Client) WithTxGasPrices(prices cosmossdk.DecCoins) *Client {
 	c.txGasPrices = prices
 	return c
 }
 
-// WithTxGas sets the gas limit for transactions and returns the updated BaseClient.
-func (c *BaseClient) WithTxGas(gas uint64) *BaseClient {
+// WithTxGas sets the gas limit for transactions and returns the updated Client.
+func (c *Client) WithTxGas(gas uint64) *Client {
 	c.txGas = gas
 	return c
 }
 
-// WithTxMemo sets the memo for transactions and returns the updated BaseClient.
-func (c *BaseClient) WithTxMemo(memo string) *BaseClient {
+// WithTxMemo sets the memo for transactions and returns the updated Client.
+func (c *Client) WithTxMemo(memo string) *Client {
 	c.txMemo = memo
 	return c
 }
 
-// WithTxSimulateAndExecute sets the simulate and execute flag and returns the updated BaseClient.
-func (c *BaseClient) WithTxSimulateAndExecute(simulate bool) *BaseClient {
+// WithTxSimulateAndExecute sets the simulate and execute flag and returns the updated Client.
+func (c *Client) WithTxSimulateAndExecute(simulate bool) *Client {
 	c.txSimulateAndExecute = simulate
 	return c
 }
 
-// WithTxTimeoutHeight sets the timeout height for transactions and returns the updated BaseClient.
-func (c *BaseClient) WithTxTimeoutHeight(height uint64) *BaseClient {
+// WithTxTimeoutHeight sets the timeout height for transactions and returns the updated Client.
+func (c *Client) WithTxTimeoutHeight(height uint64) *Client {
 	c.txTimeoutHeight = height
 	return c
 }
 
 // HTTP creates an HTTP client for the given RPC address and timeout configuration.
 // Returns the HTTP client or an error if initialization fails.
-func (c *BaseClient) HTTP() (*http.HTTP, error) {
+func (c *Client) HTTP() (*http.HTTP, error) {
 	timeout := uint(c.rpcTimeout / time.Second)
 	return http.NewWithTimeout(c.rpcAddr, "/websocket", timeout)
 }
 
 // NodeClient is a struct for interacting with nodes.
 type NodeClient struct {
-	*BaseClient
+	*Client
 	addr     sentinelhub.NodeAddress
 	insecure bool
 	timeout  time.Duration
 }
 
 // NewNodeClient creates a new instance of NodeClient.
-func NewNodeClient(base *BaseClient) *NodeClient {
+func NewNodeClient(base *Client) *NodeClient {
 	return &NodeClient{
-		BaseClient: base,
+		Client: base,
 	}
 }
 
