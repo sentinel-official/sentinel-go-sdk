@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-
-	"gopkg.in/yaml.v3"
 )
 
 // writeJSON formats the output as JSON and writes it to the provided writer.
@@ -21,9 +19,9 @@ func writeJSON(w io.Writer, v interface{}) error {
 
 // writeText formats the output as YAML and writes it to the provided writer.
 func writeText(w io.Writer, v interface{}) error {
-	buf, err := yaml.Marshal(v)
+	buf, err := YAMLFromJSON(v)
 	if err != nil {
-		return fmt.Errorf("failed to marshal yaml: %w", err)
+		return fmt.Errorf("failed to convert yaml form json: %w", err)
 	}
 
 	_, _ = fmt.Fprintf(w, "%s", buf)
