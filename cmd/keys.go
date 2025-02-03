@@ -18,7 +18,7 @@ import (
 // NewKeysCmd creates and returns a new Cobra command for key management sub-commands.
 func NewKeysCmd(cfg *config.KeyringConfig) *cobra.Command {
 	// Initialize a base client
-	c := core.NewBaseClient()
+	c := core.NewClient()
 
 	cmd := &cobra.Command{
 		Use:          "keys",

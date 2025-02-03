@@ -1,6 +1,10 @@
-package api
+package node
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+
 	"github.com/sentinel-official/sentinel-go-sdk/libs/geoip"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/version"
@@ -22,4 +26,19 @@ type GetInfoResult struct {
 // GetType returns the node's service type by converting the Type string into a ServiceType enum.
 func (r *GetInfoResult) GetType() types.ServiceType {
 	return types.ServiceTypeFromString(r.Type)
+}
+
+// GetInfo retrieves information about a specific node.
+func (c *Client) GetInfo(ctx context.Context) (*GetInfoResult, error) {
+	path, err := c.getURL(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get url: %w", err)
+	}
+
+	var res GetInfoResult
+	if err := c.do(ctx, http.MethodGet, path, nil, &res); err != nil {
+		return nil, err
+	}
+
+	return &res, nil
 }

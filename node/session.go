@@ -1,4 +1,10 @@
-package api
+package node
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+)
 
 // AddSessionRequestBody represents the request payload for adding a session.
 type AddSessionRequestBody struct {
@@ -12,4 +18,19 @@ type AddSessionRequestBody struct {
 type AddSessionResult struct {
 	Addrs []string    `json:"addrs"` // List of addresses (IPv4, IPv6, or domain names).
 	Data  interface{} `json:"data"`  // Additional response data, format depends on the service.
+}
+
+// AddSession adds a session to a node.
+func (c *Client) AddSession(ctx context.Context, body *AddSessionRequestBody) (*AddSessionResult, error) {
+	path, err := c.getURL(ctx, "sessions")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get url: %w", err)
+	}
+
+	var res AddSessionResult
+	if err := c.do(ctx, http.MethodPost, path, body, &res); err != nil {
+		return nil, err
+	}
+
+	return &res, nil
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/tx"
-	sentinelhub "github.com/sentinel-official/hub/v12/types"
 
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
@@ -37,8 +36,8 @@ type Client struct {
 	txTimeoutHeight      uint64                    // Transaction timeout height
 }
 
-// NewBaseClient initializes a new Client instance.
-func NewBaseClient() *Client {
+// NewClient initializes a new Client instance.
+func NewClient() *Client {
 	// Create a codec for encoding/decoding protocol buffer messages.
 	protoCodec := types.NewProtoCodec()
 	txConfig := tx.NewTxConfig(protoCodec, tx.DefaultSignModes)
@@ -169,37 +168,4 @@ func (c *Client) WithTxTimeoutHeight(height uint64) *Client {
 func (c *Client) HTTP() (*http.HTTP, error) {
 	timeout := uint(c.rpcTimeout / time.Second)
 	return http.NewWithTimeout(c.rpcAddr, "/websocket", timeout)
-}
-
-// NodeClient is a struct for interacting with nodes.
-type NodeClient struct {
-	*Client
-	addr     sentinelhub.NodeAddress
-	insecure bool
-	timeout  time.Duration
-}
-
-// NewNodeClient creates a new instance of NodeClient.
-func NewNodeClient(base *Client) *NodeClient {
-	return &NodeClient{
-		Client: base,
-	}
-}
-
-// WithAddr sets the address of the NodeClient and returns the updated instance.
-func (c *NodeClient) WithAddr(addr sentinelhub.NodeAddress) *NodeClient {
-	c.addr = addr
-	return c
-}
-
-// WithInsecure sets the insecure flag of the NodeClient and returns the updated instance.
-func (c *NodeClient) WithInsecure(insecure bool) *NodeClient {
-	c.insecure = insecure
-	return c
-}
-
-// WithTimeout sets the timeout of the NodeClient and returns the updated instance.
-func (c *NodeClient) WithTimeout(timeout time.Duration) *NodeClient {
-	c.timeout = timeout
-	return c
 }
