@@ -156,7 +156,7 @@ func keysDeleteCmd(c *core.Client) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check if the key exists
 			if _, err := c.Key(args[0]); err != nil {
-				return fmt.Errorf("failed to retreive key: %w", err)
+				return fmt.Errorf("failed to get key: %w", err)
 			}
 
 			// Initialize a reader for user input
@@ -196,7 +196,7 @@ func keysListCmd(c *core.Client) *cobra.Command {
 			// Fetch the list of keys from the client
 			keys, err := c.Keys()
 			if err != nil {
-				return fmt.Errorf("failed to retreive keys: %w", err)
+				return fmt.Errorf("failed to get keys: %w", err)
 			}
 
 			// Format the keys for output
@@ -233,7 +233,7 @@ func keysShowCmd(c *core.Client) *cobra.Command {
 			// Retrieve key details from the client
 			key, err := c.Key(args[0])
 			if err != nil {
-				return fmt.Errorf("failed to retreive key: %w", err)
+				return fmt.Errorf("failed to get key: %w", err)
 			}
 
 			// Format the key for output

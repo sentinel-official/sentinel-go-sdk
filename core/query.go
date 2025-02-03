@@ -53,6 +53,8 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 		return nil
 	}
 
+	// TODO: retry query only on specific errors
+
 	// Retry the query using the configured maximum retries and delay.
 	if err := retry.Do(
 		queryFunc,
@@ -109,7 +111,7 @@ func (c *Client) QuerySubspace(ctx context.Context, store string, data bytes.Hex
 // Returns an error if any step fails.
 func (c *Client) QueryGRPC(ctx context.Context, method string, req, resp codec.ProtoMarshaler) error {
 	// Marshal the request into bytes.
-	data, err := c.protoCodec.Marshal(req)
+	data, err := c.ProtoCodec().Marshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
@@ -129,7 +131,7 @@ func (c *Client) QueryGRPC(ctx context.Context, method string, req, resp codec.P
 	}
 
 	// Unmarshal the response value into the provided response object.
-	if err := c.protoCodec.Unmarshal(reply.Value, resp); err != nil {
+	if err := c.ProtoCodec().Unmarshal(reply.Value, resp); err != nil {
 		return fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 

@@ -28,7 +28,7 @@ func (c *Client) Account(ctx context.Context, accAddr cosmossdk.AccAddress) (res
 	}
 
 	// Unpack the retrieved account data into the account interface.
-	if err := c.protoCodec.UnpackAny(resp.Account, &res); err != nil {
+	if err := c.ProtoCodec().UnpackAny(resp.Account, &res); err != nil {
 		return nil, err
 	}
 
@@ -51,7 +51,7 @@ func (c *Client) Accounts(ctx context.Context, pageReq *query.PageRequest) (res 
 	// Allocate memory for account slice and unpack each account record.
 	res = make([]auth.AccountI, len(resp.Accounts))
 	for i := 0; i < len(resp.Accounts); i++ {
-		if err := c.protoCodec.UnpackAny(resp.Accounts[i], &res[i]); err != nil {
+		if err := c.ProtoCodec().UnpackAny(resp.Accounts[i], &res[i]); err != nil {
 			return nil, nil, err
 		}
 	}

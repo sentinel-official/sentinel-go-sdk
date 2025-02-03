@@ -50,9 +50,9 @@ func NewClient() *Client {
 	return bc
 }
 
-// TxFromName returns the transaction sender name set in the base client.
-func (c *Client) TxFromName() string {
-	return c.txFromName
+// ProtoCodec returns the protobuf codec used for marshaling and unmarshaling data.
+func (c *Client) ProtoCodec() codec.ProtoCodecMarshaler {
+	return c.protoCodec
 }
 
 // WithKeyring assigns the keyring to the Client and returns the updated Client.
