@@ -15,7 +15,7 @@ import (
 	"github.com/sentinel-official/hub/v12/types/v1"
 	"github.com/sentinel-official/hub/v12/x/node/types/v3"
 
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/types/api"
 )
 
 const (
@@ -130,7 +130,7 @@ func (c *NodeClient) do(ctx context.Context, method, url string, reqBody, result
 	}
 
 	// Decode the JSON response into a predefined structure.
-	var respBody types.Response
+	var respBody api.Response
 	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
 		return fmt.Errorf("failed to decode response body: %w", err)
 	}
@@ -170,21 +170,31 @@ func (c *NodeClient) getURL(ctx context.Context, pathSuffix string) (string, err
 }
 
 // AddSession adds a session to a node.
-func (c *NodeClient) AddSession(ctx context.Context, body, result interface{}) error {
+func (c *NodeClient) AddSession(ctx context.Context, body *api.AddSessionRequestBody) (*api.AddSessionResult, error) {
 	path, err := c.getURL(ctx, "sessions")
 	if err != nil {
-		return fmt.Errorf("failed to get url: %w", err)
+		return nil, fmt.Errorf("failed to get url: %w", err)
 	}
 
-	return c.do(ctx, http.MethodPost, path, body, result)
+	var res api.AddSessionResult
+	if err := c.do(ctx, http.MethodPost, path, body, &res); err != nil {
+		return nil, err
+	}
+
+	return &res, nil
 }
 
-// Info retrieves information about a specific node.
-func (c *NodeClient) Info(ctx context.Context, result interface{}) error {
+// GetInfo retrieves information about a specific node.
+func (c *NodeClient) GetInfo(ctx context.Context) (*api.GetInfoResult, error) {
 	path, err := c.getURL(ctx, "")
 	if err != nil {
-		return fmt.Errorf("failed to get url: %w", err)
+		return nil, fmt.Errorf("failed to get url: %w", err)
 	}
 
-	return c.do(ctx, http.MethodGet, path, nil, result)
+	var res api.GetInfoResult
+	if err := c.do(ctx, http.MethodGet, path, nil, &res); err != nil {
+		return nil, err
+	}
+
+	return &res, nil
 }
