@@ -12,6 +12,7 @@ import (
 type Client struct {
 	*core.Client
 	addr     types.NodeAddress
+	fromName string
 	insecure bool
 	timeout  time.Duration
 }
@@ -26,6 +27,12 @@ func NewClient(c *core.Client) *Client {
 // WithAddr sets the address of the Client and returns the updated instance.
 func (c *Client) WithAddr(addr types.NodeAddress) *Client {
 	c.addr = addr
+	return c
+}
+
+// WithFromName sets the fromName of the Client and returns the updated instance.
+func (c *Client) WithFromName(fromName string) *Client {
+	c.fromName = fromName
 	return c
 }
 

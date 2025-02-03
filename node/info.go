@@ -28,17 +28,20 @@ func (r *GetInfoResult) GetType() types.ServiceType {
 	return types.ServiceTypeFromString(r.Type)
 }
 
-// GetInfo retrieves information about a specific node.
+// GetInfo retrieves detailed information about a specific node.
 func (c *Client) GetInfo(ctx context.Context) (*GetInfoResult, error) {
+	// Get the API endpoint URL for retrieving node information.
 	path, err := c.getURL(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get url: %w", err)
 	}
 
+	// Send an HTTP GET request to fetch node details.
 	var res GetInfoResult
 	if err := c.do(ctx, http.MethodGet, path, nil, &res); err != nil {
 		return nil, err
 	}
 
+	// Return the retrieved node information.
 	return &res, nil
 }
