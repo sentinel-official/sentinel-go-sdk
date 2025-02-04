@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	"gopkg.in/yaml.v3"
 )
@@ -24,19 +23,14 @@ func YAMLFromJSON(i interface{}) ([]byte, error) {
 			return nil, fmt.Errorf("failed to unmarshal json: %w", err)
 		}
 	default:
-		// Check if input is a struct, marshal it to JSON first
-		if reflect.TypeOf(i).Kind() == reflect.Struct {
-			buf, err := json.Marshal(i)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal json: %w", err)
-			}
-			// Unmarshal the JSON into an interface to maintain its structure
-			if err := json.Unmarshal(buf, &in); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal json: %w", err)
-			}
-		} else {
-			// If input is neither a JSON string/byte nor a struct, use it as-is
-			in = i
+		// Marshal struct or other types to JSON
+		buf, err := json.Marshal(i)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal json: %w", err)
+		}
+		// Unmarshal the JSON into an interface to maintain its structure
+		if err := json.Unmarshal(buf, &in); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal json: %w", err)
 		}
 	}
 
