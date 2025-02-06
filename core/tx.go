@@ -221,7 +221,7 @@ func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	// Broadcast the transaction synchronously via the HTTP client.
 	res, err := http.BroadcastTxSync(ctx, buf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to broadcast tx: %w", err)
+		return nil, fmt.Errorf("failed to sync broadcast tx: %w", err)
 	}
 
 	return res, nil
@@ -237,7 +237,7 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 		// Attempt to broadcast the transaction.
 		resp, err = c.broadcastTxSync(ctx, msgs...)
 		if err != nil {
-			return fmt.Errorf("failed to sync broadcast tx: %w", err)
+			return err
 		}
 
 		return nil
@@ -263,12 +263,6 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 		retry.RetryIf(retryIfFunc),
 	); err != nil {
 		return nil, fmt.Errorf("tx sync broadcast failed after retries: %w", err)
-	}
-
-	// Check if the broadcasted transaction was accepted (code OK).
-	if resp.Code != abci.CodeTypeOK {
-		err := fmt.Errorf("codespace=%s, code=%d, log=%s", resp.Codespace, resp.Code, resp.Log)
-		return nil, fmt.Errorf("tx sync broadcast failed: %w", err)
 	}
 
 	return resp, nil
@@ -300,7 +294,7 @@ func (c *Client) Tx(ctx context.Context, hash []byte) (*core.ResultTx, error) {
 	retryFunc := func() error {
 		result, err = c.tx(ctx, hash)
 		if err != nil {
-			return fmt.Errorf("failed to query tx: %w", err)
+			return err
 		}
 
 		return nil
@@ -333,13 +327,25 @@ func (c *Client) BroadcastTxBlock(ctx context.Context, msgs ...cosmossdk.Msg) (*
 	// Broadcast the transaction synchronously.
 	resp, err := c.BroadcastTxSync(ctx, msgs...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sync broadcast tx: %w", err)
+		return nil, err
+	}
+
+	// Check if the broadcasted transaction was accepted (code OK).
+	if resp.Code != abci.CodeTypeOK {
+		err := fmt.Errorf("codespace=%s, code=%d, log=%s", resp.Codespace, resp.Code, resp.Log)
+		return nil, fmt.Errorf("tx sync broadcast failed: %w", err)
 	}
 
 	// Wait for the transaction to be included in a block.
 	res, err := c.Tx(ctx, resp.Hash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query tx: %w", err)
+		return nil, err
+	}
+
+	// Verify that the transaction executed successfully.
+	if !res.TxResult.IsOK() {
+		err := fmt.Errorf("codespace=%s, code=%d, log=%s", res.TxResult.Codespace, res.TxResult.Code, res.TxResult.Log)
+		return nil, fmt.Errorf("tx failed: %w", err)
 	}
 
 	return res, nil
