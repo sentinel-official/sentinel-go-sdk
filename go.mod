@@ -12,6 +12,7 @@ require (
 	github.com/cometbft/cometbft v0.37.13
 	github.com/cosmos/cosmos-sdk v0.47.15
 	github.com/cosmos/go-bip39 v1.0.0
+	github.com/cosmos/gogoproto v1.7.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/rs/zerolog v1.33.0
 	github.com/sentinel-official/hub/v12 v12.0.0-rc9
@@ -54,7 +55,6 @@ require (
 	github.com/confio/ics23/go v0.9.0 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5 // indirect
-	github.com/cosmos/gogoproto v1.7.0 // indirect
 	github.com/cosmos/iavl v0.20.1 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.12.4 // indirect
 	github.com/danieljoos/wincred v1.1.2 // indirect
