@@ -25,7 +25,7 @@ func (c *Client) NodeStartSession(ctx context.Context, nodeAddr types.NodeAddres
 	}
 
 	// Broadcast the transaction and wait for its inclusion in a block.
-	res, err := c.BroadcastTxBlock(ctx, msgs...)
+	_, res, err := c.BroadcastTxBlock(ctx, msgs...)
 	if err != nil {
 		return 0, fmt.Errorf("node start session tx failed: %w", err)
 	}

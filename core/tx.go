@@ -321,32 +321,33 @@ func (c *Client) Tx(ctx context.Context, hash []byte) (*core.ResultTx, error) {
 }
 
 // BroadcastTxBlock broadcasts a transaction and waits for it to be included in a block.
-// It first calls BroadcastTxSync to send the transaction and then polls for the transaction result.
-// Returns the transaction result once it is found or an error if any step fails.
-func (c *Client) BroadcastTxBlock(ctx context.Context, msgs ...cosmossdk.Msg) (*core.ResultTx, error) {
+// It first calls BroadcastTxSync to send the transaction and then queries for the transaction result.
+// Returns both the broadcast response and the transaction result or an error if any step fails.
+func (c *Client) BroadcastTxBlock(ctx context.Context, msgs ...cosmossdk.Msg) (*core.ResultBroadcastTx, *core.ResultTx, error) {
 	// Broadcast the transaction synchronously.
 	resp, err := c.BroadcastTxSync(ctx, msgs...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// Check if the broadcasted transaction was accepted (code OK).
+	//  Ensure the transaction was accepted by the mempool.
 	if resp.Code != abci.CodeTypeOK {
-		err := fmt.Errorf("codespace=%s, code=%d, log=%s", resp.Codespace, resp.Code, resp.Log)
-		return nil, fmt.Errorf("tx sync broadcast failed: %w", err)
+		err := fmt.Errorf("code=%d, codespace=%s, log=%s", resp.Code, resp.Codespace, resp.Log)
+		return resp, nil, fmt.Errorf("tx sync broadcast failed: %w", err)
 	}
 
 	// Wait for the transaction to be included in a block.
 	res, err := c.Tx(ctx, resp.Hash)
 	if err != nil {
-		return nil, err
+		return resp, nil, err
 	}
 
-	// Verify that the transaction executed successfully.
+	//  Ensure the transaction executed successfully.
 	if !res.TxResult.IsOK() {
-		err := fmt.Errorf("codespace=%s, code=%d, log=%s", res.TxResult.Codespace, res.TxResult.Code, res.TxResult.Log)
-		return nil, fmt.Errorf("tx failed: %w", err)
+		err := fmt.Errorf("code=%d, codespace=%s, log=%s", res.TxResult.Code, res.TxResult.Codespace, res.TxResult.Log)
+		return resp, res, fmt.Errorf("tx failed: %w", err)
 	}
 
-	return res, nil
+	// Return the broadcast response and transaction result.
+	return resp, res, nil
 }
