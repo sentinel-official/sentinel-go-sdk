@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/cosmos/cosmos-sdk/types/query"
-	sentinelhub "github.com/sentinel-official/hub/v12/types"
+	"github.com/sentinel-official/hub/v12/types"
 	"github.com/sentinel-official/hub/v12/types/v1"
 	"github.com/sentinel-official/hub/v12/x/node/types/v3"
 )
@@ -18,7 +18,7 @@ const (
 
 // Node retrieves details of a specific node by its address.
 // Returns the node details and any error encountered.
-func (c *Client) Node(ctx context.Context, nodeAddr sentinelhub.NodeAddress) (res *v3.Node, err error) {
+func (c *Client) Node(ctx context.Context, nodeAddr types.NodeAddress) (res *v3.Node, err error) {
 	var (
 		resp v3.QueryNodeResponse
 		req  = &v3.QueryNodeRequest{Address: nodeAddr.String()}

@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	"github.com/cosmos/cosmos-sdk/types"
+	cosmossdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/sentinel-official/hub/v12/x/subscription/types/v2"
 	"github.com/sentinel-official/hub/v12/x/subscription/types/v3"
@@ -53,7 +53,7 @@ func (c *Client) Subscriptions(ctx context.Context, pageReq *query.PageRequest) 
 
 // SubscriptionsForAccount retrieves subscriptions associated with a specific account.
 // Returns the subscriptions, pagination details, and any error encountered.
-func (c *Client) SubscriptionsForAccount(ctx context.Context, accAddr types.AccAddress, pageReq *query.PageRequest) (res []v3.Subscription, pageRes *query.PageResponse, err error) {
+func (c *Client) SubscriptionsForAccount(ctx context.Context, accAddr cosmossdk.AccAddress, pageReq *query.PageRequest) (res []v3.Subscription, pageRes *query.PageResponse, err error) {
 	var (
 		resp v3.QuerySubscriptionsForAccountResponse
 		req  = &v3.QuerySubscriptionsForAccountRequest{
@@ -91,7 +91,7 @@ func (c *Client) SubscriptionsForPlan(ctx context.Context, id uint64, pageReq *q
 
 // SubscriptionAllocation retrieves details of a specific allocation within a subscription.
 // Returns the allocation details and any error encountered.
-func (c *Client) SubscriptionAllocation(ctx context.Context, id uint64, accAddr types.AccAddress) (res *v2.Allocation, err error) {
+func (c *Client) SubscriptionAllocation(ctx context.Context, id uint64, accAddr cosmossdk.AccAddress) (res *v2.Allocation, err error) {
 	var (
 		resp v2.QueryAllocationResponse
 		req  = &v2.QueryAllocationRequest{
