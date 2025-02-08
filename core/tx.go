@@ -8,6 +8,7 @@ import (
 
 	"github.com/avast/retry-go/v4"
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/libs/bytes"
 	core "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -269,7 +270,7 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 }
 
 // tx retrieves a transaction from the blockchain using its hash.
-func (c *Client) tx(ctx context.Context, hash []byte) (*core.ResultTx, error) {
+func (c *Client) tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, error) {
 	// Get the HTTP client for querying the blockchain.
 	http, err := c.HTTP()
 	if err != nil {
@@ -286,7 +287,7 @@ func (c *Client) tx(ctx context.Context, hash []byte) (*core.ResultTx, error) {
 }
 
 // Tx retrieves a transaction from the blockchain using its hash, with retry logic.
-func (c *Client) Tx(ctx context.Context, hash []byte) (*core.ResultTx, error) {
+func (c *Client) Tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, error) {
 	var err error
 	var result *core.ResultTx
 

@@ -31,7 +31,6 @@ func EventFromEvents(items []types.Event, t interface{}) (*types.Event, error) {
 	}
 
 	for _, item := range items {
-		fmt.Println(item.GetType())
 		if item.GetType() == name {
 			return &item, nil
 		}
