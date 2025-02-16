@@ -2,8 +2,8 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -27,11 +27,6 @@ func calculateFees(gasPrices cosmossdk.DecCoins, gasLimit uint64) cosmossdk.Coin
 	}
 
 	return fees
-}
-
-// isTxInMempoolCacheError checks if the error message indicates that the transaction is already present in the mempool cache.
-func isTxInMempoolCacheError(err error) bool {
-	return strings.Contains(strings.ToLower(err.Error()), "tx already exists in cache")
 }
 
 // gasSimulateTx simulates the execution of a transaction to estimate the gas usage.
@@ -185,25 +180,28 @@ func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	}
 
 	// Get the sender's address from the key record.
-	accAddr, err := key.GetAddress()
+	addr, err := key.GetAddress()
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve addr: %w", err)
 	}
 
 	// Retrieve the sender's account information from the blockchain.
-	account, err := c.Account(ctx, accAddr)
+	acc, err := c.Account(ctx, addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query account: %w", err)
 	}
+	if acc == nil {
+		return nil, newErrNotFound(fmt.Errorf("acconut %s does not exist", addr))
+	}
 
 	// Prepare the transaction (set messages, fees, gas, etc.) for broadcasting.
-	txb, err := c.prepareTx(ctx, key, account, msgs...)
+	txb, err := c.prepareTx(ctx, key, acc, msgs...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare tx: %w", err)
 	}
 
 	// Sign the transaction.
-	if err := c.signTx(txb, key, account); err != nil {
+	if err := c.signTx(txb, key, acc); err != nil {
 		return nil, fmt.Errorf("failed to sign tx: %w", err)
 	}
 
@@ -238,6 +236,11 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 		// Attempt to broadcast the transaction.
 		resp, err = c.broadcastTxSync(ctx, msgs...)
 		if err != nil {
+			// Return nil if the error is related to a mempool cache issue.
+			if IsTxInMempoolCacheError(err) {
+				return nil
+			}
+
 			return err
 		}
 
@@ -246,8 +249,7 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 
 	// retryIfFunc determines whether a retry should occur based on the error.
 	retryIfFunc := func(err error) bool {
-		// Do not retry if the error is related to a mempool cache issue.
-		if isTxInMempoolCacheError(err) {
+		if errors.Is(err, ErrNotFound) {
 			return false
 		}
 

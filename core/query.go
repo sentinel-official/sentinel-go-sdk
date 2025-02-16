@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/avast/retry-go/v4"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -13,16 +12,6 @@ import (
 	core "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 )
-
-// IsNotFoundError checks if the given error string indicates a gRPC NotFound error.
-func IsNotFoundError(err error) error {
-	// Check if the error string contains "rpc error: code = NotFound"
-	if strings.Contains(err.Error(), "rpc error: code = NotFound") {
-		return nil
-	}
-
-	return err
-}
 
 // ABCIQueryWithOptions performs an ABCI query with configurable options.
 // It retries the query in case of failures based on the Client's retry configuration.

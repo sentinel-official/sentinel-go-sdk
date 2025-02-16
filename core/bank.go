@@ -27,7 +27,7 @@ func (c *Client) Balance(ctx context.Context, accAddr cosmossdk.AccAddress, deno
 
 	// Perform the gRPC query to fetch the account balance.
 	if err := c.QueryGRPC(ctx, methodQueryBalance, req, &resp); err != nil {
-		return nil, IsNotFoundError(err)
+		return nil, IsCodeNotFound(err)
 	}
 
 	return resp.Balance, nil

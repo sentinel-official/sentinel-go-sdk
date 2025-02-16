@@ -68,7 +68,7 @@ func (c *Client) AuthzGrants(ctx context.Context, granter, grantee types.AccAddr
 
 	// Perform the gRPC query to fetch the grants for the specified granter and grantee.
 	if err := c.QueryGRPC(ctx, methodQueryAuthzGrants, req, &resp); err != nil {
-		return nil, nil, IsNotFoundError(err)
+		return nil, nil, IsCodeNotFound(err)
 	}
 
 	return resp.Grants, resp.Pagination, nil

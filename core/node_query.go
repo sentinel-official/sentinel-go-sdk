@@ -26,7 +26,7 @@ func (c *Client) Node(ctx context.Context, nodeAddr types.NodeAddress) (res *v3.
 
 	// Perform the gRPC query to fetch the node details.
 	if err := c.QueryGRPC(ctx, methodQueryNode, req, &resp); err != nil {
-		return nil, IsNotFoundError(err)
+		return nil, IsCodeNotFound(err)
 	}
 
 	return &resp.Node, nil

@@ -28,7 +28,7 @@ func (c *Client) FeegrantAllowance(ctx context.Context, granter, grantee types.A
 
 	// Perform the gRPC query to fetch the fee grant allowance.
 	if err := c.QueryGRPC(ctx, methodQueryFeegrantAllowance, req, &resp); err != nil {
-		return nil, IsNotFoundError(err)
+		return nil, IsCodeNotFound(err)
 	}
 
 	return resp.Allowance, nil

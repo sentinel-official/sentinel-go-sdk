@@ -26,7 +26,7 @@ func (c *Client) Lease(ctx context.Context, id uint64) (res *v1.Lease, err error
 
 	// Perform the gRPC query to fetch the lease details.
 	if err := c.QueryGRPC(ctx, methodQueryLease, req, &resp); err != nil {
-		return nil, IsNotFoundError(err)
+		return nil, IsCodeNotFound(err)
 	}
 
 	return &resp.Lease, nil

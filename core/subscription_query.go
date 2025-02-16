@@ -29,7 +29,7 @@ func (c *Client) Subscription(ctx context.Context, id uint64) (res *v3.Subscript
 
 	// Perform the gRPC query to fetch the subscription details.
 	if err := c.QueryGRPC(ctx, methodQuerySubscription, req, &resp); err != nil {
-		return nil, IsNotFoundError(err)
+		return nil, IsCodeNotFound(err)
 	}
 
 	return &resp.Subscription, nil
@@ -102,7 +102,7 @@ func (c *Client) SubscriptionAllocation(ctx context.Context, id uint64, accAddr 
 
 	// Perform the gRPC query to fetch the allocation details.
 	if err := c.QueryGRPC(ctx, methodQuerySubscriptionAllocation, req, &resp); err != nil {
-		return nil, IsNotFoundError(err)
+		return nil, IsCodeNotFound(err)
 	}
 
 	return &resp.Allocation, nil

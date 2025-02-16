@@ -26,7 +26,7 @@ func (c *Client) Plan(ctx context.Context, id uint64) (res *v3.Plan, err error) 
 
 	// Perform the gRPC query to fetch the plan details.
 	if err := c.QueryGRPC(ctx, methodQueryPlan, req, &resp); err != nil {
-		return nil, IsNotFoundError(err)
+		return nil, IsCodeNotFound(err)
 	}
 
 	return &resp.Plan, nil

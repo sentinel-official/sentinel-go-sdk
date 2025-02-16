@@ -24,7 +24,7 @@ func (c *Client) Account(ctx context.Context, accAddr cosmossdk.AccAddress) (res
 
 	// Perform the gRPC query to fetch the account details.
 	if err := c.QueryGRPC(ctx, methodQueryAccount, req, &resp); err != nil {
-		return nil, IsNotFoundError(err)
+		return nil, IsCodeNotFound(err)
 	}
 
 	// Unpack the retrieved account data into the account interface.

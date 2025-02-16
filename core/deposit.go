@@ -24,7 +24,7 @@ func (c *Client) Deposit(ctx context.Context, accAddr types.AccAddress) (res *v1
 
 	// Perform the gRPC query to fetch the deposit details.
 	if err := c.QueryGRPC(ctx, methodQueryDeposit, req, &resp); err != nil {
-		return nil, IsNotFoundError(err)
+		return nil, IsCodeNotFound(err)
 	}
 
 	return &resp.Deposit, nil
