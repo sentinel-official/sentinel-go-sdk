@@ -27,3 +27,8 @@ func IsCodeNotFound(err error) error {
 
 	return err
 }
+
+// IsWrongSequenceError checks if the error message indicates an account sequence mismatch error.
+func IsWrongSequenceError(err error) bool {
+	return strings.Contains(strings.ToLower(err.Error()), "incorrect account sequence")
+}

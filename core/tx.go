@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -173,6 +172,13 @@ func (c *Client) signTx(txb client.TxBuilder, key *keyring.Record, acc auth.Acco
 
 // broadcastTxSync broadcasts a signed transaction synchronously and returns the broadcast result.
 func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*core.ResultBroadcastTx, error) {
+	// Validate each message and return an error if any fail.
+	for i, msg := range msgs {
+		if err := msg.ValidateBasic(); err != nil {
+			return nil, fmt.Errorf("failed to validate message at index %d: %w", i, err)
+		}
+	}
+
 	// Retrieve the signing key using the configured sender name.
 	key, err := c.Key(c.txFromName)
 	if err != nil {
@@ -249,11 +255,12 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 
 	// retryIfFunc determines whether a retry should occur based on the error.
 	retryIfFunc := func(err error) bool {
-		if errors.Is(err, ErrNotFound) {
-			return false
+		// Retry if the error is an account sequence mismatch.
+		if IsWrongSequenceError(err) {
+			return true
 		}
 
-		return true
+		return false
 	}
 
 	// Retry broadcasting the transaction with defined attempts and delay.
