@@ -56,11 +56,6 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 
 	defer resp.Body.Close()
 
-	// Check for a successful status code.
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected response status code %d", resp.StatusCode)
-	}
-
 	// Decode the JSON response into a predefined structure.
 	var respBody types.Response
 	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
