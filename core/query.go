@@ -42,15 +42,19 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 		return nil
 	}
 
-	// TODO: retry query only on specific errors
+	// retryIfFunc determines whether a retry should occur based on the error.
+	retryIfFunc := func(err error) bool {
+		return true
+	}
 
 	// Retry the query using the configured maximum retries and delay.
 	if err := retry.Do(
 		queryFunc,
-		retry.Attempts(c.queryRetries),
+		retry.Attempts(c.queryRetryAttempts),
 		retry.Delay(c.queryRetryDelay),
 		retry.DelayType(retry.FixedDelay),
 		retry.LastErrorOnly(true),
+		retry.RetryIf(retryIfFunc),
 	); err != nil {
 		return nil, fmt.Errorf("query failed after retries: %w", err)
 	}

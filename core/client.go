@@ -19,7 +19,7 @@ type Client struct {
 	protoCodec           codec.ProtoCodecMarshaler // Used for marshaling and unmarshaling protobuf data
 	queryHeight          int64                     // Query height for blockchain data
 	queryProve           bool                      // Flag indicating whether to prove queries
-	queryRetries         uint                      // Number of retries for queries
+	queryRetryAttempts   uint                      // Number of retry attempts for queries
 	queryRetryDelay      time.Duration             // Delay between query retries
 	rpcAddr              string                    // RPC server address
 	rpcChainID           string                    // The chain ID used to identify the blockchain network
@@ -73,9 +73,9 @@ func (c *Client) WithQueryProve(prove bool) *Client {
 	return c
 }
 
-// WithQueryRetries sets the number of retries for queries and returns the updated Client.
-func (c *Client) WithQueryRetries(retries uint) *Client {
-	c.queryRetries = retries
+// WithQueryRetryAttempts sets the number of retry attempts for queries and returns the updated Client.
+func (c *Client) WithQueryRetryAttempts(attempts uint) *Client {
+	c.queryRetryAttempts = attempts
 	return c
 }
 
