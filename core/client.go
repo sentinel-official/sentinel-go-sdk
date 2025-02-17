@@ -15,25 +15,29 @@ import (
 
 // Client contains all necessary components for transaction handling, query management, and configuration settings.
 type Client struct {
-	keyring              keyring.Keyring           // Keyring for managing private keys and signatures
-	protoCodec           codec.ProtoCodecMarshaler // Used for marshaling and unmarshaling protobuf data
-	queryHeight          int64                     // Query height for blockchain data
-	queryProve           bool                      // Flag indicating whether to prove queries
-	queryRetryAttempts   uint                      // Number of retry attempts for queries
-	queryRetryDelay      time.Duration             // Delay between query retries
-	rpcAddr              string                    // RPC server address
-	rpcChainID           string                    // The chain ID used to identify the blockchain network
-	rpcTimeout           time.Duration             // RPC timeout duration
-	txConfig             client.TxConfig           // Configuration related to transactions (e.g., signing modes)
-	txFeeGranterAddr     cosmossdk.AccAddress      // Address that grants transaction fees
-	txFees               cosmossdk.Coins           // Fees for transactions
-	txFromName           string                    // Sender name for transactions
-	txGasAdjustment      float64                   // Adjustment factor for gas estimation
-	txGasPrices          cosmossdk.DecCoins        // Gas price settings for transactions
-	txGas                uint64                    // Gas limit for transactions
-	txMemo               string                    // Memo attached to transactions
-	txSimulateAndExecute bool                      // Flag for simulating and executing transactions
-	txTimeoutHeight      uint64                    // Transaction timeout height
+	keyring                  keyring.Keyring           // Keyring for managing private keys and signatures
+	protoCodec               codec.ProtoCodecMarshaler // Used for marshaling and unmarshaling protobuf data
+	queryHeight              int64                     // Query height for blockchain data
+	queryProve               bool                      // Flag indicating whether to prove queries
+	queryRetryAttempts       uint                      // Number of retry attempts for queries
+	queryRetryDelay          time.Duration             // Delay between query retries
+	rpcAddr                  string                    // RPC server address
+	rpcChainID               string                    // The chain ID used to identify the blockchain network
+	rpcTimeout               time.Duration             // RPC timeout duration
+	txBroadcastRetryAttempts uint                      // Number of retry attempts for transaction broadcast
+	txBroadcastRetryDelay    time.Duration             // Delay between transaction broadcast retries
+	txConfig                 client.TxConfig           // Configuration related to transactions (e.g., signing modes)
+	txFeeGranterAddr         cosmossdk.AccAddress      // Address that grants transaction fees
+	txFees                   cosmossdk.Coins           // Fees for transactions
+	txFromName               string                    // Sender name for transactions
+	txGasAdjustment          float64                   // Adjustment factor for gas estimation
+	txGasPrices              cosmossdk.DecCoins        // Gas price settings for transactions
+	txGas                    uint64                    // Gas limit for transactions
+	txMemo                   string                    // Memo attached to transactions
+	txQueryRetryAttempts     uint                      // Number of retry attempts for transaction queries
+	txQueryRetryDelay        time.Duration             // Delay between transaction query retries
+	txSimulateAndExecute     bool                      // Flag for simulating and executing transactions
+	txTimeoutHeight          uint64                    // Transaction timeout height
 }
 
 // NewClient initializes a new Client instance.
@@ -103,6 +107,18 @@ func (c *Client) WithRPCTimeout(timeout time.Duration) *Client {
 	return c
 }
 
+// WithTxBroadcastRetryAttempts sets the number of retry attempts for broadcasting transactions and returns the updated Client.
+func (c *Client) WithTxBroadcastRetryAttempts(attempts uint) *Client {
+	c.txBroadcastRetryAttempts = attempts
+	return c
+}
+
+// WithTxBroadcastRetryDelay sets the retry delay duration for broadcasting transactions and returns the updated Client.
+func (c *Client) WithTxBroadcastRetryDelay(delay time.Duration) *Client {
+	c.txBroadcastRetryDelay = delay
+	return c
+}
+
 // WithTxConfig sets the transaction configuration and returns the updated Client.
 func (c *Client) WithTxConfig(txConfig client.TxConfig) *Client {
 	c.txConfig = txConfig
@@ -148,6 +164,18 @@ func (c *Client) WithTxGas(gas uint64) *Client {
 // WithTxMemo sets the memo for transactions and returns the updated Client.
 func (c *Client) WithTxMemo(memo string) *Client {
 	c.txMemo = memo
+	return c
+}
+
+// WithTxQueryRetryAttempts sets the number of retry attempts for transaction queries and returns the updated Client.
+func (c *Client) WithTxQueryRetryAttempts(attempts uint) *Client {
+	c.txQueryRetryAttempts = attempts
+	return c
+}
+
+// WithTxQueryRetryDelay sets the retry delay duration for transaction queries and returns the updated Client.
+func (c *Client) WithTxQueryRetryDelay(delay time.Duration) *Client {
+	c.txQueryRetryDelay = delay
 	return c
 }
 

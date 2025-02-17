@@ -20,7 +20,7 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 	var result *core.ResultABCIQuery
 
 	// Define the function to perform the ABCI query.
-	queryFunc := func() error {
+	retryFunc := func() error {
 		// Get the RPC client for querying.
 		http, err := c.HTTP()
 		if err != nil {
@@ -49,7 +49,7 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 
 	// Retry the query using the configured maximum retries and delay.
 	if err := retry.Do(
-		queryFunc,
+		retryFunc,
 		retry.Attempts(c.queryRetryAttempts),
 		retry.Delay(c.queryRetryDelay),
 		retry.DelayType(retry.FixedDelay),

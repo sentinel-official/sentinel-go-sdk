@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/pflag"
@@ -10,12 +11,31 @@ import (
 
 // TxConfig defines the configuration for transactions.
 type TxConfig struct {
-	FeeGranterAddr     string  `mapstructure:"fee_granter_addr"`     // FeeGranterAddr is the address of the entity granting fees.
-	FromName           string  `mapstructure:"from_name"`            // FromName is the name of the sender's account.
-	Gas                uint64  `mapstructure:"gas"`                  // Gas is the gas limit for the transaction.
-	GasAdjustment      float64 `mapstructure:"gas_adjustment"`       // GasAdjustment is the adjustment factor for gas estimation.
-	GasPrices          string  `mapstructure:"gas_prices"`           // GasPrices is the price of gas for the transaction.
-	SimulateAndExecute bool    `mapstructure:"simulate_and_execute"` // SimulateAndExecute indicates whether to simulate the transaction before execution.
+	BroadcastRetryAttempts uint    `mapstructure:"broadcast_retry_attempts"` // Number of times to retry broadcasting a transaction.
+	BroadcastRetryDelay    string  `mapstructure:"broadcast_retry_delay"`    // Delay between broadcast retries.
+	FeeGranterAddr         string  `mapstructure:"fee_granter_addr"`         // FeeGranterAddr is the address of the entity granting fees.
+	FromName               string  `mapstructure:"from_name"`                // FromName is the name of the sender's account.
+	GasAdjustment          float64 `mapstructure:"gas_adjustment"`           // GasAdjustment is the adjustment factor for gas estimation.
+	GasPrices              string  `mapstructure:"gas_prices"`               // GasPrices is the price of gas for the transaction.
+	Gas                    uint64  `mapstructure:"gas"`                      // Gas is the gas limit for the transaction.
+	QueryRetryAttempts     uint    `mapstructure:"query_retry_attempts"`     // Number of times to retry querying a transaction.
+	QueryRetryDelay        string  `mapstructure:"query_retry_delay"`        // Delay between query retries.
+	SimulateAndExecute     bool    `mapstructure:"simulate_and_execute"`     // SimulateAndExecute indicates whether to simulate the transaction before execution.
+}
+
+// GetBroadcastRetryAttempts returns the BroadcastRetryAttempts field.
+func (c *TxConfig) GetBroadcastRetryAttempts() uint {
+	return c.BroadcastRetryAttempts
+}
+
+// GetBroadcastRetryDelay returns the BroadcastRetryDelay field as time.Duration.
+func (c *TxConfig) GetBroadcastRetryDelay() time.Duration {
+	v, err := time.ParseDuration(c.BroadcastRetryDelay)
+	if err != nil {
+		panic(err)
+	}
+
+	return v
 }
 
 // GetFeeGranterAddr returns the FeeGranterAddr field.
@@ -57,6 +77,21 @@ func (c *TxConfig) GetGasPrices() types.DecCoins {
 	return coins
 }
 
+// GetQueryRetryAttempts returns the QueryRetryAttempts field.
+func (c *TxConfig) GetQueryRetryAttempts() uint {
+	return c.QueryRetryAttempts
+}
+
+// GetQueryRetryDelay returns the QueryRetryDelay field as time.Duration.
+func (c *TxConfig) GetQueryRetryDelay() time.Duration {
+	v, err := time.ParseDuration(c.QueryRetryDelay)
+	if err != nil {
+		panic(err)
+	}
+
+	return v
+}
+
 // GetSimulateAndExecute returns the SimulateAndExecute field.
 func (c *TxConfig) GetSimulateAndExecute() bool {
 	return c.SimulateAndExecute
@@ -64,6 +99,11 @@ func (c *TxConfig) GetSimulateAndExecute() bool {
 
 // Validate ensures the TxConfig has valid fields.
 func (c *TxConfig) Validate() error {
+	// Ensure BroadcastRetryAttempts is non-zero.
+	if c.BroadcastRetryAttempts == 0 {
+		return errors.New("broadcast_retry_attempts cannot be zero")
+	}
+
 	// Validate FeeGranterAddr if it's not empty.
 	if c.FeeGranterAddr != "" {
 		if _, err := types.AccAddressFromBech32(c.FeeGranterAddr); err != nil {
@@ -88,27 +128,40 @@ func (c *TxConfig) Validate() error {
 		}
 	}
 
+	// Ensure QueryRetryAttempts is non-zero.
+	if c.QueryRetryAttempts == 0 {
+		return errors.New("query_retry_attempts cannot be zero")
+	}
+
 	return nil
 }
 
 // SetForFlags adds tx configuration flags to the specified FlagSet.
 func (c *TxConfig) SetForFlags(f *pflag.FlagSet) {
+	f.UintVar(&c.BroadcastRetryAttempts, "tx.broadcast-retry-attempts", c.BroadcastRetryAttempts, "number of times to retry broadcasting a transaction")
+	f.StringVar(&c.BroadcastRetryDelay, "tx.broadcast-retry-delay", c.BroadcastRetryDelay, "delay between transaction broadcast retries")
 	f.StringVar(&c.FeeGranterAddr, "tx.fee-granter-addr", c.FeeGranterAddr, "address of the entity granting fees")
 	f.StringVar(&c.FromName, "tx.from-name", c.FromName, "name of the sender's account")
 	f.Uint64Var(&c.Gas, "tx.gas", c.Gas, "gas limit for the transaction")
 	f.Float64Var(&c.GasAdjustment, "tx.gas-adjustment", c.GasAdjustment, "adjustment factor for gas estimation")
 	f.StringVar(&c.GasPrices, "tx.gas-prices", c.GasPrices, "price of gas for the transaction")
 	f.BoolVar(&c.SimulateAndExecute, "tx.simulate-and-execute", c.SimulateAndExecute, "simulate the transaction before execution")
+	f.UintVar(&c.QueryRetryAttempts, "tx.query-retry-attempts", c.QueryRetryAttempts, "number of times to retry querying a transaction")
+	f.StringVar(&c.QueryRetryDelay, "tx.query-retry-delay", c.QueryRetryDelay, "delay between transaction query retries")
 }
 
 // DefaultTxConfig creates a TxConfig with default values.
 func DefaultTxConfig() *TxConfig {
 	return &TxConfig{
-		FeeGranterAddr:     "",
-		FromName:           "default",
-		Gas:                200_000,
-		GasAdjustment:      1.0 + 1.0/6,
-		GasPrices:          "0.1udvpn",
-		SimulateAndExecute: true,
+		BroadcastRetryAttempts: 1,
+		BroadcastRetryDelay:    "5s",
+		FeeGranterAddr:         "",
+		FromName:               "main",
+		Gas:                    200_000,
+		GasAdjustment:          1.0 + 1.0/6,
+		GasPrices:              "0.1udvpn",
+		QueryRetryAttempts:     30,
+		QueryRetryDelay:        "1s",
+		SimulateAndExecute:     true,
 	}
 }

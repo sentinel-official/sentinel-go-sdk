@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/avast/retry-go/v4"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -266,8 +265,8 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	// Retry broadcasting the transaction with defined attempts and delay.
 	if err := retry.Do(
 		retryFunc,
-		retry.Attempts(5),
-		retry.Delay(3*time.Second),
+		retry.Attempts(c.txBroadcastRetryAttempts),
+		retry.Delay(c.txBroadcastRetryDelay),
 		retry.DelayType(retry.FixedDelay),
 		retry.LastErrorOnly(true),
 		retry.RetryIf(retryIfFunc),
@@ -318,8 +317,8 @@ func (c *Client) Tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, e
 	// Retry fetching the transaction.
 	if err := retry.Do(
 		retryFunc,
-		retry.Attempts(30),
-		retry.Delay(1*time.Second),
+		retry.Attempts(c.txQueryRetryAttempts),
+		retry.Delay(c.txQueryRetryDelay),
 		retry.DelayType(retry.FixedDelay),
 		retry.LastErrorOnly(true),
 		retry.RetryIf(retryIfFunc),
