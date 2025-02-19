@@ -89,11 +89,11 @@ func (s *Scheduler) runWorker(w Worker) {
 		s.wg.Done()
 	}()
 
-	for {
+	for c := uint(0); w.MaxRuns() == 0 || c < w.MaxRuns(); c++ {
 		// Attempt the worker's run function with retries
 		if err := retry.Do(
 			w.Run,
-			retry.Attempts(w.Retries()),
+			retry.Attempts(w.RetryAttempts()),
 			retry.Delay(w.RetryDelay()),
 			retry.DelayType(retry.FixedDelay),
 			retry.OnRetry(w.OnRetry),
