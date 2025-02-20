@@ -273,13 +273,13 @@ func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatist
 		// Parse upload traffic stats.
 		uploadBytes, err := strconv.ParseInt(columns[1], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse upload size: %w", err)
+			return nil, fmt.Errorf("failed to parse upload bytes: %w", err)
 		}
 
 		// Parse download traffic stats.
 		downloadBytes, err := strconv.ParseInt(columns[2], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse download size: %w", err)
+			return nil, fmt.Errorf("failed to parse download bytes: %w", err)
 		}
 
 		// Append peer statistics to the result collection.

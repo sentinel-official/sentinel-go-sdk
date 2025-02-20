@@ -1,6 +1,7 @@
 package wireguard
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
@@ -26,6 +27,18 @@ func NewClient() *Client {
 	return &Client{}
 }
 
+// WithHomeDir sets the home directory for the client and returns the updated Client instance.
+func (c *Client) WithHomeDir(homeDir string) *Client {
+	c.homeDir = homeDir
+	return c
+}
+
+// WithName sets the name for the client and returns the updated Client instance.
+func (c *Client) WithName(name string) *Client {
+	c.name = name
+	return c
+}
+
 // configFilePath returns the file path of the client's configuration file.
 func (c *Client) configFilePath() string {
 	return filepath.Join(c.homeDir, fmt.Sprintf("%s.conf", c.name))
@@ -41,7 +54,7 @@ func (c *Client) IsUp(ctx context.Context) (bool, error) {
 	// Retrieves the interface name.
 	iface, err := c.interfaceName()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to get interface name: %w", err)
 	}
 
 	// Executes the 'wg show' command to check the interface status.
@@ -50,8 +63,19 @@ func (c *Client) IsUp(ctx context.Context) (bool, error) {
 		c.execFile("wg"),
 		strings.Fields(fmt.Sprintf("show %s", iface))...,
 	)
+
+	// Capture stderr output.
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	// Run the command and handle errors.
 	if err := cmd.Run(); err != nil {
-		return false, err
+		// Check if the error matches "No such device".
+		if strings.Contains(stderr.String(), "No such device") {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("failed to run command: %w", err)
 	}
 
 	return true, nil
@@ -65,7 +89,12 @@ func (c *Client) PreUp(v interface{}) error {
 		return fmt.Errorf("invalid parameter type %T", v)
 	}
 
-	return cfg.WriteToFile(c.configFilePath())
+	// Writes configuration to file.
+	if err := cfg.WriteToFile(c.configFilePath()); err != nil {
+		return fmt.Errorf("failed to write config: %w", err)
+	}
+
+	return nil
 }
 
 // PostUp performs operations after the client process is started.
@@ -82,7 +111,7 @@ func (c *Client) PreDown() error {
 func (c *Client) PostDown() error {
 	// Removes configuration file.
 	if err := utils.RemoveFile(c.configFilePath()); err != nil {
-		return fmt.Errorf("failed to remove file: %w", err)
+		return fmt.Errorf("failed to remove config: %w", err)
 	}
 
 	return nil
@@ -93,22 +122,20 @@ func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 	// Retrieves the interface name.
 	iface, err := c.interfaceName()
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("failed to get interface name: %w", err)
 	}
 
-	// Executes the 'wg show [interface] transfer' command to get transfer statistics.
-	cmd := exec.CommandContext(
+	// Executes the 'wg show' command to get transfer statistics.
+	output, err := exec.CommandContext(
 		ctx,
 		c.execFile("wg"),
 		strings.Fields(fmt.Sprintf("show %s transfer", iface))...,
-	)
-
-	output, err := cmd.Output()
+	).Output()
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("failed to run command: %w", err)
 	}
 
-	// Parses the output to retrieve download and upload statistics.
+	// Split the command output into lines and process each line.
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
 		columns := strings.Split(line, "\t")
@@ -116,17 +143,19 @@ func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 			continue
 		}
 
-		download, err := strconv.ParseInt(columns[1], 10, 64)
+		// Parse upload traffic stats.
+		uploadBytes, err := strconv.ParseInt(columns[1], 10, 64)
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, fmt.Errorf("failed to parse upload bytes: %w", err)
 		}
 
-		upload, err := strconv.ParseInt(columns[2], 10, 64)
+		// Parse download traffic stats.
+		downloadBytes, err := strconv.ParseInt(columns[2], 10, 64)
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, fmt.Errorf("failed to parse download bytes: %w", err)
 		}
 
-		return download, upload, nil
+		return uploadBytes, downloadBytes, nil
 	}
 
 	return 0, 0, nil // Return 0 statistics if no data found.

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
+	"net/netip"
 	"os"
 	"strings"
 
@@ -20,10 +22,73 @@ import (
 var fs embed.FS
 
 // ClientConfig represents the WireGuard client configuration.
-type ClientConfig struct{}
+type ClientConfig struct {
+	IPv4Addr   string   `mapstructure:"ipv4_addr"`   // IPv4Addr is the IPv4 address with CIDR notation.
+	IPv6Addr   string   `mapstructure:"ipv6_addr"`   // IPv6Addr is the IPv6 address with CIDR notation.
+	Port       uint16   `mapstructure:"port"`        // Port specifies the WireGuard listening port.
+	PrivateKey string   `mapstructure:"private_key"` // PrivateKey is the WireGuard private key.
+	DNSServers []string `mapstructure:"dns_servers"` // DNSServers is a list of DNS servers to be used.
+}
 
-// Validate verifies the ClientConfig. (No-op for now.)
+// Address returns the combined IPv4 and IPv6 addresses, separated by a comma.
+func (c *ClientConfig) Address() string {
+	var addrs []string
+	if c.IPv4Addr != "" {
+		addrs = append(addrs, c.IPv4Addr)
+	}
+	if c.IPv6Addr != "" {
+		addrs = append(addrs, c.IPv6Addr)
+	}
+
+	return strings.Join(addrs, ",")
+}
+
+// DNS returns the client's DNS servers as a comma-separated string.
+func (c *ClientConfig) DNS() string {
+	return strings.Join(c.DNSServers, ",")
+}
+
+// Validate checks that the ClientConfig fields have valid values.
 func (c *ClientConfig) Validate() error {
+	// Ensure at least one of IPv4Addr or IPv6Addr is provided.
+	if c.IPv4Addr == "" && c.IPv6Addr == "" {
+		return errors.New("either ipv4_addr or ipv6_addr is required")
+	}
+
+	// Validate IPv4Addr if provided.
+	if c.IPv4Addr != "" {
+		if _, err := netip.ParsePrefix(c.IPv4Addr); err != nil {
+			return fmt.Errorf("invalid ipv4_addr: %w", err)
+		}
+	}
+
+	// Validate IPv6Addr if provided.
+	if c.IPv6Addr != "" {
+		if _, err := netip.ParsePrefix(c.IPv6Addr); err != nil {
+			return fmt.Errorf("invalid ipv6_addr: %w", err)
+		}
+	}
+
+	// Ensure Port is not empty and validate it.
+	if c.Port == 0 {
+		return errors.New("port cannot be empty")
+	}
+
+	// Ensure PrivateKey is not empty and validate it.
+	if c.PrivateKey == "" {
+		return errors.New("private_key cannot be empty")
+	}
+	if _, err := NewKeyFromString(c.PrivateKey); err != nil {
+		return fmt.Errorf("invalid private_key: %w", err)
+	}
+
+	// Validate DNS servers.
+	for _, addr := range c.DNSServers {
+		if net.ParseIP(addr) == nil {
+			return errors.New("invalid dns server addr")
+		}
+	}
+
 	return nil
 }
 
@@ -68,7 +133,7 @@ func (c *ServerConfig) Address() string {
 		addrs = append(addrs, c.IPv6Addr)
 	}
 
-	return strings.Join(addrs, ", ")
+	return strings.Join(addrs, ",")
 }
 
 // InPort returns the inbound port as a uint16.
