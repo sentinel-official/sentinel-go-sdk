@@ -17,6 +17,15 @@ type RPCConfig struct {
 	Timeout string   `mapstructure:"timeout"`  // Timeout is the duration for RPC requests.
 }
 
+// GetAddr returns the first RPC address from the list or an empty string if no addresses are available.
+func (c *RPCConfig) GetAddr() string {
+	if len(c.GetAddrs()) == 0 {
+		return ""
+	}
+
+	return c.GetAddrs()[0]
+}
+
 // GetAddrs returns the addresses of the RPC servers.
 func (c *RPCConfig) GetAddrs() []string {
 	return c.Addrs

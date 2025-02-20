@@ -13,7 +13,7 @@ import (
 // CreateKey generates and stores a new key in the keyring with the provided name, mnemonic, and options.
 // If no mnemonic is provided, it generates a new one.
 // Returns the mnemonic, the created key record, and any error encountered.
-func (c *Client) CreateKey(name, mnemonic, bip39Pass string, coinType, account, index uint32) (s string, k *keyring.Record, err error) {
+func (c *Client) CreateKey(name, mnemonic, bip39Pass, hdPath string) (s string, k *keyring.Record, err error) {
 	// Generate a new mnemonic if none is provided.
 	if mnemonic == "" {
 		mnemonic, err = c.NewMnemonic()
@@ -22,12 +22,8 @@ func (c *Client) CreateKey(name, mnemonic, bip39Pass string, coinType, account, 
 		}
 	}
 
-	// Create an HD path for the key.
-	hdPath := hd.CreateHDPath(coinType, account, index)
-	signAlgo := hd.Secp256k1
-
 	// Create a new key in the keyring.
-	key, err := c.keyring.NewAccount(name, mnemonic, bip39Pass, hdPath.String(), signAlgo)
+	key, err := c.keyring.NewAccount(name, mnemonic, bip39Pass, hdPath, hd.Secp256k1)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create new account: %w", err)
 	}

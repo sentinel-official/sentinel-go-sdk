@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/go-bip39"
 	"github.com/spf13/cobra"
@@ -56,10 +57,8 @@ func NewKeysCmd(cfg *config.KeyringConfig) *cobra.Command {
 // keysAddCmd creates a new key with the specified name, mnemonic, and bip39 passphrase.
 func keysAddCmd(c *core.Client) *cobra.Command {
 	// Declare variables for flags
-	var account uint32
-	var coinType uint32
-	var index uint32
-	var outputFormat = "text"
+	hdPath := hd.CreateHDPath(118, 0, 0).String()
+	outputFormat := "text"
 
 	cmd := &cobra.Command{
 		Use:   "add [name]",
@@ -104,7 +103,7 @@ func keysAddCmd(c *core.Client) *cobra.Command {
 			}
 
 			// Create the key with the provided details
-			newMnemonic, key, err := c.CreateKey(args[0], mnemonic, bip39Pass, coinType, account, index)
+			newMnemonic, key, err := c.CreateKey(args[0], mnemonic, bip39Pass, hdPath)
 			if err != nil {
 				return fmt.Errorf("failed to create new key: %w", err)
 			}
@@ -139,9 +138,7 @@ func keysAddCmd(c *core.Client) *cobra.Command {
 	}
 
 	// Bind flags to variables
-	cmd.Flags().Uint32Var(&account, "account", account, "account number to use for key creation")
-	cmd.Flags().Uint32Var(&coinType, "coin-type", coinType, "coin type to use for key creation")
-	cmd.Flags().Uint32Var(&index, "index", index, "index to use for key creation")
+	cmd.Flags().StringVar(&hdPath, "hd-path", hdPath, "full absolute hd path of the bip44 params")
 	cmd.Flags().StringVar(&outputFormat, "output-format", outputFormat, "format for command output (json or text)")
 
 	return cmd
@@ -187,7 +184,7 @@ func keysDeleteCmd(c *core.Client) *cobra.Command {
 // keysListCmd lists all the available keys.
 func keysListCmd(c *core.Client) *cobra.Command {
 	// Declare variables for flags
-	var outputFormat = "text"
+	outputFormat := "text"
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -223,7 +220,7 @@ func keysListCmd(c *core.Client) *cobra.Command {
 // keysShowCmd displays details of the key with the specified name.
 func keysShowCmd(c *core.Client) *cobra.Command {
 	// Declare variables for flags
-	var outputFormat = "text"
+	outputFormat := "text"
 
 	cmd := &cobra.Command{
 		Use:   "show [name]",
