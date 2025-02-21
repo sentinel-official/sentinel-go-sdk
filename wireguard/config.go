@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/netip"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -24,45 +23,43 @@ var fs embed.FS
 
 // PeerClientConfig represents the configuration for a single WireGuard peer.
 type PeerClientConfig struct {
-	AllowedAddrs        []string `mapstructure:"allowed_addrs"`        // AllowedAddrs defines the IP ranges (CIDR notation) that are allowed through this peer.
-	Endpoint            string   `mapstructure:"endpoint"`             // Endpoint specifies the remote address and port of the peer.
+	Addr                string   `mapstructure:"addr"`                 // Addr specifies the IP address or hostname of the peer.
+	AllowAddrs          []string `mapstructure:"allow_addrs"`          // AllowAddrs defines the IP ranges (CIDR notation) that are allowed through this peer.
 	PersistentKeepalive uint     `mapstructure:"persistent_keepalive"` // PersistentKeepalive defines the interval (in seconds).
+	Port                uint16   `mapstructure:"port"`                 // Port is the listening port of the peer.
 	PublicKey           string   `mapstructure:"public_key"`           // PublicKey is the WireGuard public key for this peer.
 }
 
+func (c *PeerClientConfig) Endpoint() string {
+	return fmt.Sprintf("%s:%d", c.Addr, c.Port)
+}
+
 // Validate checks if the PeerClientConfig fields are correctly formatted and returns an error if any validation fails.
-func (p *PeerClientConfig) Validate() error {
-	// Validate AllowedAddrs (must be in CIDR notation)
-	for _, ip := range p.AllowedAddrs {
+func (c *PeerClientConfig) Validate() error {
+	// Ensure that Addr is not empty.
+	if c.Addr == "" {
+		return errors.New("addr cannot be empty")
+	}
+
+	// Validate AllowAddrs (must be in CIDR notation)
+	for _, ip := range c.AllowAddrs {
 		if _, err := netip.ParsePrefix(ip); err != nil {
-			return fmt.Errorf("failed to parse allowed addr: %w", err)
+			return fmt.Errorf("failed to parse allow addr: %w", err)
 		}
 	}
 
-	// Validate Endpoint (must be in "IP:Port" or "hostname:Port" format)
-	parts := strings.Split(p.Endpoint, ":")
-	if len(parts) != 2 {
-		return errors.New("invalid endpoint format")
+	// Ensure PersistentKeepalive is set to a valid non-zero value.
+	if c.PersistentKeepalive == 0 {
+		return errors.New("persistent_keepalive cannot be empty")
 	}
 
-	host, port := parts[0], parts[1]
-
-	// Validate host (either an IP address or a valid hostname)
-	if host == "" {
-		return errors.New("host cannot be empty")
+	// Validate Port (must be a non-zero value).
+	if c.Port == 0 {
+		return errors.New("port cannot be empty")
 	}
 
-	// Validate port number
-	portNum, err := strconv.Atoi(port)
-	if err != nil {
-		return fmt.Errorf("failed to parse port: %w", err)
-	}
-	if portNum < 1 || portNum > 65535 {
-		return errors.New("invalid port")
-	}
-
-	// Validate PublicKey
-	if p.PublicKey == "" {
+	// Ensure PublicKey is not empty.
+	if c.PublicKey == "" {
 		return errors.New("public_key cannot be empty")
 	}
 
@@ -71,52 +68,102 @@ func (p *PeerClientConfig) Validate() error {
 
 // ClientConfig represents the WireGuard client configuration.
 type ClientConfig struct {
-	Addrs      []string            `mapstructure:"addrs"`       // Addrs contains the client’s IPv4 and/or IPv6 addresses in CIDR notation.
-	DNSAddrs   []string            `mapstructure:"dns_addrs"`   // DNSAddrs is a list of DNS servers to be used by the client.
-	MTU        uint16              `mapstructure:"mtu"`         // MTU sets the maximum transmission unit size.
-	Peers      []*PeerClientConfig `mapstructure:"peers"`       // Peers is a list of peer configurations that the client can connect to.
-	Port       uint16              `mapstructure:"port"`        // Port specifies the WireGuard listening port for the client.
-	PrivateKey string              `mapstructure:"private_key"` // PrivateKey holds the WireGuard private key for this client.
+	Addrs        []string            `mapstructure:"addrs"`         // Addrs contains the client’s IPv4 and/or IPv6 addresses in CIDR notation.
+	DNSAddrs     []string            `mapstructure:"dns_addrs"`     // DNSAddrs is a list of DNS servers to be used by the client.
+	ExcludeAddrs []string            `mapstructure:"exclude_addrs"` // ExcludeAddrs defines IP ranges that should not use the VPN tunnel.
+	MTU          uint16              `mapstructure:"mtu"`           // MTU sets the maximum transmission unit size.
+	Name         string              `mapstructure:"name"`          // Name is the name of the WireGuard interface.
+	Peers        []*PeerClientConfig `mapstructure:"peers"`         // Peers is a list of peer configurations that the client can connect to.
+	Port         uint16              `mapstructure:"port"`          // Port specifies the WireGuard listening port for the client.
+	PrivateKey   string              `mapstructure:"private_key"`   // PrivateKey holds the WireGuard private key for this client.
 }
 
-// Validate checks that the ClientConfig fields have valid values.
+// GetAddrs returns the list of addresses (Addrs) as netip.Prefixes.
+func (c *ClientConfig) GetAddrs() []netip.Prefix {
+	var addrs []netip.Prefix
+	for _, addr := range c.Addrs {
+		prefix, err := netip.ParsePrefix(addr)
+		if err != nil {
+			panic(fmt.Errorf("failed to parse addr: %w", err))
+		}
+
+		addrs = append(addrs, prefix)
+	}
+
+	return addrs
+}
+
+// GetExcludeAddrs returns the list of exclude addresses (ExcludeAddrs) as netip.Prefixes.
+func (c *ClientConfig) GetExcludeAddrs() []netip.Prefix {
+	var addrs []netip.Prefix
+	for _, addr := range c.ExcludeAddrs {
+		prefix, err := netip.ParsePrefix(addr)
+		if err != nil {
+			panic(fmt.Errorf("failed to parse addr: %w", err))
+		}
+
+		addrs = append(addrs, prefix)
+	}
+
+	return addrs
+}
+
+// Validate checks that all fields in ClientConfig have valid values.
 func (c *ClientConfig) Validate() error {
-	// Validate Addrs (at lease one addr must be provided)
+	// Validate Addrs (at least one address must be provided).
 	if len(c.Addrs) == 0 {
 		return errors.New("addrs cannot be empty")
 	}
 
-	// Validate DNSAddrs (must be valid IPs)
+	// Validate that each address in Addrs is a valid network prefix in CIDR notation.
 	for _, addr := range c.Addrs {
 		if _, err := netip.ParsePrefix(addr); err != nil {
 			return fmt.Errorf("invalid addr: %w", err)
 		}
 	}
 
-	// Validate DNS servers (must be valid IPs)
+	// Validate DNSAddrs (must be valid IP addresses).
 	for _, addr := range c.DNSAddrs {
 		if net.ParseIP(addr) == nil {
 			return errors.New("invalid dns addr")
 		}
 	}
 
-	// Validate Peers (at least one peer is required)
+	// Validate ExcludeAddrs (if provided, each address must be a valid CIDR range).
+	for _, addr := range c.ExcludeAddrs {
+		if _, err := netip.ParsePrefix(addr); err != nil {
+			return fmt.Errorf("failed to parse excluded addr: %w", err)
+		}
+	}
+
+	// Validate MTU (must be a non-zero value).
+	if c.MTU == 0 {
+		return errors.New("mtu cannot be empty")
+	}
+
+	// Ensure Name is not empty.
+	if c.Name == "" {
+		return errors.New("name cannot be empty")
+	}
+
+	// Validate Peers (at least one peer must be configured).
 	if len(c.Peers) == 0 {
 		return errors.New("peers cannot be empty")
 	}
 
+	// Validate each peer configuration.
 	for _, peer := range c.Peers {
 		if err := peer.Validate(); err != nil {
 			return fmt.Errorf("invalid peer config: %w", err)
 		}
 	}
 
-	// Ensure Port is not empty and validate it.
+	// Validate Port (must be a non-zero value).
 	if c.Port == 0 {
 		return errors.New("port cannot be empty")
 	}
 
-	// Ensure PrivateKey is not empty and validate it.
+	// Validate PrivateKey (must be non-empty and a valid WireGuard private key).
 	if c.PrivateKey == "" {
 		return errors.New("private_key cannot be empty")
 	}

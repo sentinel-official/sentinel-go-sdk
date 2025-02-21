@@ -139,7 +139,7 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (res interface{},
 	// Cast the request to AddPeerRequest type.
 	r, ok := req.(*AddPeerRequest)
 	if !ok {
-		return nil, fmt.Errorf("invalid request type: %T", req)
+		return nil, fmt.Errorf("invalid request type %T", req)
 	}
 	if err := r.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid request: %w", err)
