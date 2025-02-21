@@ -13,8 +13,8 @@ func (c *ClientConfig) PostUp() string {
 	addrs := c.GetExcludeAddrs()
 	matchRule := fmt.Sprintf("! -o %s -m mark ! --mark $(wg show %s fwmark)", c.Name, c.Name)
 	rules := []string{
-		fmt.Sprintf("iptables -I OUTPUT %s -j DROP", matchRule),  // Drop rule for IPv4.
-		fmt.Sprintf("ip6tables -I OUTPUT %s -j DROP", matchRule), // Drop rule for IPv6.
+		fmt.Sprintf("iptables -I OUTPUT %s -j DROP", matchRule),  // Add DROP rule for IPv4.
+		fmt.Sprintf("ip6tables -I OUTPUT %s -j DROP", matchRule), // Add DROP rule for IPv6.
 	}
 
 	// Add ACCEPT rules for each excluded address.
@@ -24,7 +24,6 @@ func (c *ClientConfig) PostUp() string {
 			execName = "ip6tables"
 		}
 
-		// Append ACCEPT rule for the excluded address.
 		rules = append(rules, fmt.Sprintf("%s -I OUTPUT %s -d %s -j ACCEPT", execName, matchRule, v))
 	}
 
@@ -41,14 +40,13 @@ func (c *ClientConfig) PreDown() string {
 		fmt.Sprintf("ip6tables -D OUTPUT %s -j DROP", matchRule), // Delete DROP rule for IPv6.
 	}
 
-	// Add DELETE rules for each excluded address.
+	// Delete ACCEPT rules for each excluded address.
 	for _, v := range addrs {
 		execName := "iptables"
 		if v.Addr().Is6() {
 			execName = "ip6tables"
 		}
 
-		// Append DELETE rule for the excluded address.
 		rules = append(rules, fmt.Sprintf("%s -D OUTPUT %s -d %s -j ACCEPT", execName, matchRule, v))
 	}
 

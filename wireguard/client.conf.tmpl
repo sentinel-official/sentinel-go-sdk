@@ -8,12 +8,8 @@ PrivateKey = {{ .PrivateKey }}
 PostUp = {{ .PostUp }}
 PreDown = {{ .PreDown }}
 
-{{- range .Peers }}
-
 [Peer]
-AllowedIPs = {{ join .AllowAddrs "," }}
-Endpoint = {{ .Endpoint }}
-PersistentKeepalive = {{ .PersistentKeepalive }}
-PublicKey = {{ .PublicKey }}
-
-{{- end }}
+AllowedIPs = {{ join .Peer.AllowAddrs "," }}
+Endpoint = {{ .Peer.Endpoint }}
+PersistentKeepalive = {{ .Peer.PersistentKeepalive }}
+PublicKey = {{ .Peer.PublicKey }}
