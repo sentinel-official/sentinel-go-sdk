@@ -31,7 +31,7 @@ type PeerClientConfig struct {
 }
 
 func (c *PeerClientConfig) Endpoint() string {
-	return fmt.Sprintf("%s:%d", c.Addr, c.Port)
+	return net.JoinHostPort(c.Addr, fmt.Sprintf("%d", c.Port))
 }
 
 // Validate checks if the PeerClientConfig fields are correctly formatted and returns an error if any validation fails.
@@ -42,9 +42,9 @@ func (c *PeerClientConfig) Validate() error {
 	}
 
 	// Validate AllowAddrs (must be in CIDR notation)
-	for _, ip := range c.AllowAddrs {
-		if _, err := netip.ParsePrefix(ip); err != nil {
-			return fmt.Errorf("failed to parse allow addr: %w", err)
+	for _, addr := range c.AllowAddrs {
+		if _, err := netip.ParsePrefix(addr); err != nil {
+			return fmt.Errorf("failed to parse addr: %w", err)
 		}
 	}
 
@@ -82,12 +82,12 @@ type ClientConfig struct {
 func (c *ClientConfig) GetAddrs() []netip.Prefix {
 	var addrs []netip.Prefix
 	for _, addr := range c.Addrs {
-		prefix, err := netip.ParsePrefix(addr)
+		addr, err := netip.ParsePrefix(addr)
 		if err != nil {
 			panic(fmt.Errorf("failed to parse addr: %w", err))
 		}
 
-		addrs = append(addrs, prefix)
+		addrs = append(addrs, addr)
 	}
 
 	return addrs
@@ -97,12 +97,12 @@ func (c *ClientConfig) GetAddrs() []netip.Prefix {
 func (c *ClientConfig) GetExcludeAddrs() []netip.Prefix {
 	var addrs []netip.Prefix
 	for _, addr := range c.ExcludeAddrs {
-		prefix, err := netip.ParsePrefix(addr)
+		addr, err := netip.ParsePrefix(addr)
 		if err != nil {
 			panic(fmt.Errorf("failed to parse addr: %w", err))
 		}
 
-		addrs = append(addrs, prefix)
+		addrs = append(addrs, addr)
 	}
 
 	return addrs

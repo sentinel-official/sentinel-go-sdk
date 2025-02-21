@@ -4,95 +4,55 @@ package wireguard
 
 import (
 	"fmt"
-	"net/netip"
 	"strings"
 )
 
-// PreDown generates the PreDown rules based on IPv4 and IPv6 settings
-func (c *ClientConfig) PreDown() string {
-	// Get the list of addresses and exclude addresses for the client
-	addrs := c.GetAddrs()
-	excludeAddrs := c.GetExcludeAddrs()
-
-	// Helper function to generate the necessary iptables/ip6tables rules
-	generateRules := func(execName string, comp func(netip.Addr) bool, matchRule string) (rules []string) {
-		// Loop over all the addresses
-		for _, v := range addrs {
-			if comp(v.Addr()) {
-				// Loop over all the exclude addresses
-				for _, v := range excludeAddrs {
-					if comp(v.Addr()) {
-						// Remove an ACCEPT rule for the exclude address
-						rules = append(rules, fmt.Sprintf("%s -D OUTPUT %s -d %s -j ACCEPT", execName, matchRule, v))
-					}
-				}
-			}
-		}
-
-		// If any ACCEPT rules were generated, remove a default DROP rule to block further traffic
-		if len(rules) != 0 {
-			rules = append(rules, fmt.Sprintf("%s -D OUTPUT %s -j DROP", execName, matchRule))
-		}
-
-		// Return the generated rules
-		return rules
+// PostUp generates PostUp rules for IPv4 and IPv6 settings.
+func (c *ClientConfig) PostUp() string {
+	// Get the list of excluded IP addresses.
+	addrs := c.GetExcludeAddrs()
+	matchRule := fmt.Sprintf("! -o %s -m mark ! --mark $(wg show %s fwmark)", c.Name, c.Name)
+	rules := []string{
+		fmt.Sprintf("iptables -I OUTPUT %s -j DROP", matchRule),  // Drop rule for IPv4.
+		fmt.Sprintf("ip6tables -I OUTPUT %s -j DROP", matchRule), // Drop rule for IPv6.
 	}
 
-	// Define the matchRule for the firewall rules using the WireGuard interface name
-	matchRule := fmt.Sprintf("! -o %s -m mark ! --mark $(wg show %s fwmark)", c.Name, c.Name)
+	// Add ACCEPT rules for each excluded address.
+	for _, v := range addrs {
+		execName := "iptables"
+		if v.Addr().Is6() {
+			execName = "ip6tables"
+		}
 
-	// Generate the rules for IPv4 (iptables) and IPv6 (ip6tables)
-	rules4 := generateRules("iptables", func(v netip.Addr) bool { return v.Is4() }, matchRule)
-	rules6 := generateRules("ip6tables", func(v netip.Addr) bool { return v.Is6() }, matchRule)
+		// Append ACCEPT rule for the excluded address.
+		rules = append(rules, fmt.Sprintf("%s -I OUTPUT %s -d %s -j ACCEPT", execName, matchRule, v))
+	}
 
-	// Return the combined IPv4 and IPv6 rules as a semicolon-separated string
-	return strings.Join(append(rules4, rules6...), "; ")
+	return strings.Join(rules, "; ")
 }
 
-// PostUp generates the PostUp rules based on IPv4 and IPv6 settings
-func (c *ClientConfig) PostUp() string {
-	// Get the list of addresses and exclude addresses for the client
-	addrs := c.GetAddrs()
-	excludeAddrs := c.GetExcludeAddrs()
-
-	// Helper function to generate the necessary iptables/ip6tables rules
-	generateRules := func(execName string, comp func(netip.Addr) bool, matchRule string) (rules []string) {
-		// Loop over all the client addresses
-		for _, v := range addrs {
-			if comp(v.Addr()) {
-				// Loop over all the exclude addresses
-				for _, v := range excludeAddrs {
-					if comp(v.Addr()) {
-						// Add an ACCEPT rule for the exclude address
-						rules = append(rules, fmt.Sprintf("%s -I OUTPUT %s -d %s -j ACCEPT", execName, matchRule, v))
-					}
-				}
-			}
-		}
-
-		// If any ACCEPT rules were generated, add a default DROP rule to block further traffic
-		if len(rules) != 0 {
-			rules = append(rules, fmt.Sprintf("%s -I OUTPUT %s -j DROP", execName, matchRule))
-		}
-
-		// Reverse the rules to ensure the default DROP is last
-		for i, j := 0, len(rules)-1; i < j; i, j = i+1, j-1 {
-			rules[i], rules[j] = rules[j], rules[i]
-		}
-
-		// Return the generated rules
-		return rules
+// PreDown generates PreDown rules to remove the PostUp rules for IPv4 and IPv6.
+func (c *ClientConfig) PreDown() string {
+	// Get the list of excluded IP addresses.
+	addrs := c.GetExcludeAddrs()
+	matchRule := fmt.Sprintf("! -o %s -m mark ! --mark $(wg show %s fwmark)", c.Name, c.Name)
+	rules := []string{
+		fmt.Sprintf("iptables -D OUTPUT %s -j DROP", matchRule),  // Delete DROP rule for IPv4.
+		fmt.Sprintf("ip6tables -D OUTPUT %s -j DROP", matchRule), // Delete DROP rule for IPv6.
 	}
 
-	// Define the matchRule for the firewall rules using the WireGuard interface name
-	matchRule := fmt.Sprintf("! -o %s -m mark ! --mark $(wg show %s fwmark)", c.Name, c.Name)
+	// Add DELETE rules for each excluded address.
+	for _, v := range addrs {
+		execName := "iptables"
+		if v.Addr().Is6() {
+			execName = "ip6tables"
+		}
 
-	// Generate the rules for IPv4 (iptables) and IPv6 (ip6tables)
-	rules4 := generateRules("iptables", func(v netip.Addr) bool { return v.Is4() }, matchRule)
-	rules6 := generateRules("ip6tables", func(v netip.Addr) bool { return v.Is6() }, matchRule)
+		// Append DELETE rule for the excluded address.
+		rules = append(rules, fmt.Sprintf("%s -D OUTPUT %s -d %s -j ACCEPT", execName, matchRule, v))
+	}
 
-	// Return the combined IPv4 and IPv6 rules as a semicolon-separated string
-	return strings.Join(append(rules4, rules6...), "; ")
+	return strings.Join(rules, "; ")
 }
 
 // PostDown generates the PostDown rules based on IPv4 and IPv6 settings
