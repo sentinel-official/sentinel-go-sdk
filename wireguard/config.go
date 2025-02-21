@@ -59,9 +59,12 @@ func (c *PeerClientConfig) Validate() error {
 		return errors.New("port cannot be empty")
 	}
 
-	// Ensure PublicKey is not empty.
+	// Validate PublicKey (must be non-empty and a valid WireGuard public key).
 	if c.PublicKey == "" {
 		return errors.New("public_key cannot be empty")
+	}
+	if _, err := NewKeyFromString(c.PublicKey); err != nil {
+		return fmt.Errorf("invalid public_key: %w", err)
 	}
 
 	return nil
@@ -211,6 +214,17 @@ func (c *ClientConfig) WriteToFile(name string) error {
 	}
 
 	return nil
+}
+
+// SetForFlags adds client configuration flags to the specified FlagSet.
+func (c *ClientConfig) SetForFlags(f *pflag.FlagSet) {
+	f.StringArrayVar(&c.DNSAddrs, "wg.dns-addrs", c.DNSAddrs, "dns servers to use while connected to the vpn")
+	f.StringArrayVar(&c.ExcludeAddrs, "wg.exclude-addrs", c.ExcludeAddrs, "exclude ip addresses/subnets from the wireguard tunnel")
+	f.Uint16Var(&c.MTU, "wg.mtu", c.MTU, "maximum transmission unit size for the wireguard interface")
+	f.StringVar(&c.Name, "wg.name", c.Name, "name of the wireguard network interface")
+	f.StringArrayVar(&c.Peer.AllowAddrs, "wg.peer.allow-addrs", c.Peer.AllowAddrs, "list of allowed ip addresses to route through wireguard peer")
+	f.UintVar(&c.Peer.PersistentKeepalive, "wg.peer.persistent-keepalive", c.Peer.PersistentKeepalive, "interval for keepalive packets to maintain connection")
+	f.Uint16Var(&c.Port, "wg.port", c.Port, "port number for the wireguard interface")
 }
 
 // DefaultClientConfig creates a default ClientConfig with default values.

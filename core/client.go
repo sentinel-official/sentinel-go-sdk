@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/cometbft/cometbft/rpc/client/http"
@@ -10,6 +11,7 @@ import (
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 
+	"github.com/sentinel-official/sentinel-go-sdk/config"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
 
@@ -47,11 +49,11 @@ func NewClient() *Client {
 	txConfig := tx.NewTxConfig(protoCodec, tx.DefaultSignModes)
 
 	// Initialize Client with default values and configurations.
-	bc := &Client{}
-	bc.WithProtoCodec(protoCodec)
-	bc.WithTxConfig(txConfig)
+	c := &Client{}
+	c.WithProtoCodec(protoCodec)
+	c.WithTxConfig(txConfig)
 
-	return bc
+	return c
 }
 
 // ProtoCodec returns the protobuf codec used for marshaling and unmarshaling data.
@@ -196,4 +198,35 @@ func (c *Client) WithTxTimeoutHeight(height uint64) *Client {
 func (c *Client) HTTP() (*http.HTTP, error) {
 	timeout := uint(c.rpcTimeout / time.Second)
 	return http.NewWithTimeout(c.rpcAddr, "/websocket", timeout)
+}
+
+// NewClientFromConfig creates a new Client instance based on the provided configuration.
+func NewClientFromConfig(c *config.Config) (*Client, error) {
+	v := NewClient().
+		WithQueryProve(c.Query.GetProve()).
+		WithQueryRetryAttempts(c.Query.GetRetryAttempts()).
+		WithQueryRetryDelay(c.Query.GetRetryDelay()).
+		WithRPCAddr(c.RPC.GetAddrs()[0]).
+		WithRPCChainID(c.RPC.GetChainID()).
+		WithRPCTimeout(c.RPC.GetTimeout()).
+		WithTxBroadcastRetryAttempts(c.Tx.GetBroadcastRetryAttempts()).
+		WithTxBroadcastRetryDelay(c.Tx.GetBroadcastRetryDelay()).
+		WithTxFeeGranterAddr(c.Tx.GetFeeGranterAddr()).
+		WithTxFees(nil).
+		WithTxFromName(c.Tx.GetFromName()).
+		WithTxGasAdjustment(c.Tx.GetGasAdjustment()).
+		WithTxGas(c.Tx.GetGas()).
+		WithTxGasPrices(c.Tx.GetGasPrices()).
+		WithTxMemo("").
+		WithTxQueryRetryAttempts(c.Tx.GetQueryRetryAttempts()).
+		WithTxQueryRetryDelay(c.Tx.GetQueryRetryDelay()).
+		WithTxSimulateAndExecute(c.Tx.GetSimulateAndExecute()).
+		WithTxTimeoutHeight(0)
+
+	// Setup the keyring for the client
+	if err := v.SetupKeyring(c.Keyring); err != nil {
+		return nil, fmt.Errorf("failed to setup keyring: %w", err)
+	}
+
+	return v, nil
 }

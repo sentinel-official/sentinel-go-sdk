@@ -1,10 +1,12 @@
 package node
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/sentinel-official/hub/v12/types"
 
+	"github.com/sentinel-official/sentinel-go-sdk/config"
 	"github.com/sentinel-official/sentinel-go-sdk/core"
 )
 
@@ -46,4 +48,20 @@ func (c *Client) WithInsecure(insecure bool) *Client {
 func (c *Client) WithTimeout(timeout time.Duration) *Client {
 	c.timeout = timeout
 	return c
+}
+
+// NewClientFromConfig creates a new Client instance based on the provided configuration.
+func NewClientFromConfig(c *config.Config) (*Client, error) {
+	cc, err := core.NewClientFromConfig(c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client from config: %w", err)
+	}
+
+	v := NewClient(cc).
+		WithAddr(nil).
+		WithFromName(c.Tx.GetFromName()).
+		WithInsecure(false).
+		WithTimeout(c.RPC.GetTimeout())
+
+	return v, nil
 }
