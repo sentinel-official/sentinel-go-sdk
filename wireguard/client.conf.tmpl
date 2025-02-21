@@ -1,5 +1,16 @@
 [Interface]
-Address = {{ .Address }}
-PrivateKey = {{ .PrivateKey }}
+Address = {{ join .Addrs "," }}
+DNS = {{ join .DNSAddrs "," }}
 ListenPort = {{ .Port }}
-DNS = {{ .DNS }}
+MTU = {{ .MTU }}
+PrivateKey = {{ .PrivateKey }}
+
+{{ range .Peers }}
+
+[Peer]
+AllowedIPs = {{ join .AllowedAddrs "," }}
+Endpoint = {{ .Endpoint }}
+PersistentKeepalive = {{ .PersistentKeepalive }}
+PublicKey = {{ .PublicKey }}
+
+{{ end }}

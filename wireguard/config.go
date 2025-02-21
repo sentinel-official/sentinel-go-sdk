@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -21,51 +22,92 @@ import (
 //go:embed *.tmpl
 var fs embed.FS
 
+// PeerClientConfig represents the configuration for a single WireGuard peer.
+type PeerClientConfig struct {
+	AllowedAddrs        []string `mapstructure:"allowed_addrs"`        // AllowedAddrs defines the IP ranges (CIDR notation) that are allowed through this peer.
+	Endpoint            string   `mapstructure:"endpoint"`             // Endpoint specifies the remote address and port of the peer.
+	PersistentKeepalive uint     `mapstructure:"persistent_keepalive"` // PersistentKeepalive defines the interval (in seconds).
+	PublicKey           string   `mapstructure:"public_key"`           // PublicKey is the WireGuard public key for this peer.
+}
+
+// Validate checks if the PeerClientConfig fields are correctly formatted and returns an error if any validation fails.
+func (p *PeerClientConfig) Validate() error {
+	// Validate AllowedAddrs (must be in CIDR notation)
+	for _, ip := range p.AllowedAddrs {
+		if _, err := netip.ParsePrefix(ip); err != nil {
+			return fmt.Errorf("failed to parse allowed addr: %w", err)
+		}
+	}
+
+	// Validate Endpoint (must be in "IP:Port" or "hostname:Port" format)
+	parts := strings.Split(p.Endpoint, ":")
+	if len(parts) != 2 {
+		return errors.New("invalid endpoint format")
+	}
+
+	host, port := parts[0], parts[1]
+
+	// Validate host (either an IP address or a valid hostname)
+	if host == "" {
+		return errors.New("host cannot be empty")
+	}
+
+	// Validate port number
+	portNum, err := strconv.Atoi(port)
+	if err != nil {
+		return fmt.Errorf("failed to parse port: %w", err)
+	}
+	if portNum < 1 || portNum > 65535 {
+		return errors.New("invalid port")
+	}
+
+	// Validate PublicKey
+	if p.PublicKey == "" {
+		return errors.New("public_key cannot be empty")
+	}
+
+	return nil
+}
+
 // ClientConfig represents the WireGuard client configuration.
 type ClientConfig struct {
-	IPv4Addr   string   `mapstructure:"ipv4_addr"`   // IPv4Addr is the IPv4 address with CIDR notation.
-	IPv6Addr   string   `mapstructure:"ipv6_addr"`   // IPv6Addr is the IPv6 address with CIDR notation.
-	Port       uint16   `mapstructure:"port"`        // Port specifies the WireGuard listening port.
-	PrivateKey string   `mapstructure:"private_key"` // PrivateKey is the WireGuard private key.
-	DNSServers []string `mapstructure:"dns_servers"` // DNSServers is a list of DNS servers to be used.
-}
-
-// Address returns the combined IPv4 and IPv6 addresses, separated by a comma.
-func (c *ClientConfig) Address() string {
-	var addrs []string
-	if c.IPv4Addr != "" {
-		addrs = append(addrs, c.IPv4Addr)
-	}
-	if c.IPv6Addr != "" {
-		addrs = append(addrs, c.IPv6Addr)
-	}
-
-	return strings.Join(addrs, ",")
-}
-
-// DNS returns the client's DNS servers as a comma-separated string.
-func (c *ClientConfig) DNS() string {
-	return strings.Join(c.DNSServers, ",")
+	Addrs      []string            `mapstructure:"addrs"`       // Addrs contains the client’s IPv4 and/or IPv6 addresses in CIDR notation.
+	DNSAddrs   []string            `mapstructure:"dns_addrs"`   // DNSAddrs is a list of DNS servers to be used by the client.
+	MTU        uint16              `mapstructure:"mtu"`         // MTU sets the maximum transmission unit size.
+	Peers      []*PeerClientConfig `mapstructure:"peers"`       // Peers is a list of peer configurations that the client can connect to.
+	Port       uint16              `mapstructure:"port"`        // Port specifies the WireGuard listening port for the client.
+	PrivateKey string              `mapstructure:"private_key"` // PrivateKey holds the WireGuard private key for this client.
 }
 
 // Validate checks that the ClientConfig fields have valid values.
 func (c *ClientConfig) Validate() error {
-	// Ensure at least one of IPv4Addr or IPv6Addr is provided.
-	if c.IPv4Addr == "" && c.IPv6Addr == "" {
-		return errors.New("either ipv4_addr or ipv6_addr is required")
+	// Validate Addrs (at lease one addr must be provided)
+	if len(c.Addrs) == 0 {
+		return errors.New("addrs cannot be empty")
 	}
 
-	// Validate IPv4Addr if provided.
-	if c.IPv4Addr != "" {
-		if _, err := netip.ParsePrefix(c.IPv4Addr); err != nil {
-			return fmt.Errorf("invalid ipv4_addr: %w", err)
+	// Validate DNSAddrs (must be valid IPs)
+	for _, addr := range c.Addrs {
+		if _, err := netip.ParsePrefix(addr); err != nil {
+			return fmt.Errorf("invalid addr: %w", err)
 		}
 	}
 
-	// Validate IPv6Addr if provided.
-	if c.IPv6Addr != "" {
-		if _, err := netip.ParsePrefix(c.IPv6Addr); err != nil {
-			return fmt.Errorf("invalid ipv6_addr: %w", err)
+	// Validate DNS servers (must be valid IPs)
+	for _, addr := range c.DNSAddrs {
+		if net.ParseIP(addr) == nil {
+			return errors.New("invalid dns addr")
+		}
+	}
+
+	// Validate Peers (at least one peer is required)
+	if len(c.Peers) == 0 {
+		return errors.New("peers cannot be empty")
+	}
+
+	for _, peer := range c.Peers {
+		if err := peer.Validate(); err != nil {
+			return fmt.Errorf("invalid peer config: %w", err)
 		}
 	}
 
@@ -80,13 +122,6 @@ func (c *ClientConfig) Validate() error {
 	}
 	if _, err := NewKeyFromString(c.PrivateKey); err != nil {
 		return fmt.Errorf("invalid private_key: %w", err)
-	}
-
-	// Validate DNS servers.
-	for _, addr := range c.DNSServers {
-		if net.ParseIP(addr) == nil {
-			return errors.New("invalid dns server addr")
-		}
 	}
 
 	return nil
