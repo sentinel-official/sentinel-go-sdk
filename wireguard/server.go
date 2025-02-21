@@ -157,21 +157,16 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (res interface{},
 		return nil, errors.New("no addrs available")
 	}
 
-	var ips []string
+	var allowedIPs []string
 	for _, addr := range addrs {
-		size := 32
-		if addr.Is6() {
-			size = 128
-		}
-
-		ips = append(ips, fmt.Sprintf("%s/%d", addr, size))
+		allowedIPs = append(allowedIPs, addr.String())
 	}
 
 	// Executes the 'wg set' command to add the peer to the WireGuard interface.
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf("set %s peer %s allowed-ips %s", s.name, identity, strings.Join(ips, ",")))...,
+		strings.Fields(fmt.Sprintf("set %s peer %s allowed-ips %s", s.name, identity, strings.Join(allowedIPs, ",")))...,
 	)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout

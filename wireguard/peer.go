@@ -12,7 +12,7 @@ import (
 // Peer represents a network peer with identity and IP addresses.
 type Peer struct {
 	ID    string // ID of the peer
-	Addrs []netip.Addr
+	Addrs []netip.Prefix
 }
 
 // Key returns the identity of the peer as the key.
@@ -46,7 +46,7 @@ func (m *PeerManager) Get(v string) *Peer {
 
 // Put adds a new Peer with the given identity to the PeerManager.
 // It assigns available IPv4 and IPv6 addresses to the Peer.
-func (m *PeerManager) Put(id string) (addrs []netip.Addr, err error) {
+func (m *PeerManager) Put(id string) (addrs []netip.Prefix, err error) {
 	m.rwm.Lock()
 	defer m.rwm.Unlock()
 
@@ -62,8 +62,9 @@ func (m *PeerManager) Put(id string) (addrs []netip.Addr, err error) {
 	defer func() {
 		if len(addrs) != len(m.pools) {
 			for i := 0; i < len(addrs); i++ {
-				if err := m.pools[i].Put(addrs[i]); err != nil {
-					panic(fmt.Errorf("failed to put addr %s to pool: %w", addrs[i], err))
+				addr := addrs[i].Addr()
+				if err := m.pools[i].Put(addr); err != nil {
+					panic(fmt.Errorf("failed to put addr %s to pool: %w", addr, err))
 				}
 			}
 		}
@@ -75,7 +76,17 @@ func (m *PeerManager) Put(id string) (addrs []netip.Addr, err error) {
 			return nil, fmt.Errorf("failed to get addr from pool: %w", err)
 		}
 
-		addrs = append(addrs, addr)
+		b := 32
+		if addr.Is6() {
+			b = 128
+		}
+
+		prefixAddr, err := addr.Prefix(b)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get prefix addr: %w", err)
+		}
+
+		addrs = append(addrs, prefixAddr)
 	}
 
 	// Create and store the new Peer
@@ -99,8 +110,9 @@ func (m *PeerManager) Delete(v string) {
 	}
 
 	for i := 0; i < len(item.Addrs); i++ {
-		if err := m.pools[i].Put(item.Addrs[i]); err != nil {
-			panic(fmt.Errorf("failed to put addr %s to pool: %w", item.Addrs[i], err))
+		addr := item.Addrs[i].Addr()
+		if err := m.pools[i].Put(addr); err != nil {
+			panic(fmt.Errorf("failed to put addr %s to pool: %w", addr, err))
 		}
 	}
 

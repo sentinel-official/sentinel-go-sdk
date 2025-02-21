@@ -6,6 +6,6 @@ import (
 
 // AddPeerResponse represents the response for adding a peer to the WireGuard server.
 type AddPeerResponse struct {
-	Addrs    []netip.Addr      `json:"addrs"`    // Assigned addrs for the peer.
+	Addrs    []netip.Prefix    `json:"addrs"`    // Assigned addrs for the peer.
 	Metadata []*ServerMetadata `json:"metadata"` // Metadata about the server.
 }
