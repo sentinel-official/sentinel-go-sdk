@@ -8,10 +8,28 @@ import (
 )
 
 type Port struct {
-	InFrom  uint16
-	InTo    uint16
-	OutFrom uint16
-	OutTo   uint16
+	InFrom  uint16 `json:"in_from"`
+	InTo    uint16 `json:"in_to"`
+	OutFrom uint16 `json:"out_from"`
+	OutTo   uint16 `json:"out_to"`
+}
+
+// InPort returns a string representation of the input port range.
+func (p Port) InPort() string {
+	if p.InFrom == p.InTo {
+		return fmt.Sprintf("%d", p.InFrom)
+	}
+
+	return fmt.Sprintf("%d-%d", p.InFrom, p.InTo)
+}
+
+// OutPort returns a string representation of the output port range.
+func (p Port) OutPort() string {
+	if p.OutFrom == p.OutTo {
+		return fmt.Sprintf("%d", p.OutFrom)
+	}
+
+	return fmt.Sprintf("%d-%d", p.OutFrom, p.OutTo)
 }
 
 // String provides a string representation of the Port struct.

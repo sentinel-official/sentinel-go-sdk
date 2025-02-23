@@ -45,24 +45,24 @@ type InboundServerConfig struct {
 	Transport   string `mapstructure:"transport"`     // Transport specifies the transport protocol.
 }
 
-// InPort returns the inbound port range.
-func (c *InboundServerConfig) InPort() string {
-	v, err := types.NewPortFromString(c.Port)
+// GetPort parses and returns the port configuration.
+func (c *InboundServerConfig) GetPort() types.Port {
+	port, err := types.NewPortFromString(c.Port)
 	if err != nil {
 		panic(err)
 	}
 
-	return fmt.Sprintf("%d-%d", v.InFrom, v.InTo)
+	return port
+}
+
+// InPort returns the inbound port range.
+func (c *InboundServerConfig) InPort() string {
+	return c.GetPort().InPort()
 }
 
 // OutPort returns the outbound port range.
 func (c *InboundServerConfig) OutPort() string {
-	v, err := types.NewPortFromString(c.Port)
-	if err != nil {
-		panic(err)
-	}
-
-	return fmt.Sprintf("%d-%d", v.OutFrom, v.OutTo)
+	return c.GetPort().OutPort()
 }
 
 // Tag creates a Tag instance based on the InboundServerConfig configuration.
@@ -72,6 +72,7 @@ func (c *InboundServerConfig) Tag() *Tag {
 	transport := NewTransportProtocolFromString(c.Transport)
 
 	return &Tag{
+		Port:      c.GetPort(),
 		Proxy:     proxy,
 		Security:  security,
 		Transport: transport,

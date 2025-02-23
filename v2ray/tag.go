@@ -8,10 +8,13 @@ import (
 	"github.com/v2fly/v2ray-core/v5/proxy/vless"
 	"github.com/v2fly/v2ray-core/v5/proxy/vmess"
 	"google.golang.org/protobuf/types/known/anypb"
+
+	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
 
 // Tag represents a composite data structure combining ProxyProtocol, TransportProtocol, and TransportSecurity.
 type Tag struct {
+	Port      types.Port        `json:"port"`
 	Proxy     ProxyProtocol     `json:"proxy"`
 	Security  TransportSecurity `json:"security"`
 	Transport TransportProtocol `json:"transport"`
@@ -19,7 +22,7 @@ type Tag struct {
 
 // String returns a string representation of the Tag.
 func (t *Tag) String() string {
-	return fmt.Sprintf("%s_%s_%s", t.Proxy, t.Security, t.Transport)
+	return fmt.Sprintf("%s_%s_%s_%s", t.Port, t.Proxy, t.Security, t.Transport)
 }
 
 // Account generates an account message based on the ProxyProtocol stored in the Tag.

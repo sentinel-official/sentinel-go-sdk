@@ -54,7 +54,7 @@ func (c *Client) WithTimeout(timeout time.Duration) *Client {
 func NewClientFromConfig(c *config.Config) (*Client, error) {
 	cc, err := core.NewClientFromConfig(c)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create client from config: %w", err)
+		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
 	v := NewClient(cc).

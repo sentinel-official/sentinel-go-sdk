@@ -209,8 +209,7 @@ func (s *Server) PreUp(v interface{}) error {
 
 	for _, inbound := range cfg.Inbounds {
 		metadata := &ServerMetadata{
-			Tag:  inbound.Tag(),
-			Port: inbound.OutPort(),
+			Tag: inbound.Tag(),
 		}
 
 		s.metadata = append(s.metadata, metadata)
