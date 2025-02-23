@@ -1,0 +1,126 @@
+{
+    "api": {
+        "services": [
+            "StatsService"
+        ],
+        "tag": "api"
+    },
+    "inbounds": [
+        {
+            "listen": "127.0.0.1",
+            "port": {{ .API.Port }},
+            "protocol": "dokodemo-door",
+            "settings": {
+                "address": "127.0.0.1"
+            },
+            "tag": "api"
+        },
+        {
+            "listen": "127.0.0.1",
+            "port": {{ .Proxy.Port }},
+            "protocol": "socks",
+            "settings": {
+                "ip": "127.0.0.1",
+                "udp": true
+            },
+            "sniffing": {
+                "destOverride": [
+                    "http",
+                    "tls"
+                ],
+                "enabled": true
+            },
+            "tag": "proxy"
+        }
+    ],
+    "log": {
+        "access": "none",
+        "error": "none",
+        "loglevel": "none"
+    },
+    "outbounds": [
+        {{- range $index, $outbound := .Outbounds }}
+        {
+            "protocol": "{{ $outbound.Proxy }}",
+            "settings": {
+                "vnext": [
+                    {
+                        "address": "{{ $.Addr }}",
+                        "port": {{ $outbound.Port }},
+                        "users": [
+                            {
+                                "alterId": 0,
+                                "id": "{{ $.ID }}"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "{{ $outbound.Transport }}",
+                "security": "{{ $outbound.Security }}"
+            },
+            "tag": "{{ $outbound.Tag }}"
+        }
+        {{- if ne (sum $index 1) (len $.Outbounds) }},{{- end }}
+        {{- end }}
+    ],
+    "routing": {
+        "balancers": [
+            {
+                "selector": [
+                    {{- range $index, $outbound := .Outbounds }}
+                    "{{ $outbound.Tag }}"
+                    {{- if ne (sum $index 1) (len $.Outbounds) }},{{- end }}
+                    {{- end }}
+                ],
+                "strategy": {
+                    "type": "random"
+                },
+                "tag": "balancer"
+            }
+        ],
+        "domainStrategy": "IPIfNonMatch",
+        "rules": [
+            {
+                "inboundTag": [
+                    "api"
+                ],
+                "outboundTag": "api",
+                "type": "field"
+            },
+            {
+                "inboundTag": [
+                    "proxy"
+                ],
+                "balancerTag": "balancer",
+                "type": "field"
+            }
+        ]
+    },
+    "policy": {
+        "levels": {
+            "0": {
+                "downlinkOnly": 0,
+                "uplinkOnly": 0
+            }
+        },
+        "system": {
+            "statsOutboundDownlink": true,
+            "statsOutboundUplink": true
+        }
+    },
+    "stats": {},
+    "transport": {
+        "dsSettings": {},
+        "grpcSettings": {},
+        "gunSettings": {},
+        "httpSettings": {},
+        "kcpSettings": {},
+        "quicSettings": {
+            "security": "chacha20-poly1305"
+        },
+        "tcpSettings": {},
+        "wsSettings": {}
+    }
+}
