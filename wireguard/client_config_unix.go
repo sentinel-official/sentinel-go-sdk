@@ -4,11 +4,10 @@ package wireguard
 
 import (
 	"fmt"
-	"strings"
 )
 
 // PostUp generates PostUp rules for IPv4 and IPv6 settings.
-func (c *ClientConfig) PostUp() string {
+func (c *ClientConfig) PostUp() []string {
 	// Get the list of excluded IP addresses.
 	addrs := c.GetExcludeAddrs()
 	matchRule := fmt.Sprintf("! -o %s -m mark ! --mark $(wg show %s fwmark)", c.Name, c.Name)
@@ -27,11 +26,11 @@ func (c *ClientConfig) PostUp() string {
 		rules = append(rules, fmt.Sprintf("%s -I OUTPUT %s -d %s -j ACCEPT", execName, matchRule, v))
 	}
 
-	return strings.Join(rules, "; ")
+	return rules
 }
 
 // PreDown generates PreDown rules to remove the PostUp rules for IPv4 and IPv6.
-func (c *ClientConfig) PreDown() string {
+func (c *ClientConfig) PreDown() []string {
 	// Get the list of excluded IP addresses.
 	addrs := c.GetExcludeAddrs()
 	matchRule := fmt.Sprintf("! -o %s -m mark ! --mark $(wg show %s fwmark)", c.Name, c.Name)
@@ -50,5 +49,5 @@ func (c *ClientConfig) PreDown() string {
 		rules = append(rules, fmt.Sprintf("%s -D OUTPUT %s -d %s -j ACCEPT", execName, matchRule, v))
 	}
 
-	return strings.Join(rules, "; ")
+	return rules
 }

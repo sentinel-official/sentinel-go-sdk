@@ -4,14 +4,10 @@ package wireguard
 
 import (
 	"fmt"
-	"strings"
 )
 
 // PostDown generates the PostDown rules based on IPv4 and IPv6 settings
-func (c *ServerConfig) PostDown() string {
-	// Initialize an empty slice to store the rules
-	var rules []string
-
+func (c *ServerConfig) PostDown() (rules []string) {
 	// Check if an IPv4 address is configured
 	if c.IPv4Addr != "" {
 		rules = append(rules, "iptables -D FORWARD -i %i -j ACCEPT")
@@ -24,15 +20,11 @@ func (c *ServerConfig) PostDown() string {
 		rules = append(rules, fmt.Sprintf("ip6tables -t nat -D POSTROUTING -o %s -j MASQUERADE", c.OutInterface))
 	}
 
-	// Return the generated rules as a semicolon-separated string
-	return strings.Join(rules, "; ")
+	return rules
 }
 
 // PostUp generates the PostUp rules based on IPv4 and IPv6 settings
-func (c *ServerConfig) PostUp() string {
-	// Initialize an empty slice to store the rules
-	var rules []string
-
+func (c *ServerConfig) PostUp() (rules []string) {
 	// Check if an IPv4 address is configured
 	if c.IPv4Addr != "" {
 		rules = append(rules, "iptables -A FORWARD -i %i -j ACCEPT")
@@ -45,6 +37,5 @@ func (c *ServerConfig) PostUp() string {
 		rules = append(rules, fmt.Sprintf("ip6tables -t nat -A POSTROUTING -o %s -j MASQUERADE", c.OutInterface))
 	}
 
-	// Return the generated rules as a semicolon-separated string
-	return strings.Join(rules, "; ")
+	return rules
 }

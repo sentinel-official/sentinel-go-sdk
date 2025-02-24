@@ -5,8 +5,13 @@ ListenPort = {{ .Port }}
 MTU = {{ .MTU }}
 PrivateKey = {{ .PrivateKey }}
 
-PostUp = {{ .PostUp }}
-PreDown = {{ .PreDown }}
+{{- range $rule := .PostUp }}
+PostUp = {{ $rule }}
+{{- end }}
+
+{{- range $rule := .PreDown }}
+PreDown = {{ $rule }}
+{{- end }}
 
 [Peer]
 AllowedIPs = {{ join .Peer.AllowAddrs "," }}

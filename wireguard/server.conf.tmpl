@@ -1,6 +1,12 @@
 [Interface]
 Address = {{ .Address }}
 ListenPort = {{ .InPort }}
-PostDown = {{ .PostDown }}
-PostUp = {{ .PostUp }}
 PrivateKey = {{ .PrivateKey }}
+
+{{- range $rule := .PostDown }}
+PostDown = {{ $rule }}
+{{- end }}
+
+{{- range $rule := .PostUp }}
+PostUp = {{ $rule }}
+{{- end }}
