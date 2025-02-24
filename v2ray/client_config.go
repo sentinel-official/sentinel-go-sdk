@@ -185,7 +185,11 @@ func (c *ClientConfig) WriteToFile(name string) error {
 }
 
 // SetForFlags adds client configuration flags to the specified FlagSet.
-func (c *ClientConfig) SetForFlags(_ *pflag.FlagSet) {}
+func (c *ClientConfig) SetForFlags(f *pflag.FlagSet) {
+	f.StringVar(&c.Name, "v2ray.name", c.Name, "name of the v2ray client instance")
+	f.Uint16Var(&c.API.Port, "v2ray.api.port", c.API.Port, "port for the v2ray statistics and management operations")
+	f.Uint16Var(&c.Proxy.Port, "v2ray.proxy.port", c.Proxy.Port, "port for the v2ray socks5 proxy server")
+}
 
 // DefaultClientConfig creates a default ClientConfig with predefined values.
 func DefaultClientConfig() *ClientConfig {
