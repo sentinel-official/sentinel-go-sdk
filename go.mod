@@ -2,13 +2,15 @@ module github.com/sentinel-official/sentinel-go-sdk
 
 go 1.22.12
 
+toolchain go1.24.1
+
 replace github.com/apernet/hysteria/core/v2 v2.4.5 => github.com/JimmyHuang454/hysteria/core/v2 v2.0.0-20240724161647-b3347cf6334d
 
 require (
 	cosmossdk.io/log v1.5.0
 	cosmossdk.io/math v1.4.0
 	github.com/avast/retry-go/v4 v4.6.0
-	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816
+	github.com/bgentry/speakeasy v0.2.0
 	github.com/cometbft/cometbft v0.37.15
 	github.com/cosmos/cosmos-sdk v0.47.17
 	github.com/cosmos/go-bip39 v1.0.0
