@@ -7,6 +7,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/go-bip39"
 )
 
@@ -14,12 +15,22 @@ import (
 // If no mnemonic is provided, it generates a new one.
 // Returns the mnemonic, the created key record, and any error encountered.
 func (c *Client) CreateKey(name, mnemonic, bip39Pass, hdPath string) (s string, k *keyring.Record, err error) {
+	// Use the default transaction key name if none is provided.
+	if name == "" {
+		name = c.txFromName
+	}
+
 	// Generate a new mnemonic if none is provided.
 	if mnemonic == "" {
 		mnemonic, err = c.NewMnemonic()
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to generate new mnemonic: %w", err)
 		}
+	}
+
+	// Set the default HD path if none is provided.
+	if hdPath == "" {
+		hdPath = hd.CreateHDPath(cosmossdk.CoinType, 0, 0).String()
 	}
 
 	// Create a new key in the keyring.
@@ -34,6 +45,11 @@ func (c *Client) CreateKey(name, mnemonic, bip39Pass, hdPath string) (s string, 
 // DeleteKey removes a key from the keyring based on the provided name.
 // Returns an error if the key cannot be deleted.
 func (c *Client) DeleteKey(name string) error {
+	// Use the default transaction key name if none is provided.
+	if name == "" {
+		name = c.txFromName
+	}
+
 	if err := c.keyring.Delete(name); err != nil {
 		return fmt.Errorf("failed to delete key: %w", err)
 	}
@@ -41,12 +57,31 @@ func (c *Client) DeleteKey(name string) error {
 	return nil
 }
 
+// HasKey checks if a key exists in the keyring.
+func (c *Client) HasKey(name string) (bool, error) {
+	key, err := c.Key(name)
+	if err != nil {
+		return false, fmt.Errorf("failed to get key: %w", err)
+	}
+
+	return key != nil, nil
+}
+
 // Key retrieves key information from the keyring based on the provided name.
 // Returns the key record or an error if the key cannot be found.
 func (c *Client) Key(name string) (*keyring.Record, error) {
+	// Use the default transaction key name if none is provided.
+	if name == "" {
+		name = c.txFromName
+	}
+
 	key, err := c.keyring.Key(name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve key: %w", err)
+		if errors.IsOf(err, errors.ErrKeyNotFound) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("failed to retrieve key from keyring: %w", err)
 	}
 
 	return key, nil
@@ -55,10 +90,12 @@ func (c *Client) Key(name string) (*keyring.Record, error) {
 // KeyAddr retrieves the key associated with the client's transaction signing identity
 // and returns its corresponding address.
 func (c *Client) KeyAddr(name string) (cosmossdk.AccAddress, error) {
-	// Retrieve the key using the client's transaction key name.
 	key, err := c.Key(name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve key: %w", err)
+	}
+	if key == nil {
+		return nil, nil
 	}
 
 	// Obtain and return the address from the key.
@@ -102,6 +139,11 @@ func (c *Client) NewMnemonic() (string, error) {
 // Sign signs the provided data using the key from the keyring identified by the given name.
 // Returns the signed bytes, the public key, and any error encountered.
 func (c *Client) Sign(name string, buf []byte) ([]byte, types.PubKey, error) {
+	// Use the default transaction key name if none is provided.
+	if name == "" {
+		name = c.txFromName
+	}
+
 	signature, pubKey, err := c.keyring.Sign(name, buf)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to sign data: %w", err)
