@@ -183,6 +183,9 @@ func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve key: %w", err)
 	}
+	if key == nil {
+		return nil, newErrNotFound(fmt.Errorf("key %s does not exist", c.txFromName))
+	}
 
 	// Get the sender's address from the key record.
 	addr, err := key.GetAddress()

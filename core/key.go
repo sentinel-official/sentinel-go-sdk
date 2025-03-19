@@ -51,7 +51,7 @@ func (c *Client) DeleteKey(name string) error {
 	}
 
 	if err := c.keyring.Delete(name); err != nil {
-		return fmt.Errorf("failed to delete key: %w", err)
+		return fmt.Errorf("failed to delete key from keyring: %w", err)
 	}
 
 	return nil
@@ -61,7 +61,7 @@ func (c *Client) DeleteKey(name string) error {
 func (c *Client) HasKey(name string) (bool, error) {
 	key, err := c.Key(name)
 	if err != nil {
-		return false, fmt.Errorf("failed to get key: %w", err)
+		return false, fmt.Errorf("failed to retrieve key: %w", err)
 	}
 
 	return key != nil, nil
@@ -112,7 +112,7 @@ func (c *Client) KeyAddr(name string) (cosmossdk.AccAddress, error) {
 func (c *Client) Keys() ([]*keyring.Record, error) {
 	keys, err := c.keyring.List()
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve keys: %w", err)
+		return nil, fmt.Errorf("failed to retrieve keys from keyring: %w", err)
 	}
 
 	return keys, nil

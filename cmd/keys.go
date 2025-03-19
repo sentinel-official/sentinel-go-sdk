@@ -66,8 +66,12 @@ func keysAddCmd(c *core.Client) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check if the key already exists
-			if _, err := c.Key(args[0]); err == nil {
-				return fmt.Errorf("key with name '%s' already exists", args[0])
+			ok, err := c.HasKey(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to check existance of key: %w", err)
+			}
+			if ok {
+				return fmt.Errorf("key %s already exists", args[0])
 			}
 
 			// Initialize a reader for user input
@@ -152,8 +156,12 @@ func keysDeleteCmd(c *core.Client) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check if the key exists
-			if _, err := c.Key(args[0]); err != nil {
-				return fmt.Errorf("failed to get key: %w", err)
+			ok, err := c.HasKey(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to check existance of key: %w", err)
+			}
+			if !ok {
+				return fmt.Errorf("key %s does not exist", args[0])
 			}
 
 			// Initialize a reader for user input
@@ -193,7 +201,7 @@ func keysListCmd(c *core.Client) *cobra.Command {
 			// Fetch the list of keys from the client
 			keys, err := c.Keys()
 			if err != nil {
-				return fmt.Errorf("failed to get keys: %w", err)
+				return fmt.Errorf("failed to retreive keys: %w", err)
 			}
 
 			// Format the keys for output
@@ -230,7 +238,7 @@ func keysShowCmd(c *core.Client) *cobra.Command {
 			// Retrieve key details from the client
 			key, err := c.Key(args[0])
 			if err != nil {
-				return fmt.Errorf("failed to get key: %w", err)
+				return fmt.Errorf("failed to retrieve key: %w", err)
 			}
 
 			// Format the key for output

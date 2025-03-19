@@ -16,7 +16,7 @@ func (c *Client) NodeStartSession(ctx context.Context, nodeAddr types.NodeAddres
 	// Retrieve the sender address.
 	fromAddr, err := c.KeyAddr(c.txFromName)
 	if err != nil {
-		return 0, fmt.Errorf("failed to retrieve from address: %w", err)
+		return 0, fmt.Errorf("failed to get from addr: %w", err)
 	}
 
 	// Construct the session start request message for a node session.
