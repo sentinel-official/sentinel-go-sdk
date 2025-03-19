@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -16,23 +17,38 @@ type GeoJSClient struct {
 	c *http.Client
 }
 
-// NewGeoJSClient creates and returns a new instance of GeoJSClient with the specified timeout.
-func NewGeoJSClient(timeout time.Duration) *GeoJSClient {
-	return &GeoJSClient{
-		c: &http.Client{Timeout: timeout},
+// NewGeoJSClient creates and returns a new instance of GeoJSClient with the specified timeout and optional proxy address.
+func NewGeoJSClient(proxyAddr string, timeout time.Duration) (*GeoJSClient, error) {
+	transport := &http.Transport{}
+
+	// If a proxy address is provided, configure the HTTP client to use it.
+	if proxyAddr != "" {
+		proxyURL, err := url.Parse(proxyAddr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid proxy addr: %w", err)
+		}
+
+		transport.Proxy = http.ProxyURL(proxyURL)
 	}
+
+	return &GeoJSClient{
+		c: &http.Client{
+			Timeout:   timeout,
+			Transport: transport,
+		},
+	}, nil
 }
 
 // Get retrieves location data for the specified IP address using the GeoJS API.
 func (c *GeoJSClient) Get(ip string) (*Location, error) {
 	// Construct the URL for the API request. Use the provided IP address if it is not empty.
-	url := "https://get.geojs.io/v1/ip/geo.json"
+	apiURL := "https://get.geojs.io/v1/ip/geo.json"
 	if ip != "" {
-		url = fmt.Sprintf("https://get.geojs.io/v1/ip/geo/%s.json", ip)
+		apiURL = fmt.Sprintf("https://get.geojs.io/v1/ip/geo/%s.json", ip)
 	}
 
 	// Make the HTTP GET request to the GeoJS API.
-	resp, err := c.c.Get(url)
+	resp, err := c.c.Get(apiURL)
 	if err != nil {
 		return nil, err
 	}

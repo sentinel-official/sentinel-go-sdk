@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -15,20 +16,35 @@ type IPAPIClient struct {
 	c *http.Client
 }
 
-// NewIPAPIClient creates and returns a new instance of IPAPIClient with the specified timeout.
-func NewIPAPIClient(timeout time.Duration) *IPAPIClient {
-	return &IPAPIClient{
-		c: &http.Client{Timeout: timeout},
+// NewIPAPIClient creates and returns a new instance of IPAPIClient with the specified timeout and optional proxy address.
+func NewIPAPIClient(proxyAddr string, timeout time.Duration) (*IPAPIClient, error) {
+	transport := &http.Transport{}
+
+	// If a proxy address is provided, configure the HTTP client to use it.
+	if proxyAddr != "" {
+		proxyURL, err := url.Parse(proxyAddr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid proxy addr: %w", err)
+		}
+
+		transport.Proxy = http.ProxyURL(proxyURL)
 	}
+
+	return &IPAPIClient{
+		c: &http.Client{
+			Timeout:   timeout,
+			Transport: transport,
+		},
+	}, nil
 }
 
 // Get retrieves location data for the specified IP address using the ip-api.com service.
 func (c *IPAPIClient) Get(ip string) (*Location, error) {
 	// Construct the URL for the API request using the provided IP address.
-	url := fmt.Sprintf("http://ip-api.com/json/%s", ip)
+	apiURL := fmt.Sprintf("http://ip-api.com/json/%s", ip)
 
 	// Make the HTTP GET request to the ip-api.com service.
-	resp, err := c.c.Get(url)
+	resp, err := c.c.Get(apiURL)
 	if err != nil {
 		return nil, err
 	}

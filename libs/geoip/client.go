@@ -1,6 +1,7 @@
 package geoip
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
@@ -26,5 +27,10 @@ type Client interface {
 
 // NewDefaultClient creates a new default Client instance using the default IPAPIClient.
 func NewDefaultClient() Client {
-	return NewIPAPIClient(15 * time.Second)
+	c, err := NewIPAPIClient("", 5*time.Second)
+	if err != nil {
+		panic(fmt.Errorf("failed to create ip_api client: %w", err))
+	}
+
+	return c
 }
