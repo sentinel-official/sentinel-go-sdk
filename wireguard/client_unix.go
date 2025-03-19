@@ -5,7 +5,6 @@ package wireguard
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 )
@@ -23,10 +22,12 @@ func (c *Client) Down(ctx context.Context) error {
 		c.execFile("wg-quick"),
 		strings.Fields(fmt.Sprintf("down %s", c.configFilePath()))...,
 	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to run command: %w", err)
+	}
+
+	return nil
 }
 
 // Up starts the WireGuard interface.
@@ -37,8 +38,10 @@ func (c *Client) Up(ctx context.Context) error {
 		c.execFile("wg-quick"),
 		strings.Fields(fmt.Sprintf("up %s", c.configFilePath()))...,
 	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to run command: %w", err)
+	}
+
+	return nil
 }

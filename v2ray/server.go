@@ -231,8 +231,6 @@ func (s *Server) Up(ctx context.Context) error {
 		s.execFile(v2ray),
 		strings.Fields(fmt.Sprintf("run --config %s", s.configFilePath()))...,
 	)
-	s.cmd.Stdout = os.Stdout
-	s.cmd.Stderr = os.Stderr
 
 	// Starts the V2Ray server process.
 	if err := s.cmd.Start(); err != nil {

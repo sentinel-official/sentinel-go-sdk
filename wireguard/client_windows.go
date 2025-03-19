@@ -3,7 +3,6 @@ package wireguard
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -32,8 +31,6 @@ func (c *Client) Down(ctx context.Context) error {
 		c.execFile("wireguard"),
 		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", iface))...,
 	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run command: %w", err)
@@ -50,8 +47,6 @@ func (c *Client) Up(ctx context.Context) error {
 		c.execFile("wireguard"),
 		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", c.configFilePath()))...,
 	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run command: %w", err)

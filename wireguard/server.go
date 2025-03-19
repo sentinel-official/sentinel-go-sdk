@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -168,8 +167,6 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (res interface{},
 		s.execFile("wg"),
 		strings.Fields(fmt.Sprintf("set %s peer %s allowed-ips %s", s.name, identity, strings.Join(allowedIPs, ",")))...,
 	)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
 
 	// Run the command and check for errors.
 	if err := cmd.Run(); err != nil {
@@ -221,8 +218,6 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) error {
 		s.execFile("wg"),
 		strings.Fields(fmt.Sprintf(`set %s peer %s remove`, s.name, identity))...,
 	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
 	// Run the command and check for errors.
 	if err := cmd.Run(); err != nil {
