@@ -13,10 +13,10 @@ import (
 
 // NodeStartSession initiates a new session on a specified node. On success, it returns the session ID.
 func (c *Client) NodeStartSession(ctx context.Context, nodeAddr types.NodeAddress, gigabytes, hours int64, denom string) (uint64, error) {
-	// Retrieve the sender address.
-	fromAddr, err := c.KeyAddr(c.txFromName)
+	// Retrieve the message from address.
+	fromAddr, err := c.MsgFromAddr()
 	if err != nil {
-		return 0, fmt.Errorf("failed to get from addr: %w", err)
+		return 0, fmt.Errorf("failed to get message from addr: %w", err)
 	}
 
 	// Construct the session start request message for a node session.

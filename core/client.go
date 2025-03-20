@@ -26,6 +26,7 @@ type Client struct {
 	rpcAddr                  string                    // RPC server address
 	rpcChainID               string                    // The chain ID used to identify the blockchain network
 	rpcTimeout               time.Duration             // RPC timeout duration
+	txAuthzGranterAddr       cosmossdk.AccAddress      // Address that grants transaction authorization
 	txBroadcastRetryAttempts uint                      // Number of retry attempts for transaction broadcast
 	txBroadcastRetryDelay    time.Duration             // Delay between transaction broadcast retries
 	txConfig                 client.TxConfig           // Configuration related to transactions (e.g., signing modes)
@@ -106,6 +107,12 @@ func (c *Client) WithRPCChainID(chainID string) *Client {
 // WithRPCTimeout sets the RPC timeout duration and returns the updated Client.
 func (c *Client) WithRPCTimeout(timeout time.Duration) *Client {
 	c.rpcTimeout = timeout
+	return c
+}
+
+// WithTxAuthzGranterAddr sets the transaction authorization granter address and returns the updated Client.
+func (c *Client) WithTxAuthzGranterAddr(addr cosmossdk.AccAddress) *Client {
+	c.txAuthzGranterAddr = addr
 	return c
 }
 
@@ -209,6 +216,7 @@ func NewClientFromConfig(c *config.Config) (*Client, error) {
 		WithRPCAddr(c.RPC.GetAddrs()[0]).
 		WithRPCChainID(c.RPC.GetChainID()).
 		WithRPCTimeout(c.RPC.GetTimeout()).
+		WithTxAuthzGranterAddr(c.Tx.GetAuthzGranterAddr()).
 		WithTxBroadcastRetryAttempts(c.Tx.GetBroadcastRetryAttempts()).
 		WithTxBroadcastRetryDelay(c.Tx.GetBroadcastRetryDelay()).
 		WithTxFeeGranterAddr(c.Tx.GetFeeGranterAddr()).

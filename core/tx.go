@@ -14,6 +14,7 @@ import (
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 )
 
 // calculateFees computes transaction fees based on the provided gas prices and gas limit.
@@ -77,7 +78,7 @@ func (c *Client) prepareTx(ctx context.Context, key *keyring.Record, acc auth.Ac
 	// Retrieve the public key from the key record.
 	pubKey, err := key.GetPubKey()
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve public key: %w", err)
+		return nil, fmt.Errorf("failed to get public key from key: %w", err)
 	}
 
 	// Create the signature information with the account sequence.
@@ -123,7 +124,7 @@ func (c *Client) signTx(txb client.TxBuilder, key *keyring.Record, acc auth.Acco
 	// Retrieve the public key from the key record.
 	pubKey, err := key.GetPubKey()
 	if err != nil {
-		return fmt.Errorf("failed to retrieve public key: %w", err)
+		return fmt.Errorf("failed to get public key from key: %w", err)
 	}
 
 	// Create the signature information including the account sequence.
@@ -171,17 +172,10 @@ func (c *Client) signTx(txb client.TxBuilder, key *keyring.Record, acc auth.Acco
 
 // broadcastTxSync broadcasts a signed transaction synchronously and returns the broadcast result.
 func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*core.ResultBroadcastTx, error) {
-	// Validate each message and return an error if any fail.
-	for i, msg := range msgs {
-		if err := msg.ValidateBasic(); err != nil {
-			return nil, fmt.Errorf("failed to validate message at index %d: %w", i, err)
-		}
-	}
-
 	// Retrieve the signing key using the configured sender name.
 	key, err := c.Key(c.txFromName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve key: %w", err)
+		return nil, fmt.Errorf("failed to get key: %w", err)
 	}
 	if key == nil {
 		return nil, newErrNotFound(fmt.Errorf("key %s does not exist", c.txFromName))
@@ -190,7 +184,19 @@ func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	// Get the sender's address from the key record.
 	addr, err := key.GetAddress()
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve addr: %w", err)
+		return nil, fmt.Errorf("failed to get addr from key: %w", err)
+	}
+
+	if !c.txAuthzGranterAddr.Empty() {
+		execMsg := authz.NewMsgExec(addr, msgs)
+		msgs = []cosmossdk.Msg{&execMsg}
+	}
+
+	// Validate each message and return an error if any fail.
+	for i, msg := range msgs {
+		if err := msg.ValidateBasic(); err != nil {
+			return nil, fmt.Errorf("failed to validate message at index %d: %w", i, err)
+		}
 	}
 
 	// Retrieve the sender's account information from the blockchain.

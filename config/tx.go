@@ -11,6 +11,7 @@ import (
 
 // TxConfig defines the configuration for transactions.
 type TxConfig struct {
+	AuthzGranterAddr       string  `mapstructure:"authz_granter_addr"`       // AuthzGranterAddr is the address of the entity granting authorization.
 	BroadcastRetryAttempts uint    `mapstructure:"broadcast_retry_attempts"` // Number of times to retry broadcasting a transaction.
 	BroadcastRetryDelay    string  `mapstructure:"broadcast_retry_delay"`    // Delay between broadcast retries.
 	FeeGranterAddr         string  `mapstructure:"fee_granter_addr"`         // FeeGranterAddr is the address of the entity granting fees.
@@ -21,6 +22,20 @@ type TxConfig struct {
 	QueryRetryAttempts     uint    `mapstructure:"query_retry_attempts"`     // Number of times to retry querying a transaction.
 	QueryRetryDelay        string  `mapstructure:"query_retry_delay"`        // Delay between query retries.
 	SimulateAndExecute     bool    `mapstructure:"simulate_and_execute"`     // SimulateAndExecute indicates whether to simulate the transaction before execution.
+}
+
+// GetAuthzGranterAddr returns the AuthzGranterAddr field as AccAddress.
+func (c *TxConfig) GetAuthzGranterAddr() types.AccAddress {
+	if c.AuthzGranterAddr == "" {
+		return nil
+	}
+
+	addr, err := types.AccAddressFromBech32(c.AuthzGranterAddr)
+	if err != nil {
+		panic(err)
+	}
+
+	return addr
 }
 
 // GetBroadcastRetryAttempts returns the BroadcastRetryAttempts field.
@@ -99,6 +114,13 @@ func (c *TxConfig) GetSimulateAndExecute() bool {
 
 // Validate ensures the TxConfig has valid fields.
 func (c *TxConfig) Validate() error {
+	// Validate AuthzGranterAddr if it's not empty.
+	if c.AuthzGranterAddr != "" {
+		if _, err := types.AccAddressFromBech32(c.AuthzGranterAddr); err != nil {
+			return fmt.Errorf("invalid authz_granter_addr: %w", err)
+		}
+	}
+
 	// Ensure BroadcastRetryAttempts is non-zero.
 	if c.BroadcastRetryAttempts == 0 {
 		return errors.New("broadcast_retry_attempts cannot be zero")
@@ -138,6 +160,7 @@ func (c *TxConfig) Validate() error {
 
 // SetForFlags adds tx configuration flags to the specified FlagSet.
 func (c *TxConfig) SetForFlags(f *pflag.FlagSet) {
+	f.StringVar(&c.AuthzGranterAddr, "tx.authz-granter-addr", c.AuthzGranterAddr, "address of the entity granting authorization")
 	f.UintVar(&c.BroadcastRetryAttempts, "tx.broadcast-retry-attempts", c.BroadcastRetryAttempts, "number of times to retry broadcasting a transaction")
 	f.StringVar(&c.BroadcastRetryDelay, "tx.broadcast-retry-delay", c.BroadcastRetryDelay, "delay between transaction broadcast retries")
 	f.StringVar(&c.FeeGranterAddr, "tx.fee-granter-addr", c.FeeGranterAddr, "address of the entity granting fees")
@@ -153,6 +176,7 @@ func (c *TxConfig) SetForFlags(f *pflag.FlagSet) {
 // DefaultTxConfig creates a TxConfig with default values.
 func DefaultTxConfig() *TxConfig {
 	return &TxConfig{
+		AuthzGranterAddr:       "",
 		BroadcastRetryAttempts: 1,
 		BroadcastRetryDelay:    "5s",
 		FeeGranterAddr:         "",

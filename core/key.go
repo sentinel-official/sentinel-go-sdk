@@ -118,6 +118,19 @@ func (c *Client) Keys() ([]*keyring.Record, error) {
 	return keys, nil
 }
 
+func (c *Client) MsgFromAddr() (cosmossdk.AccAddress, error) {
+	if !c.txAuthzGranterAddr.Empty() {
+		return c.txAuthzGranterAddr, nil
+	}
+
+	addr, err := c.KeyAddr(c.txFromName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get key addr for tx_from_name:%w", err)
+	}
+
+	return addr, nil
+}
+
 // NewMnemonic generates a new mnemonic phrase using bip39 with 256 bits of entropy.
 // Returns the mnemonic or an error if the operation fails.
 func (c *Client) NewMnemonic() (string, error) {
