@@ -17,6 +17,20 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/authz"
 )
 
+// MsgFromAddr returns the account address from which messages will be sent.
+func (c *Client) MsgFromAddr() (cosmossdk.AccAddress, error) {
+	if !c.txAuthzGranterAddr.Empty() {
+		return c.txAuthzGranterAddr, nil
+	}
+
+	addr, err := c.KeyAddr(c.txFromName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get key addr for tx_from_name:%w", err)
+	}
+
+	return addr, nil
+}
+
 // calculateFees computes transaction fees based on the provided gas prices and gas limit.
 func calculateFees(gasPrices cosmossdk.DecCoins, gasLimit uint64) cosmossdk.Coins {
 	fees := make(cosmossdk.Coins, len(gasPrices))

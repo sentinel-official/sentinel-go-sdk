@@ -57,9 +57,19 @@ func NewClientFromConfig(c *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
+	fromName := c.Tx.GetFromName()
+	if addr := c.Tx.GetAuthzGranterAddr(); !addr.Empty() {
+		key, err := cc.KeyForAddr(addr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get key for addr: %w", err)
+		}
+
+		fromName = key.Name
+	}
+
 	v := NewClient(cc).
 		WithAddr(nil).
-		WithFromName(c.Tx.GetFromName()).
+		WithFromName(fromName).
 		WithInsecure(false).
 		WithTimeout(c.RPC.GetTimeout())
 
