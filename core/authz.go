@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"strings"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
@@ -68,7 +69,11 @@ func (c *Client) AuthzGrants(ctx context.Context, granter, grantee types.AccAddr
 
 	// Perform the gRPC query to fetch the grants for the specified granter and grantee.
 	if err := c.QueryGRPC(ctx, methodQueryAuthzGrants, req, &resp); err != nil {
-		return nil, nil, IsCodeNotFound(err)
+		if strings.Contains(err.Error(), authz.ErrNoAuthorizationFound.Error()) {
+			return nil, nil, nil
+		}
+
+		return nil, nil, err
 	}
 
 	return resp.Grants, resp.Pagination, nil

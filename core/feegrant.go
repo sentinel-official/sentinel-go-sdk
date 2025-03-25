@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"strings"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
@@ -28,7 +29,11 @@ func (c *Client) FeegrantAllowance(ctx context.Context, granter, grantee types.A
 
 	// Perform the gRPC query to fetch the fee grant allowance.
 	if err := c.QueryGRPC(ctx, methodQueryFeegrantAllowance, req, &resp); err != nil {
-		return nil, IsCodeNotFound(err)
+		if strings.Contains(err.Error(), "fee-grant not found") {
+			return nil, nil
+		}
+
+		return nil, err
 	}
 
 	return resp.Allowance, nil
