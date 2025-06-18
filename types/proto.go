@@ -9,7 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
-	"github.com/sentinel-official/hub/v12/x/vpn/types/v1"
+	"github.com/sentinel-official/sentinelhub/v12/x/vpn/types/v1"
 )
 
 // NewInterfaceRegistry initializes and returns a new InterfaceRegistry with registered interfaces.

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sentinel-official/hub/v12/types"
+	"github.com/sentinel-official/sentinelhub/v12/types"
 
 	"github.com/sentinel-official/sentinel-go-sdk/config"
 	"github.com/sentinel-official/sentinel-go-sdk/core"

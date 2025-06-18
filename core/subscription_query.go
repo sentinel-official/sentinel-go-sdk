@@ -5,8 +5,8 @@ import (
 
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
-	"github.com/sentinel-official/hub/v12/x/subscription/types/v2"
-	"github.com/sentinel-official/hub/v12/x/subscription/types/v3"
+	"github.com/sentinel-official/sentinelhub/v12/x/subscription/types/v2"
+	"github.com/sentinel-official/sentinelhub/v12/x/subscription/types/v3"
 )
 
 const (

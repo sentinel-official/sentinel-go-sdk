@@ -2,7 +2,7 @@ package utils
 
 import (
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
-	sentinelhub "github.com/sentinel-official/hub/v12/types"
+	sentinelhub "github.com/sentinel-official/sentinelhub/v12/types"
 )
 
 // MustAccAddrFromBech32 converts a Bech32-encoded string to a cosmossdk.AccAddress,
