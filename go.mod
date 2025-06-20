@@ -7,7 +7,7 @@ replace github.com/apernet/hysteria/core/v2 v2.4.5 => github.com/JimmyHuang454/h
 require (
 	cosmossdk.io/log v1.5.0
 	cosmossdk.io/math v1.5.3
-	github.com/avast/retry-go/v4 v4.6.0
+	github.com/avast/retry-go/v4 v4.6.1
 	github.com/bgentry/speakeasy v0.2.0
 	github.com/cometbft/cometbft v0.37.15
 	github.com/cosmos/cosmos-sdk v0.47.17
