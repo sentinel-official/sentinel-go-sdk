@@ -2,10 +2,8 @@ package utils
 
 import (
 	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
@@ -65,28 +63,4 @@ func decodeSecp256k1Key(keyBytes []byte) (types.PubKey, error) {
 	}
 
 	return &secp256k1.PubKey{Key: keyBytes}, nil
-}
-
-// WritePEMFile writes a PEM-encoded block to the specified file path.
-func WritePEMFile(path, blockType string, data []byte) error {
-	// Create the file at the specified path
-	file, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-
-	defer file.Close()
-
-	// Create PEM block
-	block := &pem.Block{
-		Type:  blockType,
-		Bytes: data,
-	}
-
-	// Encode the PEM block into the file
-	if err := pem.Encode(file, block); err != nil {
-		return fmt.Errorf("failed to encode pem block to file: %w", err)
-	}
-
-	return nil
 }
