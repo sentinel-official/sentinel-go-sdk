@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 )
 
 var funcMap = template.FuncMap{
-	"join": strings.Join,
-	"sum":  func(x, y int) int { return x + y },
+	"stringsJoin":  strings.Join,
+	"sum":          func(x, y int) int { return x + y },
+	"filepathJoin": filepath.Join,
 }
 
 // ExecTemplateToFile generates content from a template and writes it to a file.
