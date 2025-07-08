@@ -15,7 +15,7 @@ require (
 	github.com/rs/zerolog v1.34.0
 	github.com/sentinel-official/sentinelhub/v12 v12.0.0-rc9.0.20250618175033-d6862487941e
 	github.com/shirou/gopsutil/v4 v4.25.6
-	github.com/showwin/speedtest-go v1.7.9
+	github.com/showwin/speedtest-go v1.7.10
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/v2fly/v2ray-core/v5 v5.37.0
