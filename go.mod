@@ -2,8 +2,6 @@ module github.com/sentinel-official/sentinel-go-sdk
 
 go 1.24.2
 
-replace github.com/apernet/hysteria/core/v2 v2.4.5 => github.com/JimmyHuang454/hysteria/core/v2 v2.0.0-20240724161647-b3347cf6334d
-
 require (
 	cosmossdk.io/log v1.6.0
 	cosmossdk.io/math v1.5.3
