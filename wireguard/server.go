@@ -135,8 +135,8 @@ func (s *Server) PostDown() error {
 
 // AddPeer adds a new peer to the WireGuard server.
 func (s *Server) AddPeer(ctx context.Context, req interface{}) (res interface{}, err error) {
-	// Cast the request to AddPeerRequest type.
-	r, ok := req.(*AddPeerRequest)
+	// Cast the request to ServiceRequest type.
+	r, ok := req.(*ServiceRequest)
 	if !ok {
 		return nil, fmt.Errorf("invalid request type %T", req)
 	}
@@ -145,7 +145,7 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (res interface{},
 	}
 
 	// Retrieve the identity from the request.
-	identity := r.Key()
+	identity := r.PublicKey.String()
 
 	// Add peer to the peer manager and retrieve assigned IP addresses.
 	addrs, err := s.pm.Put(identity)
@@ -181,8 +181,8 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (res interface{},
 
 // HasPeer checks if a peer exists in the WireGuard server's peer list.
 func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
-	// Cast the request to HasPeerRequest type.
-	r, ok := req.(*HasPeerRequest)
+	// Cast the request to ServiceRequest type.
+	r, ok := req.(*ServiceRequest)
 	if !ok {
 		return false, fmt.Errorf("invalid request type: %T", req)
 	}
@@ -191,7 +191,7 @@ func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
 	}
 
 	// Retrieve the identity from the request.
-	identity := r.Key()
+	identity := r.PublicKey.String()
 	peer := s.pm.Get(identity)
 
 	// Return true if the peer exists, otherwise false.
@@ -200,8 +200,8 @@ func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
 
 // RemovePeer removes a peer from the WireGuard server.
 func (s *Server) RemovePeer(ctx context.Context, req interface{}) error {
-	// Cast the request to RemovePeerRequest type.
-	r, ok := req.(*RemovePeerRequest)
+	// Cast the request to ServiceRequest type.
+	r, ok := req.(*ServiceRequest)
 	if !ok {
 		return fmt.Errorf("invalid request type: %T", req)
 	}
@@ -210,7 +210,7 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) error {
 	}
 
 	// Retrieve the identity from the request.
-	identity := r.Key()
+	identity := r.PublicKey.String()
 
 	// Executes the 'wg set' command to remove the peer from the WireGuard interface.
 	cmd := exec.CommandContext(

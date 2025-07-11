@@ -253,7 +253,7 @@ func (s *Server) PostDown() error {
 
 // AddPeer creates and registers a new VPN peer by issuing a new certificate.
 func (s *Server) AddPeer(_ context.Context, req interface{}) (interface{}, error) {
-	r, ok := req.(*AddPeerRequest)
+	r, ok := req.(*ServiceRequest)
 	if !ok {
 		return nil, fmt.Errorf("invalid request type: %T", req)
 	}
@@ -261,7 +261,7 @@ func (s *Server) AddPeer(_ context.Context, req interface{}) (interface{}, error
 		return nil, fmt.Errorf("invalid request: %w", err)
 	}
 
-	name := r.Key()
+	name := r.UUID.String()
 
 	keyDER, certDER, err := s.pki.Issue(name)
 	if err != nil {
@@ -277,7 +277,7 @@ func (s *Server) AddPeer(_ context.Context, req interface{}) (interface{}, error
 
 // HasPeer checks if a peer is currently connected and tracked.
 func (s *Server) HasPeer(ctx context.Context, req interface{}) (bool, error) {
-	r, ok := req.(*HasPeerRequest)
+	r, ok := req.(*ServiceRequest)
 	if !ok {
 		return false, fmt.Errorf("invalid request type: %T", req)
 	}
@@ -290,7 +290,7 @@ func (s *Server) HasPeer(ctx context.Context, req interface{}) (bool, error) {
 		return false, fmt.Errorf("failed to get peer statistics: %w", err)
 	}
 
-	name := r.Key()
+	name := r.UUID.String()
 	for _, item := range items {
 		if item.Key == name {
 			return true, nil
@@ -302,7 +302,7 @@ func (s *Server) HasPeer(ctx context.Context, req interface{}) (bool, error) {
 
 // RemovePeer disconnects a VPN client and revokes its certificate.
 func (s *Server) RemovePeer(_ context.Context, req interface{}) error {
-	r, ok := req.(*RemovePeerRequest)
+	r, ok := req.(*ServiceRequest)
 	if !ok {
 		return fmt.Errorf("invalid request type: %T", req)
 	}
@@ -331,7 +331,7 @@ func (s *Server) RemovePeer(_ context.Context, req interface{}) error {
 	}
 
 	// Issue kill command for the client
-	name := r.Key()
+	name := r.UUID.String()
 	if _, err := fmt.Fprintf(conn, "kill %s\n", name); err != nil {
 		return fmt.Errorf("failed to write command: %w", err)
 	}

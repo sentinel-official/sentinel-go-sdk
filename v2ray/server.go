@@ -302,8 +302,8 @@ func (s *Server) PostDown() error {
 
 // AddPeer adds a new peer to the V2Ray server.
 func (s *Server) AddPeer(ctx context.Context, req interface{}) (interface{}, error) {
-	// Cast the request to AddPeerRequest type.
-	r, ok := req.(*AddPeerRequest)
+	// Cast the request to ServiceRequest type.
+	r, ok := req.(*ServiceRequest)
 	if !ok {
 		return nil, fmt.Errorf("invalid request type: %T", req)
 	}
@@ -325,7 +325,7 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (interface{}, err
 	}()
 
 	// Extract key from the request.
-	email := r.Key()
+	email := r.UUID.String()
 
 	for _, md := range s.metadata {
 		// Prepare gRPC request to add a new user to the handler.
@@ -362,8 +362,8 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (interface{}, err
 
 // HasPeer checks if a peer exists in the V2Ray server's peer list.
 func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
-	// Cast the request to HasPeerRequest type.
-	r, ok := req.(*HasPeerRequest)
+	// Cast the request to ServiceRequest type.
+	r, ok := req.(*ServiceRequest)
 	if !ok {
 		return false, fmt.Errorf("invalid request type: %T", req)
 	}
@@ -372,7 +372,7 @@ func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
 	}
 
 	// Retrieve the key from the request.
-	email := r.Key()
+	email := r.UUID.String()
 	peer := s.pm.Get(email)
 
 	// Return true if the peer exists, otherwise false.
@@ -381,8 +381,8 @@ func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
 
 // RemovePeer removes a peer from the V2Ray server.
 func (s *Server) RemovePeer(ctx context.Context, req interface{}) error {
-	// Cast the request to RemovePeerRequest type.
-	r, ok := req.(*RemovePeerRequest)
+	// Cast the request to ServiceRequest type.
+	r, ok := req.(*ServiceRequest)
 	if !ok {
 		return fmt.Errorf("invalid request type: %T", req)
 	}
@@ -404,7 +404,7 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) error {
 	}()
 
 	// Extract key from the request.
-	email := r.Key()
+	email := r.UUID.String()
 
 	for _, md := range s.metadata {
 		// Prepare gRPC request to remove a user from the handler.
