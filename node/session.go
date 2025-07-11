@@ -15,7 +15,7 @@ import (
 
 // AddSessionRequestBody represents the request payload for adding a session.
 type AddSessionRequestBody struct {
-	Data      string `json:"data" binding:"required,base64,gt=0"`      // Encoded session data (Base64 format), must be present and non-empty.
+	Data      []byte `json:"data" binding:"required,gt=0"`             // JSON encoded session data, must be present and non-empty.
 	ID        uint64 `json:"id" binding:"required,gt=0"`               // Unique identifier for the session, must be greater than zero.
 	PubKey    string `json:"pub_key" binding:"required,gt=0"`          // Public key associated with the session, required and non-empty.
 	Signature string `json:"signature" binding:"required,base64,gt=0"` // Digital signature to verify the integrity, must be in Base64 format.
@@ -30,32 +30,6 @@ func (r *AddSessionRequestBody) AccAddr() (types.AccAddress, error) {
 	}
 
 	return pubKey.Address().Bytes(), nil
-}
-
-// DecodeData decodes the Base64-encoded JSON string into the provided target structure.
-func (r *AddSessionRequestBody) DecodeData(target interface{}) error {
-	buf, err := base64.StdEncoding.DecodeString(r.Data)
-	if err != nil {
-		return fmt.Errorf("failed to decode data: %w", err)
-	}
-
-	if err := json.Unmarshal(buf, target); err != nil {
-		return fmt.Errorf("failed to unmarshal data: %w", err)
-	}
-
-	return nil
-}
-
-// EncodeData marshals the given data into JSON and encodes it in Base64.
-func (r *AddSessionRequestBody) EncodeData(data interface{}) error {
-	buf, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed to marshal data: %w", err)
-	}
-
-	// Encode JSON to Base64.
-	r.Data = base64.StdEncoding.EncodeToString(buf)
-	return nil
 }
 
 // Msg constructs the message for signing by combining the session ID and data.
@@ -90,44 +64,18 @@ func (r *AddSessionRequestBody) Verify() error {
 // AddSessionResult represents the response for adding a session.
 type AddSessionResult struct {
 	Addrs []string `json:"addrs"` // List of addresses (IPv4, IPv6, or domain names).
-	Data  string   `json:"data"`  // Base64-encoded JSON string containing additional response data.
-}
-
-// DecodeData decodes the Base64-encoded JSON string into the provided target structure.
-func (r *AddSessionResult) DecodeData(target interface{}) error {
-	buf, err := base64.StdEncoding.DecodeString(r.Data)
-	if err != nil {
-		return fmt.Errorf("failed to decode data: %w", err)
-	}
-
-	if err := json.Unmarshal(buf, target); err != nil {
-		return fmt.Errorf("failed to unmarshal data: %w", err)
-	}
-
-	return nil
-}
-
-// EncodeData marshals the given data into JSON and encodes it in Base64.
-func (r *AddSessionResult) EncodeData(data interface{}) error {
-	buf, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed to marshal data: %w", err)
-	}
-
-	// Encode JSON to Base64.
-	r.Data = base64.StdEncoding.EncodeToString(buf)
-	return nil
+	Data  []byte   `json:"data"`  // JSON encoded raw data containing additional response data.
 }
 
 // AddSession adds a session to a node by signing the session data and sending it to the node's API.
-func (c *Client) AddSession(ctx context.Context, id uint64, data interface{}) (*AddSessionResult, error) {
+func (c *Client) AddSession(ctx context.Context, id uint64, data interface{}) (res *AddSessionResult, err error) {
 	// Initialize the request body with session ID.
 	req := &AddSessionRequestBody{
 		ID: id,
 	}
 
 	// Encode session data into Base64 format.
-	if err := req.EncodeData(data); err != nil {
+	if req.Data, err = json.Marshal(data); err != nil {
 		return nil, fmt.Errorf("failed to encode data: %w", err)
 	}
 
@@ -148,11 +96,11 @@ func (c *Client) AddSession(ctx context.Context, id uint64, data interface{}) (*
 	}
 
 	// Send the HTTP POST request to add the session.
-	var res AddSessionResult
+	res = &AddSessionResult{}
 	if err := c.do(ctx, http.MethodPost, path, req, &res); err != nil {
 		return nil, err
 	}
 
 	// Return the response containing session details.
-	return &res, nil
+	return res, nil
 }
