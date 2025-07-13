@@ -135,10 +135,10 @@ func (s *Server) PostDown() error {
 
 // AddPeer adds a new peer to the WireGuard server.
 func (s *Server) AddPeer(ctx context.Context, req interface{}) (res interface{}, err error) {
-	// Cast the request to ServiceRequest type.
-	r, ok := req.(*ServiceRequest)
-	if !ok {
-		return nil, fmt.Errorf("invalid request type %T", req)
+	// Parse the request to ServiceRequest type.
+	r, err := parseServiceRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid request: %w", err)
@@ -181,10 +181,10 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (res interface{},
 
 // HasPeer checks if a peer exists in the WireGuard server's peer list.
 func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
-	// Cast the request to ServiceRequest type.
-	r, ok := req.(*ServiceRequest)
-	if !ok {
-		return false, fmt.Errorf("invalid request type: %T", req)
+	// Parse the request to ServiceRequest type.
+	r, err := parseServiceRequest(req)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
 		return false, fmt.Errorf("invalid request: %w", err)
@@ -200,10 +200,10 @@ func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
 
 // RemovePeer removes a peer from the WireGuard server.
 func (s *Server) RemovePeer(ctx context.Context, req interface{}) error {
-	// Cast the request to ServiceRequest type.
-	r, ok := req.(*ServiceRequest)
-	if !ok {
-		return fmt.Errorf("invalid request type: %T", req)
+	// Parse the request to ServiceRequest type.
+	r, err := parseServiceRequest(req)
+	if err != nil {
+		return fmt.Errorf("failed to parse request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
 		return fmt.Errorf("invalid request: %w", err)
