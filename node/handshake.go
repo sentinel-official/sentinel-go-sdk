@@ -13,8 +13,8 @@ import (
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
-// HandshakeRequestBody represents the request payload for adding a session.
-type HandshakeRequestBody struct {
+// InitHandshakeRequestBody represents the request payload for adding a session.
+type InitHandshakeRequestBody struct {
 	Data      []byte `json:"data" binding:"required,gt=0"`             // JSON encoded session data, must be present and non-empty.
 	ID        uint64 `json:"id" binding:"required,gt=0"`               // Unique identifier for the session, must be greater than zero.
 	PubKey    string `json:"pub_key" binding:"required,gt=0"`          // Public key associated with the session, required and non-empty.
@@ -22,7 +22,7 @@ type HandshakeRequestBody struct {
 }
 
 // AccAddr converts the public key into a Cosmos SDK AccAddress.
-func (r *HandshakeRequestBody) AccAddr() (types.AccAddress, error) {
+func (r *InitHandshakeRequestBody) AccAddr() (types.AccAddress, error) {
 	// Decode the public key.
 	pubKey, err := utils.DecodePubKey(r.PubKey)
 	if err != nil {
@@ -33,14 +33,14 @@ func (r *HandshakeRequestBody) AccAddr() (types.AccAddress, error) {
 }
 
 // Msg constructs the message for signing by combining the session ID and data.
-func (r *HandshakeRequestBody) Msg() (buf []byte) {
+func (r *InitHandshakeRequestBody) Msg() (buf []byte) {
 	buf = append(buf, types.Uint64ToBigEndian(r.ID)...)
 	buf = append(buf, r.Data...)
 	return buf
 }
 
 // Verify checks whether the provided signature is valid for the given message and public key.
-func (r *HandshakeRequestBody) Verify() error {
+func (r *InitHandshakeRequestBody) Verify() error {
 	// Decode the public key.
 	pubKey, err := utils.DecodePubKey(r.PubKey)
 	if err != nil {
@@ -61,16 +61,16 @@ func (r *HandshakeRequestBody) Verify() error {
 	return nil
 }
 
-// HandshakeResult represents the response for adding a session.
-type HandshakeResult struct {
+// InitHandshakeResult represents the response for adding a session.
+type InitHandshakeResult struct {
 	Addrs []string `json:"addrs"` // List of addresses (IPv4, IPv6, or domain names).
 	Data  []byte   `json:"data"`  // JSON encoded raw data containing additional response data.
 }
 
-// Handshake adds a session to a node by signing the session data and sending it to the node's API.
-func (c *Client) Handshake(ctx context.Context, id uint64, data any) (res *HandshakeResult, err error) {
+// InitHandshake adds a session to a node by signing the session data and sending it to the node's API.
+func (c *Client) InitHandshake(ctx context.Context, id uint64, data any) (res *InitHandshakeResult, err error) {
 	// Initialize the request body with session ID.
-	req := &HandshakeRequestBody{
+	req := &InitHandshakeRequestBody{
 		ID: id,
 	}
 
@@ -96,7 +96,7 @@ func (c *Client) Handshake(ctx context.Context, id uint64, data any) (res *Hands
 	}
 
 	// Send the HTTP POST request to add the session.
-	res = &HandshakeResult{}
+	res = &InitHandshakeResult{}
 	if err := c.do(ctx, http.MethodPost, path, req, &res); err != nil {
 		return nil, err
 	}
