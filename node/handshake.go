@@ -90,7 +90,7 @@ func (c *Client) InitHandshake(ctx context.Context, id uint64, data any) (res *I
 	req.Signature = base64.StdEncoding.EncodeToString(signature)
 
 	// Retrieve the API endpoint URL for adding a session.
-	path, err := c.getURL(ctx, "sessions")
+	path, err := c.getURL(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get url: %w", err)
 	}
