@@ -203,7 +203,7 @@ func (p *PKI) Revoke(name string) (err error) {
 		x509.RevocationListEntry{
 			SerialNumber:   cert.SerialNumber,
 			RevocationTime: timestamp,
-			ReasonCode:     9, // Unspecified
+			ReasonCode:     9,
 		},
 	)
 	p.RevocationList.ThisUpdate = timestamp

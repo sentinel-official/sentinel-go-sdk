@@ -54,7 +54,9 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 		return fmt.Errorf("failed to perform request: %w", err)
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	// Decode the JSON response into a predefined structure.
 	var respBody types.Response

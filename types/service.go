@@ -51,7 +51,8 @@ type PeerStatistic struct {
 
 // ClientService defines the interface for client-side service operations.
 type ClientService interface {
-	Type() ServiceType // Type returns the type of the client service.
+	Type() ServiceType     // Type returns the type of the client service.
+	Init(force bool) error // Init initializes the service, optionally overwriting config if force is true.
 
 	IsUp(context.Context) (bool, error) // IsUp checks if the client service is up.
 	PreUp(interface{}) error            // PreUp performs operations before the service is brought up.
@@ -67,7 +68,8 @@ type ClientService interface {
 
 // ServerService defines the interface for server-side service operations.
 type ServerService interface {
-	Type() ServiceType // Type returns the type of the server service.
+	Type() ServiceType     // Type returns the type of the server service.
+	Init(force bool) error // Init initializes the service, optionally overwriting config if force is true.
 
 	IsUp(context.Context) (bool, error) // IsUp checks if the server service is up.
 	PreUp(interface{}) error            // PreUp performs operations before the service is brought up.

@@ -16,7 +16,7 @@ var funcMap = template.FuncMap{
 }
 
 // ExecTemplateToFile generates content from a template and writes it to a file.
-func ExecTemplateToFile(text string, data interface{}, fileName string) error {
+func ExecTemplateToFile(text string, data interface{}, filename string) error {
 	// Parse the template with custom functions
 	tmpl, err := template.New("config").Funcs(funcMap).Parse(text)
 	if err != nil {
@@ -30,7 +30,7 @@ func ExecTemplateToFile(text string, data interface{}, fileName string) error {
 	}
 
 	// Write the generated content to the specified file
-	if err := os.WriteFile(fileName, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 

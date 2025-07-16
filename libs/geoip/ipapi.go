@@ -48,7 +48,10 @@ func (c *IPAPIClient) Get(ip string) (*Location, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	// Check if the response status code indicates success.
 	if resp.StatusCode != http.StatusOK {

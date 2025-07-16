@@ -66,7 +66,10 @@ func WriteFile(path string, format Format, blockType string, data []byte) error 
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+
+	defer func() {
+		_ = file.Close()
+	}()
 
 	block := &pem.Block{Type: blockType, Bytes: data}
 	if err := Encode(file, block, format); err != nil {
