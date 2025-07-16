@@ -17,10 +17,11 @@ func (c *Client) execFile(name string) string {
 // Down shuts down the WireGuard interface.
 func (c *Client) Down(ctx context.Context) error {
 	// Executes the 'wg-quick down' command to bring down the interface.
+	cfgFile := c.serviceConfigFilePath()
 	cmd := exec.CommandContext(
 		ctx,
 		c.execFile("wg-quick"),
-		strings.Fields(fmt.Sprintf("down %s", c.configFilePath()))...,
+		strings.Fields(fmt.Sprintf("down %s", cfgFile))...,
 	)
 
 	if err := cmd.Run(); err != nil {
@@ -33,10 +34,11 @@ func (c *Client) Down(ctx context.Context) error {
 // Up starts the WireGuard interface.
 func (c *Client) Up(ctx context.Context) error {
 	// Executes the 'wg-quick up' command to bring up the interface.
+	cfgFile := c.serviceConfigFilePath()
 	cmd := exec.CommandContext(
 		ctx,
 		c.execFile("wg-quick"),
-		strings.Fields(fmt.Sprintf("up %s", c.configFilePath()))...,
+		strings.Fields(fmt.Sprintf("up %s", cfgFile))...,
 	)
 
 	if err := cmd.Run(); err != nil {

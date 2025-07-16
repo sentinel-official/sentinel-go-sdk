@@ -5,10 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/viper"
 
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
@@ -26,14 +29,11 @@ type Server struct {
 }
 
 // NewServer creates a new Server instance.
-func NewServer() *Server {
-	return &Server{}
-}
-
-// WithHomeDir sets the home directory for the server and returns the updated Server instance.
-func (s *Server) WithHomeDir(homeDir string) *Server {
-	s.homeDir = homeDir
-	return s
+func NewServer(homeDir string) *Server {
+	return &Server{
+		homeDir: homeDir,
+		name:    "wg0",
+	}
 }
 
 // WithName sets the name for the server and returns the updated Server instance.
@@ -48,14 +48,48 @@ func (s *Server) WithPeerManager(pm *PeerManager) *Server {
 	return s
 }
 
-// configFilePath returns the file path of the server's configuration file.
-func (s *Server) configFilePath() string {
+// appConfigFilePath returns the full path to the application's configuration file.
+func (s *Server) appConfigFilePath() string {
+	return filepath.Join(s.homeDir, "config.toml")
+}
+
+// serviceConfigFilePath returns the full path to the service-specific configuration file.
+func (s *Server) serviceConfigFilePath() string {
 	return filepath.Join(s.homeDir, fmt.Sprintf("%s.conf", s.name))
 }
 
 // Type returns the service type of the server.
 func (s *Server) Type() types.ServiceType {
 	return types.ServiceTypeWireGuard
+}
+
+// Init sets up service configuration, creating directories and writing defaults unless config exists.
+func (s *Server) Init(force bool) error {
+	// Create the home directory if it doesn't exist
+	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
+		return fmt.Errorf("failed to create home directory: %w", err)
+	}
+
+	// Check if the configuration file already exists
+	cfgFile := s.appConfigFilePath()
+	if _, err := os.Stat(cfgFile); err != nil {
+		// If an error other than "file not found" occurs, return it
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat config file: %w", err)
+		}
+	} else {
+		if !force {
+			return errors.New("config file already exists")
+		}
+	}
+
+	// Write the default configuration to the configuration file
+	cfg := DefaultServerConfig()
+	if err := cfg.WriteAppConfig(cfgFile); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return nil
 }
 
 // IsUp checks if the WireGuard server process is running.
@@ -91,11 +125,31 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the server process.
-func (s *Server) PreUp(v interface{}) error {
-	// Checks for valid parameter type.
-	cfg, ok := v.(*ServerConfig)
-	if !ok {
-		return fmt.Errorf("invalid parameter type %T", v)
+func (s *Server) PreUp(_ interface{}) error {
+	// Initialize viper instance
+	v := viper.New()
+
+	// Skip loading if the config file does not exist
+	cfgFile := s.appConfigFilePath()
+	if _, err := os.Stat(cfgFile); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat config file: %w", err)
+		}
+	} else {
+		// Read the config from the specified file
+		v.SetConfigFile(cfgFile)
+		if err := v.ReadInConfig(); err != nil {
+			return fmt.Errorf("failed to read config file: %w", err)
+		}
+	}
+
+	// Unmarshal configuration into the config object
+	cfg := DefaultServerConfig()
+	if err := v.Unmarshal(cfg); err != nil {
+		return fmt.Errorf("failed to unmarshal config file: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("failed to validate config file: %w", err)
 	}
 
 	s.metadata = []*ServerMetadata{
@@ -106,7 +160,8 @@ func (s *Server) PreUp(v interface{}) error {
 	}
 
 	// Writes configuration to file.
-	if err := cfg.WriteToFile(s.configFilePath()); err != nil {
+	cfgFile = s.serviceConfigFilePath()
+	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -126,7 +181,8 @@ func (s *Server) PreDown() error {
 // PostDown performs cleanup operations after the server process is terminated.
 func (s *Server) PostDown() error {
 	// Removes configuration file.
-	if err := utils.RemoveFile(s.configFilePath()); err != nil {
+	cfgFile := s.serviceConfigFilePath()
+	if err := utils.RemoveFile(cfgFile); err != nil {
 		return fmt.Errorf("failed to remove config: %w", err)
 	}
 

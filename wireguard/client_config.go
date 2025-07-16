@@ -186,22 +186,43 @@ func (c *ClientConfig) Validate() error {
 	return nil
 }
 
-// WriteToFile writes the client configuration template to a file.
-func (c *ClientConfig) WriteToFile(name string) error {
-	// Read the client configuration template file.
+// WriteServiceConfig generates the service-level configuration file using the service template.
+func (c *ClientConfig) WriteServiceConfig(filename string) error {
+	// Load the service template from the embedded or filesystem path.
 	text, err := fs.ReadFile("client.conf.tmpl")
 	if err != nil {
-		return fmt.Errorf("failed to read template: %w", err)
+		return fmt.Errorf("failed to read service template: %w", err)
 	}
 
-	// Execute the template and write it to the specified file.
-	if err := utils.ExecTemplateToFile(string(text), c, name); err != nil {
-		return fmt.Errorf("failed to execute template to file: %w", err)
+	// Render the template with ServerConfig data and write the result to the specified file.
+	if err := utils.ExecTemplateToFile(string(text), c, filename); err != nil {
+		return fmt.Errorf("failed to write rendered service config to file: %w", err)
 	}
 
-	// Change file permissions to read and write for the owner only.
-	if err := os.Chmod(name, 0600); err != nil {
-		return fmt.Errorf("failed to change file permissions: %w", err)
+	// Restrict file permissions to owner read/write only.
+	if err := os.Chmod(filename, 0600); err != nil {
+		return fmt.Errorf("failed to set file permissions: %w", err)
+	}
+
+	return nil
+}
+
+// WriteAppConfig generates the application-level configuration file using the main config template.
+func (c *ClientConfig) WriteAppConfig(filename string) error {
+	// Load the application config template from the embedded or filesystem path.
+	text, err := fs.ReadFile("client_config.toml.tmpl")
+	if err != nil {
+		return fmt.Errorf("failed to read application config template: %w", err)
+	}
+
+	// Render the template with ServerConfig data and write the result to the specified file.
+	if err := utils.ExecTemplateToFile(string(text), c, filename); err != nil {
+		return fmt.Errorf("failed to write rendered application config to file: %w", err)
+	}
+
+	// Restrict file permissions to owner read/write only.
+	if err := os.Chmod(filename, 0600); err != nil {
+		return fmt.Errorf("failed to set file permissions: %w", err)
 	}
 
 	return nil

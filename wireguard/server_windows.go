@@ -10,7 +10,7 @@ import (
 
 // execFile returns the name of the executable file.
 func (s *Server) execFile(name string) string {
-	return ".\\" + filepath.Join("WireGuard", s.name+".exe")
+	return ".\\" + filepath.Join("WireGuard", name+".exe")
 }
 
 // interfaceName returns the name of the WireGuard interface.
@@ -42,10 +42,11 @@ func (s *Server) Down(ctx context.Context) error {
 // Up installs the WireGuard tunnel service.
 func (s *Server) Up(ctx context.Context) error {
 	// Executes the command to install the WireGuard tunnel service.
+	cfgFile := s.serviceConfigFilePath()
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wireguard"),
-		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", s.configFilePath()))...,
+		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", cfgFile))...,
 	)
 
 	if err := cmd.Run(); err != nil {

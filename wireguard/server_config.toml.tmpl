@@ -1,0 +1,17 @@
+# Specifies the network interface used for establishing connections and handling traffic.
+in_interface = "{{ .InInterface }}"
+
+# Specifies the IPv4 address block for routing and networking.
+ipv4_addr = "{{ .IPv4Addr }}"
+
+# Specifies the IPv6 address block for routing and networking.
+ipv6_addr = "{{ .IPv6Addr }}"
+
+# Specifies the outbound network interface for NAT and routing.
+out_interface = "{{ .OutInterface }}"
+
+# Specifies the port number for incoming connections (typically UDP for WireGuard).
+port = "{{ .Port }}"
+
+# Specifies the private key for WireGuard encryption.
+private_key = "{{ .PrivateKey }}"

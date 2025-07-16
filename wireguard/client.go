@@ -3,11 +3,15 @@ package wireguard
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/viper"
 
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
@@ -23,14 +27,11 @@ type Client struct {
 }
 
 // NewClient creates a new Client instance.
-func NewClient() *Client {
-	return &Client{}
-}
-
-// WithHomeDir sets the home directory for the client and returns the updated Client instance.
-func (c *Client) WithHomeDir(homeDir string) *Client {
-	c.homeDir = homeDir
-	return c
+func NewClient(homeDir string) *Client {
+	return &Client{
+		homeDir: homeDir,
+		name:    "wg0",
+	}
 }
 
 // WithName sets the name for the client and returns the updated Client instance.
@@ -39,14 +40,48 @@ func (c *Client) WithName(name string) *Client {
 	return c
 }
 
-// configFilePath returns the file path of the client's configuration file.
-func (c *Client) configFilePath() string {
+// appConfigFilePath returns the full path to the application's configuration file.
+func (c *Client) appConfigFilePath() string {
+	return filepath.Join(c.homeDir, "config.toml")
+}
+
+// serviceConfigFilePath returns the full path to the service-specific configuration file.
+func (c *Client) serviceConfigFilePath() string {
 	return filepath.Join(c.homeDir, fmt.Sprintf("%s.conf", c.name))
 }
 
 // Type returns the service type of the client.
 func (c *Client) Type() types.ServiceType {
 	return types.ServiceTypeWireGuard
+}
+
+// Init sets up service configuration, creating directories and writing defaults unless config exists.
+func (c *Client) Init(force bool) error {
+	// Create the home directory if it doesn't exist
+	if err := os.MkdirAll(c.homeDir, 0755); err != nil {
+		return fmt.Errorf("failed to create home directory: %w", err)
+	}
+
+	// Check if the configuration file already exists
+	cfgFile := c.appConfigFilePath()
+	if _, err := os.Stat(cfgFile); err != nil {
+		// If an error other than "file not found" occurs, return it
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat config file: %w", err)
+		}
+	} else {
+		if !force {
+			return errors.New("config file already exists")
+		}
+	}
+
+	// Write the default configuration to the configuration file
+	cfg := DefaultClientConfig()
+	if err := cfg.WriteAppConfig(cfgFile); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return nil
 }
 
 // IsUp checks if the WireGuard interface is up.
@@ -82,15 +117,36 @@ func (c *Client) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the client process.
-func (c *Client) PreUp(v interface{}) error {
-	// Checks for valid parameter type.
-	cfg, ok := v.(*ClientConfig)
-	if !ok {
-		return fmt.Errorf("invalid parameter type %T", v)
+func (c *Client) PreUp(_ interface{}) error {
+	// Initialize viper instance
+	v := viper.New()
+
+	// Skip loading if the config file does not exist
+	cfgFile := c.appConfigFilePath()
+	if _, err := os.Stat(cfgFile); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat config file: %w", err)
+		}
+	} else {
+		// Read the config from the specified file
+		v.SetConfigFile(cfgFile)
+		if err := v.ReadInConfig(); err != nil {
+			return fmt.Errorf("failed to read config file: %w", err)
+		}
+	}
+
+	// Unmarshal configuration into the config object
+	cfg := DefaultClientConfig()
+	if err := v.Unmarshal(cfg); err != nil {
+		return fmt.Errorf("failed to unmarshal config file: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("failed to validate config file: %w", err)
 	}
 
 	// Writes configuration to file.
-	if err := cfg.WriteToFile(c.configFilePath()); err != nil {
+	cfgFile = c.serviceConfigFilePath()
+	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -110,7 +166,8 @@ func (c *Client) PreDown() error {
 // PostDown performs cleanup operations after the client process is terminated.
 func (c *Client) PostDown() error {
 	// Removes configuration file.
-	if err := utils.RemoveFile(c.configFilePath()); err != nil {
+	cfgFile := c.serviceConfigFilePath()
+	if err := utils.RemoveFile(cfgFile); err != nil {
 		return fmt.Errorf("failed to remove config: %w", err)
 	}
 
