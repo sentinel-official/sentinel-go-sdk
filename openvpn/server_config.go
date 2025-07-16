@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"os"
 
 	"github.com/spf13/pflag"
 
@@ -102,17 +103,43 @@ func (c *ServerConfig) Validate() error {
 	return nil
 }
 
-// WriteToFile writes the server configuration to a specified file.
-func (c *ServerConfig) WriteToFile(name string) error {
-	// Read the OpenVPN server configuration template
+// WriteServiceConfig generates the service-level configuration file using the service template.
+func (c *ServerConfig) WriteServiceConfig(filename string) error {
+	// Load the service template from the embedded or filesystem path.
 	text, err := fs.ReadFile("server.conf.tmpl")
 	if err != nil {
-		return fmt.Errorf("failed to read template: %w", err)
+		return fmt.Errorf("failed to read service template: %w", err)
 	}
 
-	// Render and write the configuration to the target file
-	if err := utils.ExecTemplateToFile(string(text), c, name); err != nil {
-		return fmt.Errorf("failed to execute template to file: %w", err)
+	// Render the template with ServerConfig data and write the result to the specified file.
+	if err := utils.ExecTemplateToFile(string(text), c, filename); err != nil {
+		return fmt.Errorf("failed to write rendered service config to file: %w", err)
+	}
+
+	// Restrict file permissions to owner read/write only.
+	if err := os.Chmod(filename, 0600); err != nil {
+		return fmt.Errorf("failed to set file permissions: %w", err)
+	}
+
+	return nil
+}
+
+// WriteAppConfig generates the application-level configuration file using the main config template.
+func (c *ServerConfig) WriteAppConfig(filename string) error {
+	// Load the application config template from the embedded or filesystem path.
+	text, err := fs.ReadFile("server_config.toml.tmpl")
+	if err != nil {
+		return fmt.Errorf("failed to read application config template: %w", err)
+	}
+
+	// Render the template with ServerConfig data and write the result to the specified file.
+	if err := utils.ExecTemplateToFile(string(text), c, filename); err != nil {
+		return fmt.Errorf("failed to write rendered application config to file: %w", err)
+	}
+
+	// Restrict file permissions to owner read/write only.
+	if err := os.Chmod(filename, 0600); err != nil {
+		return fmt.Errorf("failed to set file permissions: %w", err)
 	}
 
 	return nil

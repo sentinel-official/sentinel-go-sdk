@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/shirou/gopsutil/v4/process"
+	"github.com/spf13/viper"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/crypto"
 	"github.com/sentinel-official/sentinel-go-sdk/libs/encoding/pem"
@@ -29,33 +30,47 @@ type Server struct {
 	cmd      *exec.Cmd         // OpenVPN process command
 	homeDir  string            // Home directory where config and PID files are stored
 	metadata []*ServerMetadata // Server metadata such as port and certificates
+	name     string            // Name of the server instance.
 	pki      *crypto.PKI       // Public Key Infrastructure for managing certs
 }
 
-// WithHomeDir sets the working directory for the server.
-func (s *Server) WithHomeDir(homeDir string) *Server {
-	s.homeDir = homeDir
+// NewServer creates a new Server instance.
+func NewServer(homeDir string) *Server {
+	return &Server{
+		homeDir: homeDir,
+		name:    "openvpn",
+	}
+}
+
+// WithName sets the name for the server and returns the updated Server instance.
+func (s *Server) WithName(name string) *Server {
+	s.name = name
 	return s
 }
 
-// configFilePath returns the full path to the OpenVPN config file.
-func (s *Server) configFilePath() string {
-	return filepath.Join(s.homeDir, "openvpn.conf")
+// appConfigFilePath returns the full path to the application's configuration file.
+func (s *Server) appConfigFilePath() string {
+	return filepath.Join(s.homeDir, "config.toml")
+}
+
+// serviceConfigFilePath returns the full path to the service-specific configuration file.
+func (s *Server) serviceConfigFilePath() string {
+	return filepath.Join(s.homeDir, fmt.Sprintf("%s.conf", s.name))
 }
 
 // pidFilePath returns the full path to the PID file for OpenVPN process.
 func (s *Server) pidFilePath() string {
-	return filepath.Join(s.homeDir, "openvpn.pid")
+	return filepath.Join(s.homeDir, fmt.Sprintf("%s.pid", s.name))
 }
 
 // readPIDFromFile reads the PID of the running OpenVPN process from a file.
 func (s *Server) readPIDFromFile() (int32, error) {
-	name := s.pidFilePath()
-	if _, err := os.Stat(name); os.IsNotExist(err) {
+	pidFile := s.pidFilePath()
+	if _, err := os.Stat(pidFile); os.IsNotExist(err) {
 		return 0, nil
 	}
 
-	data, err := os.ReadFile(name)
+	data, err := os.ReadFile(pidFile)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read file: %w", err)
 	}
@@ -100,6 +115,35 @@ func (s *Server) Type() types.ServiceType {
 	return types.ServiceTypeOpenVPN
 }
 
+// Init sets up service configuration, creating directories and writing defaults unless config exists.
+func (s *Server) Init(force bool) error {
+	// Create the home directory if it doesn't exist
+	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
+		return fmt.Errorf("failed to create home directory: %w", err)
+	}
+
+	// Check if the configuration file already exists
+	cfgFile := s.appConfigFilePath()
+	if _, err := os.Stat(cfgFile); err != nil {
+		// If an error other than "file not found" occurs, return it
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat config file: %w", err)
+		}
+	} else {
+		if !force {
+			return errors.New("config file already exists")
+		}
+	}
+
+	// Write the default configuration to the configuration file
+	cfg := DefaultServerConfig()
+	if err := cfg.WriteAppConfig(cfgFile); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return nil
+}
+
 // IsUp checks whether the OpenVPN server is running by verifying its PID and process name.
 func (s *Server) IsUp(ctx context.Context) (bool, error) {
 	pid, err := s.readPIDFromFile()
@@ -139,10 +183,37 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp prepares the server before it is started by initializing PKI and generating config files.
-func (s *Server) PreUp(v interface{}) error {
-	cfg, ok := v.(*ServerConfig)
-	if !ok {
-		return fmt.Errorf("invalid parameter type %T", v)
+func (s *Server) PreUp(_ interface{}) error {
+	// Initialize viper instance
+	v := viper.New()
+
+	// Skip loading if the config file does not exist
+	cfgFile := s.appConfigFilePath()
+	if _, err := os.Stat(cfgFile); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat config file: %w", err)
+		}
+	} else {
+		// Read the config from the specified file
+		v.SetConfigFile(cfgFile)
+		if err := v.ReadInConfig(); err != nil {
+			return fmt.Errorf("failed to read config file: %w", err)
+		}
+	}
+
+	// Unmarshal configuration into the config object
+	cfg := DefaultServerConfig()
+	if err := v.Unmarshal(cfg); err != nil {
+		return fmt.Errorf("failed to unmarshal config file: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("failed to validate config file: %w", err)
+	}
+
+	// Write OpenVPN configuration to file
+	cfgFile = s.serviceConfigFilePath()
+	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
+		return fmt.Errorf("failed to write config to file: %w", err)
 	}
 
 	// Initialize PKI and issue a server certificate
@@ -154,15 +225,15 @@ func (s *Server) PreUp(v interface{}) error {
 		return fmt.Errorf("failed to issue certificate: %w", err)
 	}
 
-	// Generate a static TLS key
+	// Generate a TLS static key
 	tlsBuf := make([]byte, 256)
 	if _, err := rand.Read(tlsBuf); err != nil {
-		return fmt.Errorf("failed to generate TLS key: %w", err)
+		return fmt.Errorf("failed to generate TLS static key: %w", err)
 	}
 
 	tlsPath := filepath.Join(cfg.PKIDir, "tls.key")
 	if err := pem.WriteFile(tlsPath, pem.FormatHex, pem.BlockTypeOpenVPNStaticKeyV1, tlsBuf); err != nil {
-		return fmt.Errorf("failed to write TLS key: %w", err)
+		return fmt.Errorf("failed to write TLS static key: %w", err)
 	}
 
 	// Save server metadata for later use
@@ -175,20 +246,16 @@ func (s *Server) PreUp(v interface{}) error {
 		},
 	}
 
-	// Write OpenVPN configuration to file
-	if err := cfg.WriteToFile(s.configFilePath()); err != nil {
-		return fmt.Errorf("failed to write config to file: %w", err)
-	}
-
 	return nil
 }
 
 // Up launches the OpenVPN server using the generated config file.
 func (s *Server) Up(ctx context.Context) error {
+	cfgFile := s.serviceConfigFilePath()
 	s.cmd = exec.CommandContext(
 		ctx,
 		s.execFile(openVPN),
-		strings.Fields(fmt.Sprintf("--config %s", s.configFilePath()))...,
+		strings.Fields(fmt.Sprintf("--config %s", cfgFile))...,
 	)
 	if err := s.cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start command: %w", err)
@@ -244,7 +311,14 @@ func (s *Server) Down(ctx context.Context) error {
 
 // PostDown removes PID file after the process has stopped.
 func (s *Server) PostDown() error {
-	if err := utils.RemoveFile(s.pidFilePath()); err != nil {
+	// Removes configuration file.
+	cfgFile := s.serviceConfigFilePath()
+	if err := utils.RemoveFile(cfgFile); err != nil {
+		return fmt.Errorf("failed to remove file: %w", err)
+	}
+
+	pidFile := s.pidFilePath()
+	if err := utils.RemoveFile(pidFile); err != nil {
 		return fmt.Errorf("failed to remove file: %w", err)
 	}
 
@@ -318,7 +392,9 @@ func (s *Server) RemovePeer(_ context.Context, req interface{}) error {
 		return fmt.Errorf("failed to get management connection: %w", err)
 	}
 
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	reader := bufio.NewReader(conn)
 
@@ -375,7 +451,9 @@ func (s *Server) PeerStatistics(_ context.Context) (items []*types.PeerStatistic
 		return nil, fmt.Errorf("failed to get management connection: %w", err)
 	}
 
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	reader := bufio.NewReader(conn)
 
