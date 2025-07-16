@@ -210,12 +210,6 @@ func (s *Server) PreUp(_ interface{}) error {
 		return fmt.Errorf("failed to validate config file: %w", err)
 	}
 
-	// Write OpenVPN configuration to file
-	cfgFile = s.serviceConfigFilePath()
-	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
-		return fmt.Errorf("failed to write config to file: %w", err)
-	}
-
 	// Initialize PKI and issue a server certificate
 	s.pki = crypto.NewPKI(cfg.PKIDir)
 	if err := s.pki.Init(); err != nil {
@@ -244,6 +238,12 @@ func (s *Server) PreUp(_ interface{}) error {
 			CA:       s.pki.Certificate.Raw,
 			TLS:      tlsBuf,
 		},
+	}
+
+	// Write OpenVPN configuration to file
+	cfgFile = s.serviceConfigFilePath()
+	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
+		return fmt.Errorf("failed to write config to file: %w", err)
 	}
 
 	return nil

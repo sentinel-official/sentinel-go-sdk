@@ -49,12 +49,6 @@ func (s *Server) WithName(name string) *Server {
 	return s
 }
 
-// WithPeerManager sets the PeerManager for the server and returns the updated Server instance.
-func (s *Server) WithPeerManager(pm *PeerManager) *Server {
-	s.pm = pm
-	return s
-}
-
 // appConfigFilePath returns the full path to the application's configuration file.
 func (s *Server) appConfigFilePath() string {
 	return filepath.Join(s.homeDir, "config.toml")
@@ -260,6 +254,7 @@ func (s *Server) PreUp(_ interface{}) error {
 		return fmt.Errorf("failed to validate config file: %w", err)
 	}
 
+	s.pm = NewPeerManager()
 	for _, inbound := range cfg.Inbounds {
 		metadata := &ServerMetadata{
 			Tag: inbound.Tag(),
