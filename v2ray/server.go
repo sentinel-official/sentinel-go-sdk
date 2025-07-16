@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/shirou/gopsutil/v4/process"
+	"github.com/spf13/viper"
 	proxymancommand "github.com/v2fly/v2ray-core/v5/app/proxyman/command"
 	statscommand "github.com/v2fly/v2ray-core/v5/app/stats/command"
 	"github.com/v2fly/v2ray-core/v5/common/protocol"
@@ -35,14 +36,11 @@ type Server struct {
 }
 
 // NewServer creates a new Server instance.
-func NewServer() *Server {
-	return &Server{}
-}
-
-// WithHomeDir sets the home directory for the server and returns the updated Server instance.
-func (s *Server) WithHomeDir(homeDir string) *Server {
-	s.homeDir = homeDir
-	return s
+func NewServer(homeDir string) *Server {
+	return &Server{
+		homeDir: homeDir,
+		name:    "v2ray",
+	}
 }
 
 // WithName sets the name for the server and returns the updated Server instance.
@@ -57,8 +55,13 @@ func (s *Server) WithPeerManager(pm *PeerManager) *Server {
 	return s
 }
 
-// configFilePath returns the full path of the V2Ray server's configuration file.
-func (s *Server) configFilePath() string {
+// appConfigFilePath returns the full path to the application's configuration file.
+func (s *Server) appConfigFilePath() string {
+	return filepath.Join(s.homeDir, "config.toml")
+}
+
+// serviceConfigFilePath returns the full path to the service-specific configuration file.
+func (s *Server) serviceConfigFilePath() string {
 	return filepath.Join(s.homeDir, fmt.Sprintf("%s.json", s.name))
 }
 
@@ -69,13 +72,13 @@ func (s *Server) pidFilePath() string {
 
 // readPIDFromFile reads the PID from the server's PID file.
 func (s *Server) readPIDFromFile() (int32, error) {
-	name := s.pidFilePath()
-	if _, err := os.Stat(name); os.IsNotExist(err) {
+	pidFile := s.pidFilePath()
+	if _, err := os.Stat(pidFile); os.IsNotExist(err) {
 		return 0, nil
 	}
 
 	// Read PID from the PID file.
-	data, err := os.ReadFile(name)
+	data, err := os.ReadFile(pidFile)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read file: %w", err)
 	}
@@ -95,7 +98,8 @@ func (s *Server) writePIDToFile(pid int) error {
 	data := []byte(strconv.Itoa(pid))
 
 	// Write PID to file with appropriate permissions.
-	if err := os.WriteFile(s.pidFilePath(), data, 0644); err != nil {
+	pidFile := s.pidFilePath()
+	if err := os.WriteFile(pidFile, data, 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
@@ -155,6 +159,35 @@ func (s *Server) Type() types.ServiceType {
 	return types.ServiceTypeV2Ray
 }
 
+// Init sets up service configuration, creating directories and writing defaults unless config exists.
+func (s *Server) Init(force bool) error {
+	// Create the home directory if it doesn't exist
+	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
+		return fmt.Errorf("failed to create home directory: %w", err)
+	}
+
+	// Check if the configuration file already exists
+	cfgFile := s.appConfigFilePath()
+	if _, err := os.Stat(cfgFile); err != nil {
+		// If an error other than "file not found" occurs, return it
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat config file: %w", err)
+		}
+	} else {
+		if !force {
+			return errors.New("config file already exists")
+		}
+	}
+
+	// Write the default configuration to the configuration file
+	cfg := DefaultServerConfig()
+	if err := cfg.WriteAppConfig(cfgFile); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return nil
+}
+
 // IsUp checks if the V2Ray server process is running.
 func (s *Server) IsUp(ctx context.Context) (bool, error) {
 	// Read PID from file.
@@ -200,11 +233,31 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the server process.
-func (s *Server) PreUp(v interface{}) error {
-	// Check for valid parameter type.
-	cfg, ok := v.(*ServerConfig)
-	if !ok {
-		return fmt.Errorf("invalid parameter type %T", v)
+func (s *Server) PreUp(_ interface{}) error {
+	// Initialize viper instance
+	v := viper.New()
+
+	// Skip loading if the config file does not exist
+	cfgFile := s.appConfigFilePath()
+	if _, err := os.Stat(cfgFile); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat config file: %w", err)
+		}
+	} else {
+		// Read the config from the specified file
+		v.SetConfigFile(cfgFile)
+		if err := v.ReadInConfig(); err != nil {
+			return fmt.Errorf("failed to read config file: %w", err)
+		}
+	}
+
+	// Unmarshal configuration into the config object
+	cfg := DefaultServerConfig()
+	if err := v.Unmarshal(cfg); err != nil {
+		return fmt.Errorf("failed to unmarshal config file: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("failed to validate config file: %w", err)
 	}
 
 	for _, inbound := range cfg.Inbounds {
@@ -216,7 +269,8 @@ func (s *Server) PreUp(v interface{}) error {
 	}
 
 	// Write configuration to file.
-	if err := cfg.WriteToFile(s.configFilePath()); err != nil {
+	cfgFile = s.serviceConfigFilePath()
+	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
 		return fmt.Errorf("failed to write config to file: %w", err)
 	}
 
@@ -226,10 +280,11 @@ func (s *Server) PreUp(v interface{}) error {
 // Up starts the V2Ray server process.
 func (s *Server) Up(ctx context.Context) error {
 	// Constructs the command to start the V2Ray server.
+	cfgFile := s.serviceConfigFilePath()
 	s.cmd = exec.CommandContext(
 		ctx,
 		s.execFile(v2ray),
-		strings.Fields(fmt.Sprintf("run --config %s", s.configFilePath()))...,
+		strings.Fields(fmt.Sprintf("run --config %s", cfgFile))...,
 	)
 
 	// Starts the V2Ray server process.
@@ -292,8 +347,15 @@ func (s *Server) Down(ctx context.Context) error {
 
 // PostDown performs cleanup operations after the server process is terminated.
 func (s *Server) PostDown() error {
+	// Removes configuration file.
+	cfgFile := s.serviceConfigFilePath()
+	if err := utils.RemoveFile(cfgFile); err != nil {
+		return fmt.Errorf("failed to remove file: %w", err)
+	}
+
 	// Remove PID file.
-	if err := utils.RemoveFile(s.pidFilePath()); err != nil {
+	pidFile := s.pidFilePath()
+	if err := utils.RemoveFile(pidFile); err != nil {
 		return fmt.Errorf("failed to remove file: %w", err)
 	}
 

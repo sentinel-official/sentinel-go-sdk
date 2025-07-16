@@ -15,7 +15,9 @@ func (c *Client) interfaceName() (string, error) {
 		return "", err
 	}
 
-	defer nameFile.Close()
+	defer func() {
+		_ = nameFile.Close()
+	}()
 
 	// Reads the interface name from the file.
 	reader := bufio.NewReader(nameFile)

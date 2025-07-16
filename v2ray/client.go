@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/shirou/gopsutil/v4/process"
+	"github.com/spf13/viper"
 
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
@@ -27,14 +28,11 @@ type Client struct {
 }
 
 // NewClient creates a new Client instance.
-func NewClient() *Client {
-	return &Client{}
-}
-
-// WithHomeDir sets the home directory for the client and returns the updated Client instance.
-func (c *Client) WithHomeDir(homeDir string) *Client {
-	c.homeDir = homeDir
-	return c
+func NewClient(homeDir string) *Client {
+	return &Client{
+		homeDir: homeDir,
+		name:    "v2ray",
+	}
 }
 
 // WithName sets the name for the client and returns the updated Client instance.
@@ -43,8 +41,13 @@ func (c *Client) WithName(name string) *Client {
 	return c
 }
 
-// configFilePath returns the file path of the client's configuration file.
-func (c *Client) configFilePath() string {
+// appConfigFilePath returns the full path to the application's configuration file.
+func (c *Client) appConfigFilePath() string {
+	return filepath.Join(c.homeDir, "config.toml")
+}
+
+// serviceConfigFilePath returns the full path to the service-specific configuration file.
+func (c *Client) serviceConfigFilePath() string {
 	return filepath.Join(c.homeDir, fmt.Sprintf("%s.json", c.name))
 }
 
@@ -55,13 +58,13 @@ func (c *Client) pidFilePath() string {
 
 // readPIDFromFile reads the PID from the client's PID file.
 func (c *Client) readPIDFromFile() (int32, error) {
-	name := c.pidFilePath()
-	if _, err := os.Stat(name); os.IsNotExist(err) {
+	pidFile := c.pidFilePath()
+	if _, err := os.Stat(pidFile); os.IsNotExist(err) {
 		return 0, nil
 	}
 
 	// Read PID from the PID file.
-	data, err := os.ReadFile(name)
+	data, err := os.ReadFile(pidFile)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read file: %w", err)
 	}
@@ -81,7 +84,8 @@ func (c *Client) writePIDToFile(pid int) error {
 	data := []byte(strconv.Itoa(pid))
 
 	// Write PID to file with appropriate permissions.
-	if err := os.WriteFile(c.pidFilePath(), data, 0644); err != nil {
+	pidFile := c.pidFilePath()
+	if err := os.WriteFile(pidFile, data, 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
@@ -91,6 +95,35 @@ func (c *Client) writePIDToFile(pid int) error {
 // Type returns the service type of the client.
 func (c *Client) Type() types.ServiceType {
 	return types.ServiceTypeV2Ray
+}
+
+// Init sets up service configuration, creating directories and writing defaults unless config exists.
+func (c *Client) Init(force bool) error {
+	// Create the home directory if it doesn't exist
+	if err := os.MkdirAll(c.homeDir, 0755); err != nil {
+		return fmt.Errorf("failed to create home directory: %w", err)
+	}
+
+	// Check if the configuration file already exists
+	cfgFile := c.appConfigFilePath()
+	if _, err := os.Stat(cfgFile); err != nil {
+		// If an error other than "file not found" occurs, return it
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat config file: %w", err)
+		}
+	} else {
+		if !force {
+			return errors.New("config file already exists")
+		}
+	}
+
+	// Write the default configuration to the configuration file
+	cfg := DefaultClientConfig()
+	if err := cfg.WriteAppConfig(cfgFile); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return nil
 }
 
 // IsUp checks if the V2Ray client process is running.
@@ -138,15 +171,36 @@ func (c *Client) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the client process.
-func (c *Client) PreUp(v interface{}) error {
-	// Check for valid parameter type.
-	cfg, ok := v.(*ClientConfig)
-	if !ok {
-		return fmt.Errorf("invalid parameter type %T", v)
+func (c *Client) PreUp(_ interface{}) error {
+	// Initialize viper instance
+	v := viper.New()
+
+	// Skip loading if the config file does not exist
+	cfgFile := c.appConfigFilePath()
+	if _, err := os.Stat(cfgFile); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat config file: %w", err)
+		}
+	} else {
+		// Read the config from the specified file
+		v.SetConfigFile(cfgFile)
+		if err := v.ReadInConfig(); err != nil {
+			return fmt.Errorf("failed to read config file: %w", err)
+		}
+	}
+
+	// Unmarshal configuration into the config object
+	cfg := DefaultClientConfig()
+	if err := v.Unmarshal(cfg); err != nil {
+		return fmt.Errorf("failed to unmarshal config file: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("failed to validate config file: %w", err)
 	}
 
 	// Write configuration to file.
-	if err := cfg.WriteToFile(c.configFilePath()); err != nil {
+	cfgFile = c.serviceConfigFilePath()
+	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
 		return fmt.Errorf("failed to write config to file: %w", err)
 	}
 
@@ -156,10 +210,11 @@ func (c *Client) PreUp(v interface{}) error {
 // Up starts the V2Ray client process.
 func (c *Client) Up(ctx context.Context) error {
 	// Constructs the command to start the V2Ray client.
+	cfgFile := c.serviceConfigFilePath()
 	c.cmd = exec.CommandContext(
 		ctx,
 		c.execFile(v2ray),
-		strings.Fields(fmt.Sprintf("run --config %s", c.configFilePath()))...,
+		strings.Fields(fmt.Sprintf("run --config %s", cfgFile))...,
 	)
 
 	// Starts the V2Ray client process.
@@ -223,12 +278,14 @@ func (c *Client) Down(ctx context.Context) error {
 // PostDown performs cleanup operations after the client process is terminated.
 func (c *Client) PostDown() error {
 	// Removes configuration file.
-	if err := utils.RemoveFile(c.configFilePath()); err != nil {
+	cfgFile := c.serviceConfigFilePath()
+	if err := utils.RemoveFile(cfgFile); err != nil {
 		return fmt.Errorf("failed to remove file: %w", err)
 	}
 
 	// Removes PID file.
-	if err := utils.RemoveFile(c.pidFilePath()); err != nil {
+	pidFile := c.pidFilePath()
+	if err := utils.RemoveFile(pidFile); err != nil {
 		return fmt.Errorf("failed to remove file: %w", err)
 	}
 

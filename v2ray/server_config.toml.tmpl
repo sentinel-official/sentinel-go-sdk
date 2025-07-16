@@ -1,0 +1,23 @@
+# Inbound field descriptions:
+# - port: The unique port number on which the inbound connection listens.
+#   It must not conflict with any other services running on the same machine.
+# - proxy: Specifies the proxy protocol for communication on the inbound connection.
+#   Must be either "vmess" (Virtual Machine Service) or "vless" (Virtual Light Service).
+# - security: Determines the security setting for the inbound connection.
+#   Can be "none" for no encryption, or "tls" for Transport Layer Security.
+# - tls_cert_path: The file path to the TLS certificate. This field is required if `security` is set to "tls".
+# - tls_key_path: The file path to the TLS key. This field is required if `security` is set to "tls".
+# - transport: Specifies the type of transport protocol to use for incoming requests.
+#   Must be one of the following: "domainsocket", "gun", "grpc", "http", "mkcp", "quic", "tcp", "websocket".
+
+{{- range $index, $inbound := .Inbounds }}
+
+[[inbounds]]
+port = "{{ $inbound.Port }}"
+proxy = "{{ $inbound.Proxy }}"
+security = "{{ $inbound.Security }}"
+tls_cert_path = "{{ $inbound.TLSCertPath }}"
+tls_key_path = "{{ $inbound.TLSKeyPath }}"
+transport = "{{ $inbound.Transport }}"
+
+{{- end }}
