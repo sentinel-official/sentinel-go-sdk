@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"fmt"
 	"math/big"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -54,6 +55,11 @@ func (p *PKI) RLPath(name string) string {
 // Accepts optional certificate customization options via CertOption.
 func (p *PKI) Init(opts ...CertOption) (err error) {
 	timestamp := time.Now()
+
+	// Create the pki directory if it doesn't exist
+	if err := os.MkdirAll(p.Dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
 
 	// Generate a new ECDSA private key (P-256 curve)
 	p.Signer, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

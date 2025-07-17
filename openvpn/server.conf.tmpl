@@ -1,11 +1,11 @@
 dev tun
 port {{ .Port }}
 proto {{ .Protocol }}
-ca {{ filepathJoin .PKIDir "ca.crt" }}
-cert {{ filepathJoin .PKIDir "server.crt" }}
-crl-verify {{ filepathJoin .PKIDir "ca.rl" }}
-key {{ filepathJoin .PKIDir "server.key" }}
-tls-crypt {{ filepathJoin .PKIDir "tls.key" }}
+ca "{{ filepathJoin .PKIDir "ca.crt" }}"
+cert "{{ filepathJoin .PKIDir "server.crt" }}"
+crl-verify "{{ filepathJoin .PKIDir "ca.rl" }}"
+key "{{ filepathJoin .PKIDir "server.key" }}"
+tls-crypt "{{ filepathJoin .PKIDir "tls.key" }}"
 auth-nocache
 auth SHA256
 cipher AES-256-GCM

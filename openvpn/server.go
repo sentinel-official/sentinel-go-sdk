@@ -38,7 +38,7 @@ type Server struct {
 func NewServer(homeDir string) *Server {
 	return &Server{
 		homeDir: homeDir,
-		name:    "openvpn",
+		name:    "server",
 	}
 }
 
@@ -201,8 +201,10 @@ func (s *Server) PreUp(_ interface{}) error {
 		}
 	}
 
-	// Unmarshal configuration into the config object
 	cfg := DefaultServerConfig()
+	cfg.PKIDir = filepath.Join(s.homeDir, "pki")
+
+	// Unmarshal configuration into the config object
 	if err := v.Unmarshal(cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal config file: %w", err)
 	}
