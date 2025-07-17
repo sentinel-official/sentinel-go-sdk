@@ -29,9 +29,11 @@ func (c *ServerConfig) ExtIPv4Addr() string {
 		return ""
 	}
 
-	// Extract netmask from CIDR notation
+	// Extract netmask and network from CIDR notation
 	netmask := net.IP(ipNet.Mask)
-	return fmt.Sprintf("%s %s\n", ip, netmask)
+	network := ip.Mask(ipNet.Mask)
+
+	return fmt.Sprintf("%s %s\n", network, netmask)
 }
 
 // ExtIPv6Addr returns the configured IPv6 address.
