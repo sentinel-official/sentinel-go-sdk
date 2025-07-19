@@ -1,6 +1,7 @@
 package log
 
 import (
+	"errors"
 	"io"
 	"time"
 
@@ -50,6 +51,26 @@ func SetLogger(l log.Logger) {
 
 // NewLogger creates a new logger instance with the specified output writer, format, and log level.
 func NewLogger(w io.Writer, format, level string) (log.Logger, error) {
+	// Check if the format is valid.
+	validFormats := map[string]bool{
+		"json": true,
+		"text": true,
+	}
+	if !validFormats[format] {
+		return nil, errors.New("format must be one of: json, text")
+	}
+
+	// Check if the level is valid.
+	validLevels := map[string]bool{
+		"debug": true,
+		"error": true,
+		"info":  true,
+		"warn":  true,
+	}
+	if !validLevels[level] {
+		return nil, errors.New("level must be one of: debug, error, info, warn")
+	}
+
 	// Parse the log level from the string
 	logLevel, err := zerolog.ParseLevel(level)
 	if err != nil {

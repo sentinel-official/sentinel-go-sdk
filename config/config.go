@@ -9,7 +9,6 @@ import (
 // Config represents the overall configuration structure.
 type Config struct {
 	Keyring *KeyringConfig `mapstructure:"keyring"` // Keyring contains keyring configuration.
-	Log     *LogConfig     `mapstructure:"log"`     // Log contains logging configuration.
 	Query   *QueryConfig   `mapstructure:"query"`   // Query contains query configuration.
 	RPC     *RPCConfig     `mapstructure:"rpc"`     // RPC contains RPC configuration.
 	Tx      *TxConfig      `mapstructure:"tx"`      // Tx contains transaction configuration.
@@ -19,9 +18,6 @@ type Config struct {
 func (c *Config) Validate() error {
 	if err := c.Keyring.Validate(); err != nil {
 		return fmt.Errorf("invalid keyring: %w", err)
-	}
-	if err := c.Log.Validate(); err != nil {
-		return fmt.Errorf("invalid log: %w", err)
 	}
 	if err := c.Query.Validate(); err != nil {
 		return fmt.Errorf("invalid query: %w", err)
@@ -39,7 +35,6 @@ func (c *Config) Validate() error {
 // SetForFlags adds configuration flags to the specified FlagSet.
 func (c *Config) SetForFlags(f *pflag.FlagSet) {
 	c.Keyring.SetForFlags(f)
-	c.Log.SetForFlags(f)
 	c.Query.SetForFlags(f)
 	c.RPC.SetForFlags(f)
 	c.Tx.SetForFlags(f)
@@ -49,7 +44,6 @@ func (c *Config) SetForFlags(f *pflag.FlagSet) {
 func DefaultConfig() *Config {
 	return &Config{
 		Keyring: DefaultKeyringConfig(),
-		Log:     DefaultLogConfig(),
 		Query:   DefaultQueryConfig(),
 		RPC:     DefaultRPCConfig(),
 		Tx:      DefaultTxConfig(),
