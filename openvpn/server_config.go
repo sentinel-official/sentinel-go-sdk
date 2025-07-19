@@ -17,7 +17,7 @@ import (
 type ServerConfig struct {
 	IPv4Addr string `mapstructure:"ipv4_addr"` // IPv4 address in CIDR format (e.g., 10.8.0.1/24)
 	IPv6Addr string `mapstructure:"ipv6_addr"` // IPv6 address in CIDR format (optional)
-	PKIDir   string `mapstructure:"pki_dir"`   // Path to the PKI directory used for certificates
+	PKIDir   string `mapstructure:"-"`         // Path to the PKI directory used for certificates
 	Port     string `mapstructure:"port"`      // Server port (e.g., "1194")
 	Protocol string `mapstructure:"protocol"`  // Transport protocol (either "tcp" or "udp")
 }

@@ -28,9 +28,9 @@ type Client struct {
 }
 
 // NewClient creates a new Client instance.
-func NewClient(homeDir string) *Client {
+func NewClient(appDir string) *Client {
 	return &Client{
-		homeDir: homeDir,
+		homeDir: filepath.Join(appDir, "v2ray"),
 		name:    "v2ray",
 	}
 }
@@ -58,8 +58,15 @@ func (c *Client) pidFilePath() string {
 
 // readPIDFromFile reads the PID from the client's PID file.
 func (c *Client) readPIDFromFile() (int32, error) {
+	// Get the full path to the PID file
 	pidFile := c.pidFilePath()
-	if _, err := os.Stat(pidFile); os.IsNotExist(err) {
+
+	// Check if the PID file exists
+	exists, err := utils.IsFileExists(pidFile)
+	if err != nil {
+		return 0, fmt.Errorf("failed to check existence of pid file: %w", err)
+	}
+	if !exists {
 		return 0, nil
 	}
 
@@ -104,23 +111,21 @@ func (c *Client) Init(force bool) error {
 		return fmt.Errorf("failed to create home directory: %w", err)
 	}
 
-	// Check if the configuration file already exists
+	// Construct the full path to the config file
 	cfgFile := c.appConfigFilePath()
-	if _, err := os.Stat(cfgFile); err != nil {
-		// If an error other than "file not found" occurs, return it
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to stat config file: %w", err)
-		}
-	} else {
-		if !force {
-			return errors.New("config file already exists")
-		}
+
+	// Check if the config file exists at the specified path
+	cfgFileExists, err := utils.IsFileExists(cfgFile)
+	if err != nil {
+		return fmt.Errorf("failed to check if config file exists: %w", err)
 	}
 
-	// Write the default configuration to the configuration file
-	cfg := DefaultClientConfig()
-	if err := cfg.WriteAppConfig(cfgFile); err != nil {
-		return fmt.Errorf("failed to write config file: %w", err)
+	// Write default config only if file doesn't exist or force flag is enabled
+	if !cfgFileExists || force {
+		cfg := DefaultClientConfig()
+		if err := cfg.WriteAppConfig(cfgFile); err != nil {
+			return fmt.Errorf("failed to write config file: %w", err)
+		}
 	}
 
 	return nil
@@ -175,14 +180,17 @@ func (c *Client) PreUp(_ interface{}) error {
 	// Initialize viper instance
 	v := viper.New()
 
-	// Skip loading if the config file does not exist
+	// Construct the full path to the config file
 	cfgFile := c.appConfigFilePath()
-	if _, err := os.Stat(cfgFile); err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to stat config file: %w", err)
-		}
-	} else {
-		// Read the config from the specified file
+
+	// Check if the config file exists at the specified path
+	cfgFileExists, err := utils.IsFileExists(cfgFile)
+	if err != nil {
+		return fmt.Errorf("failed to check if config file exists: %w", err)
+	}
+
+	// If the config file exists, proceed to read its contents
+	if cfgFileExists {
 		v.SetConfigFile(cfgFile)
 		if err := v.ReadInConfig(); err != nil {
 			return fmt.Errorf("failed to read config file: %w", err)

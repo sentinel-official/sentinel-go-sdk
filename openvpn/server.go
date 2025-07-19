@@ -35,9 +35,9 @@ type Server struct {
 }
 
 // NewServer creates a new Server instance.
-func NewServer(homeDir string) *Server {
+func NewServer(appDir string) *Server {
 	return &Server{
-		homeDir: homeDir,
+		homeDir: filepath.Join(appDir, "openvpn"),
 		name:    "server",
 	}
 }
@@ -65,8 +65,15 @@ func (s *Server) pidFilePath() string {
 
 // readPIDFromFile reads the PID of the running OpenVPN process from a file.
 func (s *Server) readPIDFromFile() (int32, error) {
+	// Get the full path to the PID file
 	pidFile := s.pidFilePath()
-	if _, err := os.Stat(pidFile); os.IsNotExist(err) {
+
+	// Check if the PID file exists
+	exists, err := utils.IsFileExists(pidFile)
+	if err != nil {
+		return 0, fmt.Errorf("failed to check existence of pid file: %w", err)
+	}
+	if !exists {
 		return 0, nil
 	}
 
@@ -122,23 +129,21 @@ func (s *Server) Init(force bool) error {
 		return fmt.Errorf("failed to create home directory: %w", err)
 	}
 
-	// Check if the configuration file already exists
+	// Construct the full path to the config file
 	cfgFile := s.appConfigFilePath()
-	if _, err := os.Stat(cfgFile); err != nil {
-		// If an error other than "file not found" occurs, return it
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to stat config file: %w", err)
-		}
-	} else {
-		if !force {
-			return errors.New("config file already exists")
-		}
+
+	// Check if the config file exists at the specified path
+	cfgFileExists, err := utils.IsFileExists(cfgFile)
+	if err != nil {
+		return fmt.Errorf("failed to check if config file exists: %w", err)
 	}
 
-	// Write the default configuration to the configuration file
-	cfg := DefaultServerConfig()
-	if err := cfg.WriteAppConfig(cfgFile); err != nil {
-		return fmt.Errorf("failed to write config file: %w", err)
+	// Write default config only if file doesn't exist or force flag is enabled
+	if !cfgFileExists || force {
+		cfg := DefaultServerConfig()
+		if err := cfg.WriteAppConfig(cfgFile); err != nil {
+			return fmt.Errorf("failed to write config file: %w", err)
+		}
 	}
 
 	return nil
@@ -187,27 +192,31 @@ func (s *Server) PreUp(_ interface{}) error {
 	// Initialize viper instance
 	v := viper.New()
 
-	// Skip loading if the config file does not exist
+	// Construct the full path to the config file
 	cfgFile := s.appConfigFilePath()
-	if _, err := os.Stat(cfgFile); err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to stat config file: %w", err)
-		}
-	} else {
-		// Read the config from the specified file
+
+	// Check if the config file exists at the specified path
+	cfgFileExists, err := utils.IsFileExists(cfgFile)
+	if err != nil {
+		return fmt.Errorf("failed to check if config file exists: %w", err)
+	}
+
+	// If the config file exists, proceed to read its contents
+	if cfgFileExists {
 		v.SetConfigFile(cfgFile)
 		if err := v.ReadInConfig(); err != nil {
 			return fmt.Errorf("failed to read config file: %w", err)
 		}
 	}
 
-	cfg := DefaultServerConfig()
-	cfg.PKIDir = filepath.Join(s.homeDir, "pki")
-
 	// Unmarshal configuration into the config object
+	cfg := DefaultServerConfig()
 	if err := v.Unmarshal(cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal config file: %w", err)
 	}
+
+	cfg.PKIDir = filepath.Join(s.homeDir, "pki")
+
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("failed to validate config file: %w", err)
 	}
