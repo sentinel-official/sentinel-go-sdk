@@ -17,7 +17,7 @@ require (
 	github.com/shirou/gopsutil/v4 v4.25.6
 	github.com/showwin/speedtest-go v1.7.10
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/pflag v1.0.7
 	github.com/spf13/viper v1.19.0
 	github.com/v2fly/v2ray-core/v5 v5.37.0
 	golang.org/x/crypto v0.40.0
