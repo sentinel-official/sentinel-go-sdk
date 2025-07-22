@@ -120,13 +120,13 @@ func keysAddCmd(c *core.Client) *cobra.Command {
 
 			// Display a mnemonic warning if a new mnemonic is generated
 			if newMnemonic != mnemonic {
-				cmd.Printf("")
-				cmd.Printf("####################################################################")
-				cmd.Printf("WARNING: YOU MUST SAVE THE FOLLOWING MNEMONIC SECURELY!")
-				cmd.Printf("THIS MNEMONIC IS REQUIRED TO RECOVER YOUR KEY.")
-				cmd.Printf("IF YOU LOSE THIS MNEMONIC, YOU WILL NOT BE ABLE TO RECOVER YOUR KEY.")
-				cmd.Printf("####################################################################")
-				cmd.Printf("")
+				cmd.Println("")
+				cmd.Println("####################################################################")
+				cmd.Println("WARNING: YOU MUST SAVE THE FOLLOWING MNEMONIC SECURELY!")
+				cmd.Println("THIS MNEMONIC IS REQUIRED TO RECOVER YOUR KEY.")
+				cmd.Println("IF YOU LOSE THIS MNEMONIC, YOU WILL NOT BE ABLE TO RECOVER YOUR KEY.")
+				cmd.Println("####################################################################")
+				cmd.Println("")
 
 				output.Mnemonic = newMnemonic
 			}
