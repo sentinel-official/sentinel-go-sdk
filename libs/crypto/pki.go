@@ -61,8 +61,8 @@ func (p *PKI) Init(opts ...CertOption) (err error) {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Generate a new ECDSA private key (P-256 curve)
-	p.Signer, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	// Generate a new ECDSA private key (P-384 curve)
+	p.Signer, err = ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return fmt.Errorf("failed to generate private key: %w", err)
 	}
@@ -141,7 +141,7 @@ func (p *PKI) Issue(name string, opts ...CertOption) (keyDER []byte, certDER []b
 	timestamp := time.Now()
 
 	// Generate a new ECDSA key for the subject
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
