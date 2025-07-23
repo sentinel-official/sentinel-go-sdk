@@ -16,6 +16,7 @@ require (
 	github.com/sentinel-official/sentinelhub/v12 v12.0.0-rc9.0.20250722162832-a560b0a6db8e
 	github.com/shirou/gopsutil/v4 v4.25.6
 	github.com/showwin/speedtest-go v1.7.10
+	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.7
 	github.com/spf13/viper v1.20.1

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/cometbft/cometbft/config"
 	"github.com/rs/zerolog"
 )
 
@@ -84,7 +83,7 @@ func NewLogger(w io.Writer, format, level string) (log.Logger, error) {
 	}
 
 	// Set log format based on the provided format string
-	if format == config.LogFormatJSON {
+	if format == "json" {
 		opts = append(opts, log.OutputJSONOption())
 	}
 
