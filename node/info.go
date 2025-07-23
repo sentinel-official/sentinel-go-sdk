@@ -13,19 +13,19 @@ import (
 // GetInfoResult represents metadata about a node.
 type GetInfoResult struct {
 	Addr         string          `json:"addr"`          // Bech32-encoded address of the node.
-	DownLink     string          `json:"down_link"`     // Node's available download bandwidth capacity (Bytes per second).
+	EgressRate   string          `json:"egress_rate"`   // Node's available upload bandwidth capacity (Bytes per second).
 	HandshakeDNS bool            `json:"handshake_dns"` // Indicates if the node supports Handshake (HNS) DNS resolution.
+	IngressRate  string          `json:"ingress_rate"`  // Node's available download bandwidth capacity (Bytes per second).
 	Location     *geoip.Location `json:"location"`      // Geographical location of the node.
 	Moniker      string          `json:"moniker"`       // Human-readable name assigned to the node.
 	Peers        int             `json:"peers"`         // Number of connected peers.
-	Type         string          `json:"type"`          // Node type (e.g., "V2Ray", "WireGuard", "OpenVPN", etc.).
-	UpLink       string          `json:"up_link"`       // Node's available upload bandwidth capacity (Bytes per second).
+	ServiceType  string          `json:"service_type"`  // Node service type (e.g., "V2Ray", "WireGuard", "OpenVPN", etc.).
 	Version      *version.Info   `json:"version"`       // Version information of the node software.
 }
 
-// GetType returns the node's service type by converting the Type string into a ServiceType enum.
-func (r *GetInfoResult) GetType() types.ServiceType {
-	return types.ServiceTypeFromString(r.Type)
+// GetServiceType returns the node's service type by converting the ServiceType string into a ServiceType enum.
+func (r *GetInfoResult) GetServiceType() types.ServiceType {
+	return types.ServiceTypeFromString(r.ServiceType)
 }
 
 // GetInfo retrieves detailed information about a specific node.
