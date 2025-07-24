@@ -506,6 +506,11 @@ func (s *Server) PeerStatistics(_ context.Context) (items []*types.PeerStatistic
 			continue
 		}
 
+		id := fields[1]
+		if id == "UNDEF" {
+			continue
+		}
+
 		uploadBytes, err := strconv.ParseInt(fields[5], 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse upload bytes: %w", err)
@@ -516,7 +521,7 @@ func (s *Server) PeerStatistics(_ context.Context) (items []*types.PeerStatistic
 		}
 
 		items = append(items, &types.PeerStatistic{
-			ID:            fields[1],
+			ID:            id,
 			DownloadBytes: downloadBytes,
 			UploadBytes:   uploadBytes,
 		})
