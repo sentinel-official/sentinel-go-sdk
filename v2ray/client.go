@@ -176,7 +176,7 @@ func (c *Client) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the client process.
-func (c *Client) PreUp(_ interface{}) error {
+func (c *Client) PreUp() error {
 	// Initialize viper instance
 	v := viper.New()
 

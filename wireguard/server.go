@@ -117,7 +117,7 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the server process.
-func (s *Server) PreUp(_ interface{}) error {
+func (s *Server) PreUp() error {
 	// Initialize viper instance
 	v := viper.New()
 
@@ -192,26 +192,26 @@ func (s *Server) PostDown() error {
 }
 
 // AddPeer adds a new peer to the WireGuard server.
-func (s *Server) AddPeer(ctx context.Context, req interface{}) (res interface{}, err error) {
-	// Parse the request to ServiceRequest type.
-	r, err := parseServiceRequest(req)
+func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interface{}, error) {
+	// Parse the request to PeerRequest type.
+	r, err := parsePeerRequest(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse request: %w", err)
+		return "", nil, fmt.Errorf("failed to parse request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid request: %w", err)
+		return "", nil, fmt.Errorf("invalid request: %w", err)
 	}
 
 	// Retrieve the identity from the request.
-	identity := r.PublicKey.String()
+	id := r.ID()
 
 	// Add peer to the peer manager and retrieve assigned IP addresses.
-	addrs, err := s.pm.Put(identity)
+	addrs, err := s.pm.Put(id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to put peer: %w", err)
+		return "", nil, fmt.Errorf("failed to put peer: %w", err)
 	}
 	if len(addrs) == 0 {
-		return nil, errors.New("no addrs available")
+		return "", nil, errors.New("no addrs available")
 	}
 
 	var allowedIPs []string
@@ -223,15 +223,15 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (res interface{},
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf("set %s peer %s allowed-ips %s", s.name, identity, strings.Join(allowedIPs, ",")))...,
+		strings.Fields(fmt.Sprintf("set %s peer %s allowed-ips %s", s.name, id, strings.Join(allowedIPs, ",")))...,
 	)
 
 	// Run the command and check for errors.
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("failed to run command: %w", err)
+		return "", nil, fmt.Errorf("failed to run command: %w", err)
 	}
 
-	return &AddPeerResponse{
+	return id, &AddPeerResponse{
 		Addrs:    addrs,
 		Metadata: s.metadata,
 	}, nil
@@ -239,8 +239,8 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (res interface{},
 
 // HasPeer checks if a peer exists in the WireGuard server's peer list.
 func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
-	// Parse the request to ServiceRequest type.
-	r, err := parseServiceRequest(req)
+	// Parse the request to PeerRequest type.
+	r, err := parsePeerRequest(req)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse request: %w", err)
 	}
@@ -257,34 +257,34 @@ func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
 }
 
 // RemovePeer removes a peer from the WireGuard server.
-func (s *Server) RemovePeer(ctx context.Context, req interface{}) error {
-	// Parse the request to ServiceRequest type.
-	r, err := parseServiceRequest(req)
+func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error) {
+	// Parse the request to PeerRequest type.
+	r, err := parsePeerRequest(req)
 	if err != nil {
-		return fmt.Errorf("failed to parse request: %w", err)
+		return "", fmt.Errorf("failed to parse request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
-		return fmt.Errorf("invalid request: %w", err)
+		return "", fmt.Errorf("invalid request: %w", err)
 	}
 
 	// Retrieve the identity from the request.
-	identity := r.PublicKey.String()
+	id := r.ID()
 
 	// Executes the 'wg set' command to remove the peer from the WireGuard interface.
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf(`set %s peer %s remove`, s.name, identity))...,
+		strings.Fields(fmt.Sprintf(`set %s peer %s remove`, s.name, id))...,
 	)
 
 	// Run the command and check for errors.
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to run command: %w", err)
+		return "", fmt.Errorf("failed to run command: %w", err)
 	}
 
 	// Remove the peer information from the local collection.
-	s.pm.Delete(identity)
-	return nil
+	s.pm.Delete(id)
+	return id, nil
 }
 
 // PeerCount returns the number of peers connected to the WireGuard server.
@@ -334,7 +334,7 @@ func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatist
 		items = append(
 			items,
 			&types.PeerStatistic{
-				Key:           columns[0],
+				ID:            columns[0],
 				DownloadBytes: downloadBytes,
 				UploadBytes:   uploadBytes,
 			},

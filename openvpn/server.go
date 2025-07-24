@@ -188,7 +188,7 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp prepares the server before it is started by initializing PKI and generating config files.
-func (s *Server) PreUp(_ interface{}) error {
+func (s *Server) PreUp() error {
 	// Initialize viper instance
 	v := viper.New()
 
@@ -337,24 +337,24 @@ func (s *Server) PostDown() error {
 }
 
 // AddPeer creates and registers a new VPN peer by issuing a new certificate.
-func (s *Server) AddPeer(_ context.Context, req interface{}) (interface{}, error) {
-	// Parse the request to ServiceRequest type.
-	r, err := parseServiceRequest(req)
+func (s *Server) AddPeer(_ context.Context, req interface{}) (string, interface{}, error) {
+	// Parse the request to PeerRequest type.
+	r, err := parsePeerRequest(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse request: %w", err)
+		return "", nil, fmt.Errorf("failed to parse request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid request: %w", err)
+		return "", nil, fmt.Errorf("invalid request: %w", err)
 	}
 
-	name := r.UUID.String()
+	id := r.ID()
 
-	keyDER, certDER, err := s.pki.Issue(name)
+	keyDER, certDER, err := s.pki.Issue(id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to issue certificate: %w", err)
+		return "", nil, fmt.Errorf("failed to issue certificate: %w", err)
 	}
 
-	return &AddPeerResponse{
+	return id, &AddPeerResponse{
 		Metadata: s.metadata,
 		Cert:     certDER,
 		Key:      keyDER,
@@ -363,8 +363,8 @@ func (s *Server) AddPeer(_ context.Context, req interface{}) (interface{}, error
 
 // HasPeer checks if a peer is currently connected and tracked.
 func (s *Server) HasPeer(ctx context.Context, req interface{}) (bool, error) {
-	// Parse the request to ServiceRequest type.
-	r, err := parseServiceRequest(req)
+	// Parse the request to PeerRequest type.
+	r, err := parsePeerRequest(req)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse request: %w", err)
 	}
@@ -377,9 +377,9 @@ func (s *Server) HasPeer(ctx context.Context, req interface{}) (bool, error) {
 		return false, fmt.Errorf("failed to get peer statistics: %w", err)
 	}
 
-	name := r.UUID.String()
+	id := r.ID()
 	for _, item := range items {
-		if item.Key == name {
+		if item.ID == id {
 			return true, nil
 		}
 	}
@@ -388,19 +388,19 @@ func (s *Server) HasPeer(ctx context.Context, req interface{}) (bool, error) {
 }
 
 // RemovePeer disconnects a VPN client and revokes its certificate.
-func (s *Server) RemovePeer(_ context.Context, req interface{}) error {
-	// Parse the request to ServiceRequest type.
-	r, err := parseServiceRequest(req)
+func (s *Server) RemovePeer(_ context.Context, req interface{}) (string, error) {
+	// Parse the request to PeerRequest type.
+	r, err := parsePeerRequest(req)
 	if err != nil {
-		return fmt.Errorf("failed to parse request: %w", err)
+		return "", fmt.Errorf("failed to parse request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
-		return fmt.Errorf("invalid request: %w", err)
+		return "", fmt.Errorf("invalid request: %w", err)
 	}
 
 	conn, err := s.mgmtConn()
 	if err != nil {
-		return fmt.Errorf("failed to get management connection: %w", err)
+		return "", fmt.Errorf("failed to get management connection: %w", err)
 	}
 
 	defer func() {
@@ -413,7 +413,7 @@ func (s *Server) RemovePeer(_ context.Context, req interface{}) error {
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return fmt.Errorf("failed to read line: %w", err)
+			return "", fmt.Errorf("failed to read line: %w", err)
 		}
 		if strings.Contains(line, "OpenVPN Management Interface") {
 			break
@@ -421,16 +421,16 @@ func (s *Server) RemovePeer(_ context.Context, req interface{}) error {
 	}
 
 	// Issue kill command for the client
-	name := r.UUID.String()
-	if _, err := fmt.Fprintf(conn, "kill %s\n", name); err != nil {
-		return fmt.Errorf("failed to write command: %w", err)
+	id := r.ID()
+	if _, err := fmt.Fprintf(conn, "kill %s\n", id); err != nil {
+		return "", fmt.Errorf("failed to write command: %w", err)
 	}
 
 	// Await confirmation
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return fmt.Errorf("failed to read line: %w", err)
+			return "", fmt.Errorf("failed to read line: %w", err)
 		}
 
 		line = strings.TrimSpace(line)
@@ -438,16 +438,16 @@ func (s *Server) RemovePeer(_ context.Context, req interface{}) error {
 			break
 		}
 		if strings.HasPrefix(line, "ERROR") {
-			return fmt.Errorf("failed to kill client: %s", line)
+			return "", fmt.Errorf("failed to kill client: %s", line)
 		}
 	}
 
 	// Revoke the certificate
-	if err := s.pki.Revoke(name); err != nil {
-		return fmt.Errorf("failed to revoke certificate: %w", err)
+	if err := s.pki.Revoke(id); err != nil {
+		return "", fmt.Errorf("failed to revoke certificate: %w", err)
 	}
 
-	return nil
+	return id, nil
 }
 
 // PeerCount returns the number of active peers.
@@ -480,7 +480,7 @@ func (s *Server) PeerStatistics(_ context.Context) (items []*types.PeerStatistic
 	}
 
 	// Request status output
-	if _, err := fmt.Fprintf(conn, "status\n"); err != nil {
+	if _, err := fmt.Fprintf(conn, "status 2\n"); err != nil {
 		return nil, fmt.Errorf("failed to write command: %w", err)
 	}
 
@@ -515,7 +515,7 @@ func (s *Server) PeerStatistics(_ context.Context) (items []*types.PeerStatistic
 		}
 
 		items = append(items, &types.PeerStatistic{
-			Key:           fields[1],
+			ID:            fields[1],
 			DownloadBytes: downloadBytes,
 			UploadBytes:   uploadBytes,
 		})

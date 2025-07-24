@@ -232,7 +232,7 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the server process.
-func (s *Server) PreUp(_ interface{}) error {
+func (s *Server) PreUp() error {
 	// Initialize viper instance
 	v := viper.New()
 
@@ -366,20 +366,20 @@ func (s *Server) PostDown() error {
 }
 
 // AddPeer adds a new peer to the V2Ray server.
-func (s *Server) AddPeer(ctx context.Context, req interface{}) (interface{}, error) {
-	// Parse the request to ServiceRequest type.
-	r, err := parseServiceRequest(req)
+func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interface{}, error) {
+	// Parse the request to PeerRequest type.
+	r, err := parsePeerRequest(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse request: %w", err)
+		return "", nil, fmt.Errorf("failed to parse request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid request: %w", err)
+		return "", nil, fmt.Errorf("invalid request: %w", err)
 	}
 
 	// Establish a gRPC client connection to the handler service.
 	conn, client, err := s.handlerServiceClient()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get handler service client: %w", err)
+		return "", nil, fmt.Errorf("failed to get handler service client: %w", err)
 	}
 
 	// Ensure the connection is closed when done.
@@ -389,8 +389,11 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (interface{}, err
 		}
 	}()
 
-	// Extract key from the request.
-	email := r.UUID.String()
+	// Retrieve the identity from the request.
+	id := r.ID()
+
+	// Add peer to the peer manager.
+	s.pm.Put(id)
 
 	for _, md := range s.metadata {
 		// Prepare gRPC request to add a new user to the handler.
@@ -399,7 +402,7 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (interface{}, err
 			Operation: serial.ToTypedMessage(
 				&proxymancommand.AddUserOperation{
 					User: &protocol.User{
-						Email:   email,
+						Email:   id,
 						Account: md.Tag.Account(r.UUID),
 					},
 				},
@@ -408,27 +411,20 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (interface{}, err
 
 		// Send the request to add a user to the handler.
 		if _, err := client.AlterInbound(ctx, in); err != nil {
-			return nil, fmt.Errorf("failed to alter inbound: %w", err)
+			return "", nil, fmt.Errorf("failed to alter inbound: %w", err)
 		}
 	}
 
-	// Update the local peer collection with the new peer information.
-	s.pm.Put(
-		&Peer{
-			Email: email,
-		},
-	)
-
 	// Return nil for success (no additional data to return in response).
-	return &AddPeerResponse{
+	return id, &AddPeerResponse{
 		Metadata: s.metadata,
 	}, nil
 }
 
 // HasPeer checks if a peer exists in the V2Ray server's peer list.
 func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
-	// Parse the request to ServiceRequest type.
-	r, err := parseServiceRequest(req)
+	// Parse the request to PeerRequest type.
+	r, err := parsePeerRequest(req)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse request: %w", err)
 	}
@@ -436,29 +432,29 @@ func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
 		return false, fmt.Errorf("invalid request: %w", err)
 	}
 
-	// Retrieve the key from the request.
-	email := r.UUID.String()
-	peer := s.pm.Get(email)
+	// Retrieve the identity from the request.
+	id := r.ID()
+	peer := s.pm.Get(id)
 
 	// Return true if the peer exists, otherwise false.
 	return peer != nil, nil
 }
 
 // RemovePeer removes a peer from the V2Ray server.
-func (s *Server) RemovePeer(ctx context.Context, req interface{}) error {
-	// Parse the request to ServiceRequest type.
-	r, err := parseServiceRequest(req)
+func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error) {
+	// Parse the request to PeerRequest type.
+	r, err := parsePeerRequest(req)
 	if err != nil {
-		return fmt.Errorf("failed to parse request: %w", err)
+		return "", fmt.Errorf("failed to parse request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
-		return fmt.Errorf("invalid request: %w", err)
+		return "", fmt.Errorf("invalid request: %w", err)
 	}
 
 	// Establish a gRPC client connection to the handler service.
 	conn, client, err := s.handlerServiceClient()
 	if err != nil {
-		return fmt.Errorf("failed to get handler service client: %w", err)
+		return "", fmt.Errorf("failed to get handler service client: %w", err)
 	}
 
 	// Ensure the connection is closed when done.
@@ -468,8 +464,8 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) error {
 		}
 	}()
 
-	// Extract key from the request.
-	email := r.UUID.String()
+	// Retrieve the identity from the request.
+	id := r.ID()
 
 	for _, md := range s.metadata {
 		// Prepare gRPC request to remove a user from the handler.
@@ -477,7 +473,7 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) error {
 			Tag: md.Tag.String(),
 			Operation: serial.ToTypedMessage(
 				&proxymancommand.RemoveUserOperation{
-					Email: email,
+					Email: id,
 				},
 			),
 		}
@@ -486,16 +482,16 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) error {
 		if _, err := client.AlterInbound(ctx, in); err != nil {
 			// If the user is not found, continue without error.
 			if !strings.Contains(err.Error(), "not found") {
-				return fmt.Errorf("failed to alter inbound: %w", err)
+				return "", fmt.Errorf("failed to alter inbound: %w", err)
 			}
 		}
 	}
 
 	// Remove the peer information from the local collection.
-	s.pm.Delete(email)
+	s.pm.Delete(id)
 
 	// Return nil for success.
-	return nil
+	return id, nil
 }
 
 // PeerCount returns the number of peers connected to the V2Ray server.
@@ -519,11 +515,11 @@ func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatist
 	}()
 
 	// Define a function to process each peer in the local collection.
-	fn := func(key string, _ *Peer) (bool, error) {
+	fn := func(id string, _ *Peer) (bool, error) {
 		// Prepare gRPC request to get uplink traffic stats.
 		in := &statscommand.GetStatsRequest{
 			Reset_: false,
-			Name:   fmt.Sprintf("user>>>%s>>>traffic>>>uplink", key),
+			Name:   fmt.Sprintf("user>>>%s>>>traffic>>>uplink", id),
 		}
 
 		// Send the request to get uplink traffic stats.
@@ -544,7 +540,7 @@ func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatist
 		// Prepare gRPC request to get downlink traffic stats.
 		in = &statscommand.GetStatsRequest{
 			Reset_: false,
-			Name:   fmt.Sprintf("user>>>%s>>>traffic>>>downlink", key),
+			Name:   fmt.Sprintf("user>>>%s>>>traffic>>>downlink", id),
 		}
 
 		// Send the request to get downlink traffic stats.
@@ -566,7 +562,7 @@ func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatist
 		items = append(
 			items,
 			&types.PeerStatistic{
-				Key:           key,
+				ID:            id,
 				DownloadBytes: downLink.GetValue(),
 				UploadBytes:   upLink.GetValue(),
 			},

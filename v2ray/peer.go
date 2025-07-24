@@ -44,16 +44,18 @@ func (pm *PeerManager) Get(v string) *Peer {
 
 // Put adds a Peer to the PeerManager.
 // If a Peer with the same key already exists, it does nothing.
-func (pm *PeerManager) Put(v *Peer) {
+func (pm *PeerManager) Put(id string) {
 	pm.Lock()
 	defer pm.Unlock()
 
-	_, ok := pm.m[v.Key()]
+	_, ok := pm.m[id]
 	if ok {
 		return
 	}
 
-	pm.m[v.Key()] = v
+	pm.m[id] = &Peer{
+		Email: id,
+	}
 }
 
 // Delete removes a Peer from the PeerManager based on the provided key.

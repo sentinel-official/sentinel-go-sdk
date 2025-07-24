@@ -44,45 +44,45 @@ func ServiceTypeFromString(s string) ServiceType {
 
 // PeerStatistic represents the download and upload statistics for a peer.
 type PeerStatistic struct {
-	Key           string `json:"key"`            // Key is the identifier for the peer.
+	ID            string `json:"id"`             // ID is the identifier for the peer.
 	DownloadBytes int64  `json:"download_bytes"` // DownloadBytes is the total download in bytes.
 	UploadBytes   int64  `json:"upload_bytes"`   // UploadBytes is the total upload in bytes.
 }
 
 // ClientService defines the interface for client-side service operations.
 type ClientService interface {
-	Type() ServiceType                  // Type returns the type of the client service.
-	Init(force bool) error              // Init initializes the service, optionally overwriting config if force is true.
-	IsUp(context.Context) (bool, error) // IsUp checks if the client service is up.
+	Type() ServiceType                      // Type returns the type of the client service.
+	Init(force bool) error                  // Init initializes the service, optionally overwriting config if force is true.
+	IsUp(ctx context.Context) (bool, error) // IsUp checks if the client service is up.
 
-	PreUp(interface{}) error  // PreUp performs operations before the service is brought up.
-	Up(context.Context) error // Up brings up the client service.
-	PostUp() error            // PostUp performs operations after the service is brought up.
+	PreUp() error                 // PreUp performs operations before the service is brought up.
+	Up(ctx context.Context) error // Up brings up the client service.
+	PostUp() error                // PostUp performs operations after the service is brought up.
 
-	PreDown() error             // PreDown performs operations before the service is brought down.
-	Down(context.Context) error // Down brings down the client service.
-	PostDown() error            // PostDown performs operations after the service is brought down.
+	PreDown() error                 // PreDown performs operations before the service is brought down.
+	Down(ctx context.Context) error // Down brings down the client service.
+	PostDown() error                // PostDown performs operations after the service is brought down.
 
-	Statistics(context.Context) (int64, int64, error) // Statistics returns the download and upload statistics.
+	Statistics(ctx context.Context) (int64, int64, error) // Statistics returns the download and upload statistics.
 }
 
 // ServerService defines the interface for server-side service operations.
 type ServerService interface {
-	Type() ServiceType                  // Type returns the type of the server service.
-	Init(force bool) error              // Init initializes the service, optionally overwriting config if force is true.
-	IsUp(context.Context) (bool, error) // IsUp checks if the server service is up.
+	Type() ServiceType                      // Type returns the type of the server service.
+	Init(force bool) error                  // Init initializes the service, optionally overwriting config if force is true.
+	IsUp(ctx context.Context) (bool, error) // IsUp checks if the server service is up.
 
-	PreUp(interface{}) error  // PreUp performs operations before the service is brought up.
-	Up(context.Context) error // Up brings up the server service.
-	PostUp() error            // PostUp performs operations after the service is brought up.
+	PreUp() error                 // PreUp performs operations before the service is brought up.
+	Up(ctx context.Context) error // Up brings up the server service.
+	PostUp() error                // PostUp performs operations after the service is brought up.
 
-	PreDown() error             // PreDown performs operations before the service is brought down.
-	Down(context.Context) error // Down brings down the server service.
-	PostDown() error            // PostDown performs operations after the service is brought down.
+	PreDown() error                 // PreDown performs operations before the service is brought down.
+	Down(ctx context.Context) error // Down brings down the server service.
+	PostDown() error                // PostDown performs operations after the service is brought down.
 
-	AddPeer(context.Context, interface{}) (interface{}, error) // AddPeer adds a peer to the server service.
-	HasPeer(context.Context, interface{}) (bool, error)        // HasPeer checks if a peer exists in the server service.
-	RemovePeer(context.Context, interface{}) error             // RemovePeer removes a peer from the server service.
-	PeerCount() int                                            // PeerCount returns the count of peers.
-	PeerStatistics(context.Context) ([]*PeerStatistic, error)  // PeerStatistics returns the statistics for all peers.
+	AddPeer(ctx context.Context, req interface{}) (string, interface{}, error) // AddPeer adds a peer and returns its ID, the peer object, and an error if any.
+	HasPeer(ctx context.Context, req interface{}) (bool, error)                // HasPeer checks if a peer exists in the server service.
+	RemovePeer(ctx context.Context, req interface{}) (string, error)           // RemovePeer removes a peer and returns its ID and error if any.
+	PeerCount() int                                                            // PeerCount returns the count of peers.
+	PeerStatistics(ctx context.Context) ([]*PeerStatistic, error)              // PeerStatistics returns the statistics for all peers.
 }
