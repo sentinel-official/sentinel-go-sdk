@@ -90,7 +90,11 @@ func (c *Client) getURL(ctx context.Context, pathSuffix string) (string, error) 
 		return "", fmt.Errorf("failed to query node: %w", err)
 	}
 
-	path, err := url.JoinPath(node.RemoteURL, pathSuffix)
+	// Construct base URL with HTTPS scheme.
+	addr := "https" + "://" + node.RemoteAddrs[0]
+
+	// Join base URL with the provided path suffix.
+	path, err := url.JoinPath(addr, pathSuffix)
 	if err != nil {
 		return "", fmt.Errorf("failed to join url path: %w", err)
 	}

@@ -13,7 +13,7 @@ require (
 	github.com/cosmos/gogoproto v1.7.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/rs/zerolog v1.34.0
-	github.com/sentinel-official/sentinelhub/v12 v12.0.0-rc9.0.20250722162832-a560b0a6db8e
+	github.com/sentinel-official/sentinelhub/v12 v12.0.0-rc9.0.20250724081315-9ff6fcf35896
 	github.com/shirou/gopsutil/v4 v4.25.6
 	github.com/showwin/speedtest-go v1.7.10
 	github.com/soheilhy/cmux v0.1.5

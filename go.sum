@@ -483,8 +483,8 @@ github.com/secure-io/siv-go v0.0.0-20180922214919-5ff40651e2c4 h1:zOjq+1/uLzn/Xo
 github.com/secure-io/siv-go v0.0.0-20180922214919-5ff40651e2c4/go.mod h1:aI+8yClBW+1uovkHw6HM01YXnYB8vohtB9C83wzx34E=
 github.com/seiflotfy/cuckoofilter v0.0.0-20220411075957-e3b120b3f5fb h1:XfLJSPIOUX+osiMraVgIrMR27uMXnRJWGm1+GL8/63U=
 github.com/seiflotfy/cuckoofilter v0.0.0-20220411075957-e3b120b3f5fb/go.mod h1:bR6DqgcAl1zTcOX8/pE2Qkj9XO00eCNqmKb7lXP8EAg=
-github.com/sentinel-official/sentinelhub/v12 v12.0.0-rc9.0.20250722162832-a560b0a6db8e h1:w2Ur+QwcGfmGXaPcajo64y5EBkD6gIOEVMV/tOLAlFg=
-github.com/sentinel-official/sentinelhub/v12 v12.0.0-rc9.0.20250722162832-a560b0a6db8e/go.mod h1:RKinOO6LRkT0ENo52BAj5wUmiiw5VCe1OLpTr0hnbaw=
+github.com/sentinel-official/sentinelhub/v12 v12.0.0-rc9.0.20250724081315-9ff6fcf35896 h1:4xBxLblykOivTn+4HRZfN62NNPef4ZLF9k83LmZ1HY8=
+github.com/sentinel-official/sentinelhub/v12 v12.0.0-rc9.0.20250724081315-9ff6fcf35896/go.mod h1:RKinOO6LRkT0ENo52BAj5wUmiiw5VCe1OLpTr0hnbaw=
 github.com/shirou/gopsutil/v4 v4.25.6 h1:kLysI2JsKorfaFPcYmcJqbzROzsBWEOAtw6A7dIfqXs=
 github.com/shirou/gopsutil/v4 v4.25.6/go.mod h1:PfybzyydfZcN+JMMjkF6Zb8Mq1A/VcogFFg7hj50W9c=
 github.com/showwin/speedtest-go v1.7.10 h1:9o5zb7KsuzZKn+IE2//z5btLKJ870JwO6ETayUkqRFw=
