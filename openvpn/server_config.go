@@ -15,11 +15,12 @@ import (
 
 // ServerConfig defines the configuration required to set up an OpenVPN server.
 type ServerConfig struct {
-	IPv4Addr string `mapstructure:"ipv4_addr"` // IPv4 address in CIDR format (e.g., 10.8.0.1/24)
-	IPv6Addr string `mapstructure:"ipv6_addr"` // IPv6 address in CIDR format (optional)
-	PKIDir   string `mapstructure:"-"`         // Path to the PKI directory used for certificates
-	Port     string `mapstructure:"port"`      // Server port (e.g., "1194")
-	Protocol string `mapstructure:"protocol"`  // Transport protocol (either "tcp" or "udp")
+	IPv4Addr   string `mapstructure:"ipv4_addr"` // IPv4 address in CIDR format (e.g., 10.8.0.1/24)
+	IPv6Addr   string `mapstructure:"ipv6_addr"` // IPv6 address in CIDR format (optional)
+	PKIDir     string `mapstructure:"-"`         // Path to the PKI directory used for certificates
+	Port       string `mapstructure:"port"`      // Server port (e.g., "1194")
+	Protocol   string `mapstructure:"protocol"`  // Transport protocol (either "tcp" or "udp")
+	StatusFile string `mapstructure:"-"`         // Path to OpenVPN status file
 }
 
 // ExtIPv4Addr returns the IPv4 address and netmask extracted from the CIDR.
@@ -102,6 +103,11 @@ func (c *ServerConfig) Validate() error {
 		return fmt.Errorf("protocol must be one of: tcp, udp")
 	}
 
+	// StatusFile must be non-empty
+	if c.StatusFile == "" {
+		return errors.New("status_file cannot be empty")
+	}
+
 	return nil
 }
 
@@ -152,11 +158,18 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet) {}
 
 // DefaultServerConfig returns a ServerConfig instance populated with randomly generated values.
 func DefaultServerConfig() *ServerConfig {
+
 	return &ServerConfig{
-		IPv4Addr: fmt.Sprintf("10.%d.%d.1/24", rand.Intn(256), rand.Intn(256)),
-		IPv6Addr: "",
-		PKIDir:   "",
-		Port:     fmt.Sprintf("%d", utils.RandomPort()),
-		Protocol: "udp",
+		IPv4Addr:   fmt.Sprintf("10.%d.%d.1/24", rand.Intn(256), rand.Intn(256)),
+		IPv6Addr:   "",
+		PKIDir:     "",
+		Port:       fmt.Sprintf("%d", utils.RandomPort()),
+		Protocol:   randomProtocol(),
+		StatusFile: "",
 	}
+}
+
+// randomProtocol randomly returns either "tcp" or "udp"
+func randomProtocol() string {
+	return [...]string{"tcp", "udp"}[rand.Intn(2)]
 }

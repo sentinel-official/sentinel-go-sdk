@@ -216,6 +216,7 @@ func (s *Server) PreUp() error {
 	}
 
 	cfg.PKIDir = filepath.Join(s.homeDir, "pki")
+	cfg.StatusFile = filepath.Join(s.homeDir, "server.log")
 
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("failed to validate config file: %w", err)

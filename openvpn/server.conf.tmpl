@@ -26,4 +26,4 @@ keepalive 10 60
 persist-key
 persist-tun
 management 127.0.0.1 2323
-push "redirect-gateway def1 bypass-dhcp"
+status "{{ .StatusFile }}" 1
