@@ -60,11 +60,12 @@ func (c *IPAPIClient) Get(ip string) (*Location, error) {
 
 	// Parse the JSON response into a temporary structure.
 	var result struct {
-		City      string  `json:"city"`
-		Country   string  `json:"country"`
-		IP        string  `json:"query"` // Note: IP field is named "query" in ip-api.com response.
-		Latitude  float64 `json:"lat"`
-		Longitude float64 `json:"lon"`
+		City        string  `json:"city"`
+		Country     string  `json:"country"`
+		CountryCode string  `json:"countryCode"`
+		IP          string  `json:"query"` // Note: IP field is named "query" in ip-api.com response.
+		Latitude    float64 `json:"lat"`
+		Longitude   float64 `json:"lon"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -73,10 +74,11 @@ func (c *IPAPIClient) Get(ip string) (*Location, error) {
 
 	// Return the location information as a Location struct.
 	return &Location{
-		City:      result.City,
-		Country:   result.Country,
-		IP:        result.IP,
-		Latitude:  result.Latitude,
-		Longitude: result.Longitude,
+		City:        result.City,
+		Country:     result.Country,
+		CountryCode: result.CountryCode,
+		IP:          result.IP,
+		Latitude:    result.Latitude,
+		Longitude:   result.Longitude,
 	}, nil
 }

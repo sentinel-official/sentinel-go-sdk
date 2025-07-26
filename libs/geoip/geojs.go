@@ -64,11 +64,12 @@ func (c *GeoJSClient) Get(ip string) (*Location, error) {
 
 	// Parse the JSON response into a temporary structure.
 	var result struct {
-		City      string `json:"city"`
-		Country   string `json:"country"`
-		IP        string `json:"ip"`
-		Latitude  string `json:"latitude"`
-		Longitude string `json:"longitude"`
+		City        string `json:"city"`
+		Country     string `json:"country"`
+		CountryCode string `json:"country_code"`
+		IP          string `json:"ip"`
+		Latitude    string `json:"latitude"`
+		Longitude   string `json:"longitude"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -87,10 +88,11 @@ func (c *GeoJSClient) Get(ip string) (*Location, error) {
 
 	// Return the location information as a Location struct.
 	return &Location{
-		City:      result.City,
-		Country:   result.Country,
-		IP:        result.IP,
-		Latitude:  latitude,
-		Longitude: longitude,
+		City:        result.City,
+		Country:     result.Country,
+		CountryCode: result.CountryCode,
+		IP:          result.IP,
+		Latitude:    latitude,
+		Longitude:   longitude,
 	}, nil
 }
