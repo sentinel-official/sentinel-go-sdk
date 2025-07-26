@@ -154,7 +154,15 @@ func (c *ServerConfig) WriteAppConfig(filename string) error {
 
 // AddrPoolSet returns all address pools (IPv4 and IPv6).
 func (c *ServerConfig) AddrPoolSet() (*netip.AddrPoolSet, error) {
-	pool, err := netip.NewAddrPoolSet(c.IPv4Addr, c.IPv6Addr)
+	var addrs []string
+	if c.IPv4Addr != "" {
+		addrs = append(addrs, c.IPv4Addr)
+	}
+	if c.IPv6Addr != "" {
+		addrs = append(addrs, c.IPv6Addr)
+	}
+
+	pool, err := netip.NewAddrPoolSet(addrs...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create addr pool set: %w", err)
 	}
