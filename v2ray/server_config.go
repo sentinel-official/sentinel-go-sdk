@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
@@ -22,8 +22,8 @@ type InboundServerConfig struct {
 }
 
 // GetPort parses and returns the port configuration.
-func (c *InboundServerConfig) GetPort() types.Port {
-	port, err := types.NewPortFromString(c.Port)
+func (c *InboundServerConfig) GetPort() *netip.Port {
+	port, err := netip.NewPortFromString(c.Port)
 	if err != nil {
 		panic(err)
 	}
@@ -63,7 +63,7 @@ func (c *InboundServerConfig) Validate() error {
 	}
 
 	// Validate the Port value.
-	if _, err := types.NewPortFromString(c.Port); err != nil {
+	if _, err := netip.NewPortFromString(c.Port); err != nil {
 		return fmt.Errorf("invalid port: %w", err)
 	}
 
@@ -120,7 +120,7 @@ func (c *ServerConfig) Validate() error {
 		}
 
 		// Parse the port range and check for duplicates.
-		port, err := types.NewPortFromString(inbound.Port)
+		port, err := netip.NewPortFromString(inbound.Port)
 		if err != nil {
 			panic(err)
 		}

@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
@@ -44,7 +44,7 @@ func (c *ServerConfig) ExtIPv6Addr() string {
 
 // OutPort returns the outbound port as a uint16 value.
 func (c *ServerConfig) OutPort() uint16 {
-	v, err := types.NewPortFromString(c.Port)
+	v, err := netip.NewPortFromString(c.Port)
 	if err != nil {
 		panic(err)
 	}
@@ -90,7 +90,7 @@ func (c *ServerConfig) Validate() error {
 	if c.Port == "" {
 		return errors.New("port cannot be empty")
 	}
-	if _, err := types.NewPortFromString(c.Port); err != nil {
+	if _, err := netip.NewPortFromString(c.Port); err != nil {
 		return fmt.Errorf("invalid port: %w", err)
 	}
 

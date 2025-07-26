@@ -9,12 +9,12 @@ import (
 	"github.com/v2fly/v2ray-core/v5/proxy/vmess"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
 )
 
 // Tag represents a composite data structure combining ProxyProtocol, TransportProtocol, and TransportSecurity.
 type Tag struct {
-	Port      types.Port        `json:"port"`
+	Port      *netip.Port       `json:"port"`
 	Proxy     ProxyProtocol     `json:"proxy"`
 	Security  TransportSecurity `json:"security"`
 	Transport TransportProtocol `json:"transport"`

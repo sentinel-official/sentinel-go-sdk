@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/v2fly/v2ray-core/v5/common/uuid"
 
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
@@ -68,8 +68,8 @@ func (c *OutboundClientConfig) Validate() error {
 }
 
 // GetPort returns the parsed port configuration.
-func (c *OutboundClientConfig) GetPort() types.Port {
-	return types.Port{
+func (c *OutboundClientConfig) GetPort() *netip.Port {
+	return &netip.Port{
 		InFrom:  c.Port,
 		InTo:    c.Port,
 		OutFrom: c.Port,

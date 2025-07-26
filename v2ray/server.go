@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
@@ -28,11 +29,11 @@ var _ types.ServerService = (*Server)(nil)
 
 // Server represents the V2Ray server instance.
 type Server struct {
-	cmd      *exec.Cmd         // Command to run the V2Ray server.
-	homeDir  string            // Home directory of the V2Ray server.
-	metadata []*ServerMetadata // Metadata for server's inbound connections.
-	name     string            // Name of the server instance.
-	pm       *PeerManager      // Peer manager for handling peer information.
+	cmd      *exec.Cmd               // Command to run the V2Ray server.
+	homeDir  string                  // Home directory of the V2Ray server.
+	metadata []*ServerMetadata       // Metadata for server's inbound connections.
+	name     string                  // Name of the server instance.
+	peers    *safe.Map[string, Peer] // Peer manager for handling peer information.
 }
 
 // NewServer creates a new Server instance.
@@ -40,6 +41,7 @@ func NewServer(appDir string) *Server {
 	return &Server{
 		homeDir: filepath.Join(appDir, "v2ray"),
 		name:    "v2ray",
+		peers:   safe.NewMap[string, Peer](),
 	}
 }
 
@@ -262,7 +264,6 @@ func (s *Server) PreUp() error {
 		return fmt.Errorf("failed to validate config file: %w", err)
 	}
 
-	s.pm = NewPeerManager()
 	for _, inbound := range cfg.Inbounds {
 		metadata := &ServerMetadata{
 			Tag: inbound.Tag(),
@@ -392,9 +393,6 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	// Retrieve the identity from the request.
 	id := r.ID()
 
-	// Add peer to the peer manager.
-	s.pm.Put(id)
-
 	for _, md := range s.metadata {
 		// Prepare gRPC request to add a new user to the handler.
 		in := &proxymancommand.AlterInboundRequest{
@@ -415,6 +413,11 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 		}
 	}
 
+	// Save the peer details in the local peers map.
+	s.peers.Set(id, Peer{
+		ID: id,
+	})
+
 	// Return nil for success (no additional data to return in response).
 	return id, &AddPeerResponse{
 		Metadata: s.metadata,
@@ -434,10 +437,9 @@ func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
 
 	// Retrieve the identity from the request.
 	id := r.ID()
-	peer := s.pm.Get(id)
+	ok := s.peers.Exists(id)
 
-	// Return true if the peer exists, otherwise false.
-	return peer != nil, nil
+	return ok, nil
 }
 
 // RemovePeer removes a peer from the V2Ray server.
@@ -488,15 +490,13 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error
 	}
 
 	// Remove the peer information from the local collection.
-	s.pm.Delete(id)
-
-	// Return nil for success.
+	s.peers.Delete(id)
 	return id, nil
 }
 
 // PeerCount returns the number of peers connected to the V2Ray server.
 func (s *Server) PeerCount() int {
-	return s.pm.Len()
+	return s.peers.Len()
 }
 
 // PeerStatistics retrieves statistics for each peer connected to the V2Ray server.
@@ -515,7 +515,7 @@ func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatist
 	}()
 
 	// Define a function to process each peer in the local collection.
-	fn := func(id string, _ *Peer) (bool, error) {
+	fn := func(id string, _ Peer) (bool, error) {
 		// Prepare gRPC request to get uplink traffic stats.
 		in := &statscommand.GetStatsRequest{
 			Reset_: false,
@@ -559,21 +559,18 @@ func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatist
 		}
 
 		// Append peer statistics to the result collection.
-		items = append(
-			items,
-			&types.PeerStatistic{
-				ID:            id,
-				DownloadBytes: downLink.GetValue(),
-				UploadBytes:   upLink.GetValue(),
-			},
-		)
+		items = append(items, &types.PeerStatistic{
+			ID:            id,
+			DownloadBytes: downLink.GetValue(),
+			UploadBytes:   upLink.GetValue(),
+		})
 
 		return false, nil
 	}
 
 	// Iterate over each peer and retrieve statistics.
-	if err := s.pm.Iterate(fn); err != nil {
-		return nil, fmt.Errorf("failed to iterate peers: %w", err)
+	if err := s.peers.Range(fn); err != nil {
+		return nil, fmt.Errorf("failed to range peers: %w", err)
 	}
 
 	// Return the constructed collection of peer statistics.

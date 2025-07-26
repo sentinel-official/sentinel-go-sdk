@@ -13,6 +13,8 @@ import (
 
 	"github.com/spf13/viper"
 
+	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
+	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
@@ -22,10 +24,11 @@ var _ types.ServerService = (*Server)(nil)
 
 // Server represents the WireGuard server instance.
 type Server struct {
-	homeDir  string            // Home directory of the WireGuard server.
-	metadata []*ServerMetadata // Metadata containing server-specific details.
-	name     string            // Name of the server instance.
-	pm       *PeerManager      // Peer manager for handling peer information.
+	homeDir  string                  // Home directory of the WireGuard server.
+	metadata []*ServerMetadata       // Metadata containing server-specific details.
+	name     string                  // Name of the server instance.
+	peers    *safe.Map[string, Peer] // Thread-safe map to manage peers connected to the server.
+	pools    *netip.AddrPoolSet      // Address pool set for allocating IP addresses to peers.
 }
 
 // NewServer creates a new Server instance.
@@ -33,6 +36,7 @@ func NewServer(appDir string) *Server {
 	return &Server{
 		homeDir: filepath.Join(appDir, "wireguard"),
 		name:    "wg0",
+		peers:   safe.NewMap[string, Peer](),
 	}
 }
 
@@ -70,14 +74,14 @@ func (s *Server) Init(force bool) error {
 	// Check if the config file exists at the specified path
 	cfgFileExists, err := utils.IsFileExists(cfgFile)
 	if err != nil {
-		return fmt.Errorf("failed to check if config file exists: %w", err)
+		return fmt.Errorf("failed to check config file existance: %w", err)
 	}
 
 	// Write default config only if file doesn't exist or force flag is enabled
 	if !cfgFileExists || force {
 		cfg := DefaultServerConfig()
 		if err := cfg.WriteAppConfig(cfgFile); err != nil {
-			return fmt.Errorf("failed to write config file: %w", err)
+			return fmt.Errorf("failed to write app config: %w", err)
 		}
 	}
 
@@ -127,33 +131,33 @@ func (s *Server) PreUp() error {
 	// Check if the config file exists at the specified path
 	cfgFileExists, err := utils.IsFileExists(cfgFile)
 	if err != nil {
-		return fmt.Errorf("failed to check if config file exists: %w", err)
+		return fmt.Errorf("failed to check config file existence: %w", err)
 	}
 
 	// If the config file exists, proceed to read its contents
 	if cfgFileExists {
 		v.SetConfigFile(cfgFile)
 		if err := v.ReadInConfig(); err != nil {
-			return fmt.Errorf("failed to read config file: %w", err)
+			return fmt.Errorf("failed to read app config: %w", err)
 		}
 	}
 
 	// Unmarshal configuration into the config object
 	cfg := DefaultServerConfig()
 	if err := v.Unmarshal(cfg); err != nil {
-		return fmt.Errorf("failed to unmarshal config file: %w", err)
+		return fmt.Errorf("failed to unmarshal app config: %w", err)
 	}
 	if err := cfg.Validate(); err != nil {
-		return fmt.Errorf("failed to validate config file: %w", err)
+		return fmt.Errorf("invalid app config: %w", err)
 	}
 
-	pools, err := cfg.IPPools()
+	// Initialize the addr pool set from the configuration.
+	s.pools, err = cfg.AddrPoolSet()
 	if err != nil {
-		return fmt.Errorf("failed to get ip pools: %w", err)
+		return fmt.Errorf("failed to initialize addr pool set: %w", err)
 	}
 
-	s.pm = NewPeerManager(pools...)
-	s.name = cfg.InInterface
+	// Set the server metadata.
 	s.metadata = []*ServerMetadata{
 		{
 			Port:      cfg.OutPort(),
@@ -164,7 +168,7 @@ func (s *Server) PreUp() error {
 	// Writes configuration to file.
 	cfgFile = s.serviceConfigFilePath()
 	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
-		return fmt.Errorf("failed to write config: %w", err)
+		return fmt.Errorf("failed to write service config: %w", err)
 	}
 
 	return nil
@@ -185,7 +189,7 @@ func (s *Server) PostDown() error {
 	// Removes configuration file.
 	cfgFile := s.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {
-		return fmt.Errorf("failed to remove config: %w", err)
+		return fmt.Errorf("failed to remove service config: %w", err)
 	}
 
 	return nil
@@ -196,27 +200,47 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to parse request: %w", err)
+		return "", nil, fmt.Errorf("failed to parse peer request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
-		return "", nil, fmt.Errorf("invalid request: %w", err)
+		return "", nil, fmt.Errorf("invalid peer request: %w", err)
 	}
 
 	// Retrieve the identity from the request.
 	id := r.ID()
 
-	// Add peer to the peer manager and retrieve assigned IP addresses.
-	addrs, err := s.pm.Put(id)
+	// Acquire addrs from the pool for the new peer.
+	addrs, err := s.pools.Acquire()
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to put peer: %w", err)
-	}
-	if len(addrs) == 0 {
-		return "", nil, errors.New("no addrs available")
+		return "", nil, fmt.Errorf("failed to acquire addrs: %w", err)
 	}
 
-	var allowedIPs []string
+	// Ensure addresses are released if peer addition fails.
+	defer func() {
+		if ok := s.peers.Exists(id); !ok {
+			if err := s.pools.Release(addrs); err != nil {
+				panic(fmt.Errorf("failed to release addrs: %w", err))
+			}
+		}
+	}()
+
+	allowedIPs := make([]string, 0, len(addrs))
+	prefixAddrs := make([]*netip.Prefix, 0, len(addrs))
+
+	// Build allowed IPs and prefix addresses.
 	for _, addr := range addrs {
-		allowedIPs = append(allowedIPs, addr.String())
+		b := 32
+		if addr.Is6() {
+			b = 128
+		}
+
+		prefix, err := addr.Prefix(b)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to generate prefix addr: %w", err)
+		}
+
+		allowedIPs = append(allowedIPs, prefix.String())
+		prefixAddrs = append(prefixAddrs, &netip.Prefix{Prefix: prefix})
 	}
 
 	// Executes the 'wg set' command to add the peer to the WireGuard interface.
@@ -231,8 +255,14 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 		return "", nil, fmt.Errorf("failed to run command: %w", err)
 	}
 
+	// Save the peer details in the local peers map.
+	s.peers.Set(id, Peer{
+		ID:    id,
+		Addrs: addrs,
+	})
+
 	return id, &AddPeerResponse{
-		Addrs:    addrs,
+		Addrs:    prefixAddrs,
 		Metadata: s.metadata,
 	}, nil
 }
@@ -242,18 +272,17 @@ func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {
-		return false, fmt.Errorf("failed to parse request: %w", err)
+		return false, fmt.Errorf("failed to parse peer request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
-		return false, fmt.Errorf("invalid request: %w", err)
+		return false, fmt.Errorf("invalid peer request: %w", err)
 	}
 
 	// Retrieve the identity from the request.
-	identity := r.PublicKey.String()
-	peer := s.pm.Get(identity)
+	id := r.ID()
+	ok := s.peers.Exists(id)
 
-	// Return true if the peer exists, otherwise false.
-	return peer != nil, nil
+	return ok, nil
 }
 
 // RemovePeer removes a peer from the WireGuard server.
@@ -261,10 +290,10 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse request: %w", err)
+		return "", fmt.Errorf("failed to parse peer request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
-		return "", fmt.Errorf("invalid request: %w", err)
+		return "", fmt.Errorf("invalid peer request: %w", err)
 	}
 
 	// Retrieve the identity from the request.
@@ -282,14 +311,25 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error
 		return "", fmt.Errorf("failed to run command: %w", err)
 	}
 
+	// Get the peer from the map.
+	peer, ok := s.peers.Get(id)
+	if !ok {
+		return "", errors.New("peer not found")
+	}
+
+	// Release the addrs back to the pool.
+	if err := s.pools.Release(peer.Addrs); err != nil {
+		return "", fmt.Errorf("failed to release addrs: %w", err)
+	}
+
 	// Remove the peer information from the local collection.
-	s.pm.Delete(id)
+	s.peers.Delete(id)
 	return id, nil
 }
 
 // PeerCount returns the number of peers connected to the WireGuard server.
 func (s *Server) PeerCount() int {
-	return s.pm.Len()
+	return s.peers.Len()
 }
 
 // PeerStatistics retrieves statistics for each peer connected to the WireGuard server.
@@ -331,14 +371,11 @@ func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatist
 		}
 
 		// Append peer statistics to the result collection.
-		items = append(
-			items,
-			&types.PeerStatistic{
-				ID:            columns[0],
-				DownloadBytes: downloadBytes,
-				UploadBytes:   uploadBytes,
-			},
-		)
+		items = append(items, &types.PeerStatistic{
+			ID:            columns[0],
+			DownloadBytes: downloadBytes,
+			UploadBytes:   uploadBytes,
+		})
 	}
 
 	// Return the constructed collection of peer statistics.
