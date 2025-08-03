@@ -1,8 +1,10 @@
 package cmux
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,10 +12,11 @@ import (
 	"net/http"
 
 	"github.com/soheilhy/cmux"
+	"golang.org/x/sync/errgroup"
 )
 
 // ListenAndServeTLS sets up a server that listens for both TLS and non-TLS traffic on the same address.
-func ListenAndServeTLS(addr, certFile, keyFile string, handler http.Handler) error {
+func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, handler http.Handler) error {
 	// Load the TLS certificate and key
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
@@ -33,43 +36,78 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler http.Handler) err
 	tlsMux := mux.Match(cmux.TLS())
 	anyMux := mux.Match(cmux.Any())
 
-	// Reuse the TLS configuration
-	cfg := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		Rand:         rand.Reader,
+	// Create an HTTP server specifically for TLS connections.
+	// Suppress error logging to prevent spam from TLS handshake failures.
+	tlsServer := &http.Server{
+		Handler:  handler,
+		ErrorLog: log.New(io.Discard, "", 0),
 	}
 
+	// Create a standard HTTP server for unencrypted traffic.
+	anyServer := &http.Server{
+		Handler: handler,
+	}
+
+	// Use errgroup to manage goroutines
+	eg, ctx := errgroup.WithContext(ctx)
+
 	// Serve TLS traffic
-	go func() {
-		// Create an HTTP server specifically for TLS connections.
-		// Suppress error logging to prevent spam from TLS handshake failures.
-		server := &http.Server{
-			Handler:  handler,
-			ErrorLog: log.New(io.Discard, "", 0),
+	eg.Go(func() error {
+		// Reuse the TLS configuration
+		cfg := &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			Rand:         rand.Reader,
 		}
 
 		tlsMux := tls.NewListener(tlsMux, cfg)
-		if err := server.Serve(tlsMux); err != nil {
-			panic(fmt.Errorf("failed to serve tls: %w", err))
+		if err := tlsServer.Serve(tlsMux); err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				return nil
+			}
+
+			return fmt.Errorf("failed to serve tls server: %w", err)
 		}
-	}()
+
+		return nil
+	})
 
 	// Serve non-TLS traffic
-	go func() {
-		// Create a standard HTTP server for unencrypted traffic.
-		server := &http.Server{
-			Handler: handler,
+	eg.Go(func() error {
+		if err := anyServer.Serve(anyMux); err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				return nil
+			}
+
+			return fmt.Errorf("failed to serve any server: %w", err)
 		}
 
-		if err := server.Serve(anyMux); err != nil {
-			panic(fmt.Errorf("failed to serve any: %w", err))
-		}
-	}()
+		return nil
+	})
 
 	// Start the multiplexer
-	if err := mux.Serve(); err != nil {
-		return fmt.Errorf("failed to serve: %w", err)
-	}
+	eg.Go(func() error {
+		if err := mux.Serve(); err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				return nil
+			}
 
-	return nil
+			return fmt.Errorf("failed to serve: %w", err)
+		}
+
+		return nil
+	})
+
+	// Handle shutdown on context cancellation
+	eg.Go(func() error {
+		<-ctx.Done()
+
+		// Graceful shutdown of servers
+		_ = tlsServer.Shutdown(context.Background())
+		_ = anyServer.Shutdown(context.Background())
+		_ = listener.Close()
+
+		return nil
+	})
+
+	return eg.Wait()
 }
