@@ -83,17 +83,20 @@ func (c *Client) Init(force bool) error {
 
 // IsUp checks if the WireGuard interface is up.
 func (c *Client) IsUp(ctx context.Context) (bool, error) {
-	// Retrieves the interface name.
-	iface, err := c.interfaceName()
+	// Retrieves the device name.
+	device, err := c.deviceName()
 	if err != nil {
-		return false, fmt.Errorf("failed to get interface name: %w", err)
+		return false, fmt.Errorf("failed to get device name: %w", err)
+	}
+	if device == "" {
+		return false, nil
 	}
 
 	// Executes the 'wg show' command to check the interface status.
 	cmd := exec.CommandContext(
 		ctx,
 		c.execFile("wg"),
-		strings.Fields(fmt.Sprintf("show %s", iface))...,
+		strings.Fields(fmt.Sprintf("show %s", device))...,
 	)
 
 	// Capture stderr output.
@@ -114,7 +117,7 @@ func (c *Client) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the client process.
-func (c *Client) PreUp() error {
+func (c *Client) PreUp(_ context.Context) error {
 	// Initialize viper instance
 	v := viper.New()
 
@@ -154,17 +157,17 @@ func (c *Client) PreUp() error {
 }
 
 // PostUp performs operations after the client process is started.
-func (c *Client) PostUp() error {
+func (c *Client) PostUp(_ context.Context) error {
 	return nil
 }
 
 // PreDown performs operations before the client process is terminated.
-func (c *Client) PreDown() error {
+func (c *Client) PreDown(_ context.Context) error {
 	return nil
 }
 
 // PostDown performs cleanup operations after the client process is terminated.
-func (c *Client) PostDown() error {
+func (c *Client) PostDown(_ context.Context) error {
 	// Removes configuration file.
 	cfgFile := c.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {
@@ -176,17 +179,20 @@ func (c *Client) PostDown() error {
 
 // Statistics returns the download and upload statistics for the WireGuard interface.
 func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
-	// Retrieves the interface name.
-	iface, err := c.interfaceName()
+	// Retrieves the device name.
+	device, err := c.deviceName()
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to get interface name: %w", err)
+		return 0, 0, fmt.Errorf("failed to get device name: %w", err)
+	}
+	if device == "" {
+		return 0, 0, fmt.Errorf("empty device name")
 	}
 
 	// Executes the 'wg show' command to get transfer statistics.
 	output, err := exec.CommandContext(
 		ctx,
 		c.execFile("wg"),
-		strings.Fields(fmt.Sprintf("show %s transfer", iface))...,
+		strings.Fields(fmt.Sprintf("show %s transfer", device))...,
 	).Output()
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to run command: %w", err)

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shirou/gopsutil/v4/process"
 	"github.com/spf13/viper"
@@ -16,6 +17,7 @@ import (
 	statscommand "github.com/v2fly/v2ray-core/v5/app/stats/command"
 	"github.com/v2fly/v2ray-core/v5/common/protocol"
 	"github.com/v2fly/v2ray-core/v5/common/serial"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -34,14 +36,24 @@ type Server struct {
 	metadata []*ServerMetadata       // Metadata for server's inbound connections.
 	name     string                  // Name of the server instance.
 	peers    *safe.Map[string, Peer] // Peer manager for handling peer information.
+
+	cancel context.CancelFunc // Context cancel function to stop background tasks.
+	ctx    context.Context    // Context for server lifecycle management.
+	eg     *errgroup.Group    // Error group for managing background goroutines.
 }
 
 // NewServer creates a new Server instance.
 func NewServer(appDir string) *Server {
+	ctx, cancel := context.WithCancel(context.Background())
+	eg, ctx := errgroup.WithContext(ctx)
+
 	return &Server{
 		homeDir: filepath.Join(appDir, "v2ray"),
 		name:    "v2ray",
 		peers:   safe.NewMap[string, Peer](),
+		cancel:  cancel,
+		ctx:     ctx,
+		eg:      eg,
 	}
 }
 
@@ -90,6 +102,9 @@ func (s *Server) readPIDFromFile() (int32, error) {
 	pid, err := strconv.ParseInt(string(data), 10, 32)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse pid: %w", err)
+	}
+	if pid <= 0 {
+		return 0, fmt.Errorf("invalid pid %d", pid)
 	}
 
 	return int32(pid), nil
@@ -234,7 +249,7 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the server process.
-func (s *Server) PreUp() error {
+func (s *Server) PreUp(_ context.Context) error {
 	// Initialize viper instance
 	v := viper.New()
 
@@ -283,6 +298,9 @@ func (s *Server) PreUp() error {
 
 // Up starts the V2Ray server process.
 func (s *Server) Up(ctx context.Context) error {
+	// Create a context that cancels if either server or input context is done.
+	ctx, _ = utils.AnyDoneContext(s.ctx, ctx)
+
 	// Constructs the command to start the V2Ray server.
 	cfgFile := s.serviceConfigFilePath()
 	s.cmd = exec.CommandContext(
@@ -296,30 +314,75 @@ func (s *Server) Up(ctx context.Context) error {
 		return fmt.Errorf("failed to start command: %w", err)
 	}
 
+	// Wait for the V2Ray process to finish in a separate goroutine.
+	s.eg.Go(func() error {
+		if err := s.cmd.Wait(); err != nil {
+			return fmt.Errorf("failed to wait command: %w", err)
+		}
+
+		return nil
+	})
+
 	return nil
 }
 
 // PostUp performs operations after the server process is started.
-func (s *Server) PostUp() error {
-	// Check if command or process is nil.
-	if s.cmd == nil || s.cmd.Process == nil {
-		return fmt.Errorf("nil command or process")
-	}
+func (s *Server) PostUp(ctx context.Context) error {
+	// Create a context that cancels if either server or input context is done.
+	ctx, _ = utils.AnyDoneContext(s.ctx, ctx)
 
 	// Write PID to file.
 	if err := s.writePIDToFile(s.cmd.Process.Pid); err != nil {
 		return fmt.Errorf("failed to write pid to file: %w", err)
 	}
 
-	if err := s.cmd.Wait(); err != nil {
-		return fmt.Errorf("failed to wait for command: %w", err)
+	// Start background goroutine for periodic peer statistics updates.
+	s.eg.Go(func() error {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		// Blocking loop that runs until stop signal is received
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+				// Check if server is up before syncing peers.
+				ok, err := s.IsUp(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to check status: %w", err)
+				}
+				if !ok {
+					continue
+				}
+
+				// Sync peer statistics from WireGuard.
+				if err := s.syncPeers(ctx); err != nil {
+					return fmt.Errorf("failed to sync peer statistics: %w", err)
+				}
+			}
+		}
+	})
+
+	return nil
+}
+
+// Wait blocks until all goroutines in the error group finish or one returns an error.
+func (s *Server) Wait() error {
+	if err := s.eg.Wait(); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// PreDown performs operations before the server process is terminated.
-func (s *Server) PreDown() error {
+// PreDown performs cleanup tasks before the server process is stopped.
+// It cancels the server context to gracefully stop background operations.
+func (s *Server) PreDown(_ context.Context) error {
+	if s.cancel != nil {
+		s.cancel()
+	}
+
 	return nil
 }
 
@@ -329,6 +392,9 @@ func (s *Server) Down(ctx context.Context) error {
 	pid, err := s.readPIDFromFile()
 	if err != nil {
 		return fmt.Errorf("failed to read pid from file: %w", err)
+	}
+	if pid == 0 {
+		return nil
 	}
 
 	// Retrieve process with the given PID.
@@ -350,7 +416,7 @@ func (s *Server) Down(ctx context.Context) error {
 }
 
 // PostDown performs cleanup operations after the server process is terminated.
-func (s *Server) PostDown() error {
+func (s *Server) PostDown(_ context.Context) error {
 	// Removes configuration file.
 	cfgFile := s.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {
@@ -494,17 +560,41 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error
 	return id, nil
 }
 
-// PeerCount returns the number of peers connected to the V2Ray server.
-func (s *Server) PeerCount() int {
+// PeersLen returns the number of peers connected to the V2Ray server.
+func (s *Server) PeersLen() int {
 	return s.peers.Len()
 }
 
 // PeerStatistics retrieves statistics for each peer connected to the V2Ray server.
-func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatistic, err error) {
+func (s *Server) PeerStatistics(_ context.Context) (map[string]*types.PeerStatistics, error) {
+	// Create map to store statistics.
+	items := make(map[string]*types.PeerStatistics)
+
+	// Iterate over all peers and gather statistics.
+	fn := func(_ string, peer Peer) (bool, error) {
+		items[peer.ID] = &types.PeerStatistics{
+			Duration: peer.TotalDuration(),
+			RxBytes:  peer.TotalRxBytes(),
+			TxBytes:  peer.TotalTxBytes(),
+		}
+
+		return false, nil
+	}
+
+	if err := s.peers.Range(fn); err != nil {
+		return nil, fmt.Errorf("failed to range peer statistics: %w", err)
+	}
+
+	return items, nil
+}
+
+// syncPeers retrieves the latest peer transfer statistics from the stats service
+// and updates the in-memory peer data accordingly.
+func (s *Server) syncPeers(ctx context.Context) error {
 	// Establish a gRPC client connection to the stats service.
 	conn, client, err := s.statsServiceClient()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get stats service client: %w", err)
+		return fmt.Errorf("failed to get stats service client: %w", err)
 	}
 
 	// Ensure the connection is closed when done.
@@ -514,8 +604,14 @@ func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatist
 		}
 	}()
 
-	// Define a function to process each peer in the local collection.
-	fn := func(id string, _ Peer) (bool, error) {
+	// Create a copy of the current peers to iterate over.
+	items := make(map[string]Peer)
+	_ = s.peers.Range(func(key string, value Peer) (bool, error) {
+		items[key] = value
+		return false, nil
+	})
+
+	for id := range items {
 		// Prepare gRPC request to get uplink traffic stats.
 		in := &statscommand.GetStatsRequest{
 			Reset_: false,
@@ -524,17 +620,14 @@ func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatist
 
 		// Send the request to get uplink traffic stats.
 		res, err := client.GetStats(ctx, in)
-		if err != nil {
-			// If the stat is not found, continue to the next peer.
-			if !strings.Contains(err.Error(), "not found") {
-				return false, fmt.Errorf("failed to get stats: %w", err)
-			}
+		if err != nil && !strings.Contains(err.Error(), "not found") {
+			return fmt.Errorf("failed to get uplink stats: %w", err)
 		}
 
 		// Extract uplink traffic stats or use an empty stat if not found.
-		upLink := res.GetStat()
-		if upLink == nil {
-			upLink = &statscommand.Stat{}
+		txBytes := &statscommand.Stat{}
+		if res != nil && res.GetStat() != nil {
+			txBytes = res.GetStat()
 		}
 
 		// Prepare gRPC request to get downlink traffic stats.
@@ -545,34 +638,28 @@ func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatist
 
 		// Send the request to get downlink traffic stats.
 		res, err = client.GetStats(ctx, in)
-		if err != nil {
-			// If the stat is not found, continue to the next peer.
-			if !strings.Contains(err.Error(), "not found") {
-				return false, fmt.Errorf("failed to get stats: %w", err)
-			}
+		if err != nil && !strings.Contains(err.Error(), "not found") {
+			return fmt.Errorf("failed to get downlink stats: %w", err)
 		}
 
 		// Extract downlink traffic stats or use an empty stat if not found.
-		downLink := res.GetStat()
-		if downLink == nil {
-			downLink = &statscommand.Stat{}
+		rxBytes := &statscommand.Stat{}
+		if res != nil && res.GetStat() != nil {
+			rxBytes = res.GetStat()
 		}
 
-		// Append peer statistics to the result collection.
-		items = append(items, &types.PeerStatistic{
-			ID:            id,
-			DownloadBytes: downLink.GetValue(),
-			UploadBytes:   upLink.GetValue(),
+		s.peers.Update(id, func(p Peer, ok bool) Peer {
+			if !ok {
+				return p
+			}
+
+			p.Current.RxBytes = rxBytes.GetValue()
+			p.Current.TxBytes = txBytes.GetValue()
+			p.Current.Duration = time.Since(p.Timestamp)
+
+			return p
 		})
-
-		return false, nil
 	}
 
-	// Iterate over each peer and retrieve statistics.
-	if err := s.peers.Range(fn); err != nil {
-		return nil, fmt.Errorf("failed to range peers: %w", err)
-	}
-
-	// Return the constructed collection of peer statistics.
-	return items, nil
+	return nil
 }

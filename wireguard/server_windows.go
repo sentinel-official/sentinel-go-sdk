@@ -13,23 +13,23 @@ func (s *Server) execFile(name string) string {
 	return ".\\" + filepath.Join("WireGuard", name+".exe")
 }
 
-// interfaceName returns the name of the WireGuard interface.
-func (s *Server) interfaceName() (string, error) {
+// deviceName returns the name of the WireGuard interface.
+func (s *Server) deviceName() (string, error) {
 	return s.name, nil
 }
 
 // Down uninstalls the WireGuard tunnel service.
 func (s *Server) Down(ctx context.Context) error {
-	iface, err := s.interfaceName()
+	device, err := s.deviceName()
 	if err != nil {
-		return fmt.Errorf("failed to get interface name: %w", err)
+		return fmt.Errorf("failed to get device name: %w", err)
 	}
 
 	// Executes the command to uninstall the WireGuard tunnel service.
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wireguard"),
-		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", iface))...,
+		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", device))...,
 	)
 
 	if err := cmd.Run(); err != nil {

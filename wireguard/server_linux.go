@@ -1,6 +1,6 @@
 package wireguard
 
-// interfaceName returns the name of the WireGuard interface.
-func (s *Server) interfaceName() (string, error) {
+// deviceName returns the name of the WireGuard interface.
+func (s *Server) deviceName() (string, error) {
 	return s.name, nil
 }

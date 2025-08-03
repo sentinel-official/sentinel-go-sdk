@@ -16,9 +16,11 @@ import (
 
 	"github.com/shirou/gopsutil/v4/process"
 	"github.com/spf13/viper"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/crypto"
 	"github.com/sentinel-official/sentinel-go-sdk/libs/encoding/pem"
+	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
@@ -27,18 +29,30 @@ var _ types.ServerService = (*Server)(nil)
 
 // Server represents an OpenVPN server instance.
 type Server struct {
-	cmd      *exec.Cmd         // OpenVPN process command
-	homeDir  string            // Home directory where config and PID files are stored
-	metadata []*ServerMetadata // Server metadata such as port and certificates
-	name     string            // Name of the server instance.
-	pki      *crypto.PKI       // Public Key Infrastructure for managing certs
+	cmd      *exec.Cmd               // OpenVPN process command
+	homeDir  string                  // Home directory where config and PID files are stored
+	metadata []*ServerMetadata       // Server metadata such as port and certificates
+	name     string                  // Name of the server instance.
+	peers    *safe.Map[string, Peer] // Peer manager for handling peer information.
+	pki      *crypto.PKI             // Public Key Infrastructure for managing certs
+
+	cancel context.CancelFunc // Context cancel function to stop background tasks.
+	ctx    context.Context    // Context for server lifecycle management.
+	eg     *errgroup.Group    // Error group for managing background goroutines.
 }
 
 // NewServer creates a new Server instance.
 func NewServer(appDir string) *Server {
+	ctx, cancel := context.WithCancel(context.Background())
+	eg, ctx := errgroup.WithContext(ctx)
+
 	return &Server{
 		homeDir: filepath.Join(appDir, "openvpn"),
 		name:    "server",
+		peers:   safe.NewMap[string, Peer](),
+		cancel:  cancel,
+		ctx:     ctx,
+		eg:      eg,
 	}
 }
 
@@ -85,6 +99,9 @@ func (s *Server) readPIDFromFile() (int32, error) {
 	pid, err := strconv.ParseInt(string(data), 10, 32)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse pid: %w", err)
+	}
+	if pid <= 0 {
+		return 0, fmt.Errorf("invalid pid %d", pid)
 	}
 
 	return int32(pid), nil
@@ -188,7 +205,7 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp prepares the server before it is started by initializing PKI and generating config files.
-func (s *Server) PreUp() error {
+func (s *Server) PreUp(_ context.Context) error {
 	// Initialize viper instance
 	v := viper.New()
 
@@ -263,38 +280,90 @@ func (s *Server) PreUp() error {
 
 // Up launches the OpenVPN server using the generated config file.
 func (s *Server) Up(ctx context.Context) error {
+	// Create a context that cancels if either server or input context is done.
+	ctx, _ = utils.AnyDoneContext(s.ctx, ctx)
+
+	// Constructs the command to start the OpenVPN server.
 	cfgFile := s.serviceConfigFilePath()
 	s.cmd = exec.CommandContext(
 		ctx,
 		s.execFile(openVPN),
 		strings.Fields(fmt.Sprintf("--config %s", cfgFile))...,
 	)
+
+	// Starts the OpenVPN server process.
 	if err := s.cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start command: %w", err)
 	}
+
+	// Waits for the process to complete in a separate goroutine.
+	s.eg.Go(func() error {
+		if err := s.cmd.Wait(); err != nil {
+			return fmt.Errorf("failed to wait command: %w", err)
+		}
+
+		return nil
+	})
 
 	return nil
 }
 
 // PostUp stores the PID of the running process and waits for process completion.
-func (s *Server) PostUp() error {
-	if s.cmd == nil || s.cmd.Process == nil {
-		return fmt.Errorf("nil command or process")
-	}
+func (s *Server) PostUp(ctx context.Context) error {
+	// Create a context that cancels if either server or input context is done.
+	ctx, _ = utils.AnyDoneContext(s.ctx, ctx)
 
+	// Write PID to file.
 	if err := s.writePIDToFile(s.cmd.Process.Pid); err != nil {
 		return fmt.Errorf("failed to write pid to file: %w", err)
 	}
 
-	if err := s.cmd.Wait(); err != nil {
-		return fmt.Errorf("failed to wait for command: %w", err)
+	// Start background goroutine for periodic peer statistics updates.
+	s.eg.Go(func() error {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		// Blocking loop that runs until stop signal is received
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+				// Check if server is up before syncing peers.
+				ok, err := s.IsUp(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to check status: %w", err)
+				}
+				if !ok {
+					continue
+				}
+
+				// Sync peer statistics from WireGuard.
+				if err := s.syncPeers(ctx); err != nil {
+					return fmt.Errorf("failed to sync peer statistics: %w", err)
+				}
+			}
+		}
+	})
+
+	return nil
+}
+
+// Wait blocks until all goroutines in the error group finish or one returns an error.
+func (s *Server) Wait() error {
+	if err := s.eg.Wait(); err != nil {
+		return err
 	}
 
 	return nil
 }
 
 // PreDown is a no-op for now but can be used for pre-shutdown tasks.
-func (s *Server) PreDown() error {
+func (s *Server) PreDown(_ context.Context) error {
+	if s.cancel != nil {
+		s.cancel()
+	}
+
 	return nil
 }
 
@@ -303,6 +372,9 @@ func (s *Server) Down(ctx context.Context) error {
 	pid, err := s.readPIDFromFile()
 	if err != nil {
 		return fmt.Errorf("failed to read pid from file: %w", err)
+	}
+	if pid == 0 {
+		return nil
 	}
 
 	proc, err := process.NewProcessWithContext(ctx, pid)
@@ -322,7 +394,7 @@ func (s *Server) Down(ctx context.Context) error {
 }
 
 // PostDown removes PID file after the process has stopped.
-func (s *Server) PostDown() error {
+func (s *Server) PostDown(_ context.Context) error {
 	// Removes configuration file.
 	cfgFile := s.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {
@@ -355,6 +427,13 @@ func (s *Server) AddPeer(_ context.Context, req interface{}) (string, interface{
 		return "", nil, fmt.Errorf("failed to issue certificate: %w", err)
 	}
 
+	s.peers.Set(id, Peer{
+		ID:        id,
+		Current:   &types.PeerStatistics{},
+		Previous:  &types.PeerStatistics{},
+		Timestamp: time.Now(),
+	})
+
 	return id, &AddPeerResponse{
 		Metadata: s.metadata,
 		Cert:     certDER,
@@ -363,7 +442,7 @@ func (s *Server) AddPeer(_ context.Context, req interface{}) (string, interface{
 }
 
 // HasPeer checks if a peer is currently connected and tracked.
-func (s *Server) HasPeer(ctx context.Context, req interface{}) (bool, error) {
+func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {
@@ -373,19 +452,11 @@ func (s *Server) HasPeer(ctx context.Context, req interface{}) (bool, error) {
 		return false, fmt.Errorf("invalid request: %w", err)
 	}
 
-	items, err := s.PeerStatistics(ctx)
-	if err != nil {
-		return false, fmt.Errorf("failed to get peer statistics: %w", err)
-	}
-
+	// Retrieve the identity from the request.
 	id := r.ID()
-	for _, item := range items {
-		if item.ID == id {
-			return true, nil
-		}
-	}
+	ok := s.peers.Exists(id)
 
-	return false, nil
+	return ok, nil
 }
 
 // RemovePeer disconnects a VPN client and revokes its certificate.
@@ -448,19 +519,42 @@ func (s *Server) RemovePeer(_ context.Context, req interface{}) (string, error) 
 		return "", fmt.Errorf("failed to revoke certificate: %w", err)
 	}
 
+	s.peers.Delete(id)
 	return id, nil
 }
 
-// PeerCount returns the number of active peers.
-func (s *Server) PeerCount() int {
-	return 0
+// PeersLen returns the number of active peers.
+func (s *Server) PeersLen() int {
+	return s.peers.Len()
 }
 
 // PeerStatistics queries the OpenVPN management interface and returns peer usage data.
-func (s *Server) PeerStatistics(_ context.Context) (items []*types.PeerStatistic, err error) {
+func (s *Server) PeerStatistics(_ context.Context) (map[string]*types.PeerStatistics, error) {
+	// Create map to store statistics.
+	items := make(map[string]*types.PeerStatistics)
+
+	// Iterate over all peers and gather statistics.
+	fn := func(_ string, peer Peer) (bool, error) {
+		items[peer.ID] = &types.PeerStatistics{
+			Duration: peer.TotalDuration(),
+			RxBytes:  peer.TotalRxBytes(),
+			TxBytes:  peer.TotalTxBytes(),
+		}
+
+		return false, nil
+	}
+
+	if err := s.peers.Range(fn); err != nil {
+		return nil, fmt.Errorf("failed to range peer statistics: %w", err)
+	}
+
+	return items, nil
+}
+
+func (s *Server) syncPeers(_ context.Context) error {
 	conn, err := s.mgmtConn()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get management connection: %w", err)
+		return fmt.Errorf("failed to get management connection: %w", err)
 	}
 
 	defer func() {
@@ -473,7 +567,7 @@ func (s *Server) PeerStatistics(_ context.Context) (items []*types.PeerStatistic
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return nil, fmt.Errorf("failed to read line: %w", err)
+			return fmt.Errorf("failed to read line: %w", err)
 		}
 		if strings.Contains(line, "OpenVPN Management Interface") {
 			break
@@ -482,14 +576,14 @@ func (s *Server) PeerStatistics(_ context.Context) (items []*types.PeerStatistic
 
 	// Request status output
 	if _, err := fmt.Fprintf(conn, "status 2\n"); err != nil {
-		return nil, fmt.Errorf("failed to write command: %w", err)
+		return fmt.Errorf("failed to write command: %w", err)
 	}
 
 	// Parse client statistics
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return nil, fmt.Errorf("failed to read line: %w", err)
+			return fmt.Errorf("failed to read line: %w", err)
 		}
 
 		line = strings.TrimSpace(line)
@@ -511,21 +605,29 @@ func (s *Server) PeerStatistics(_ context.Context) (items []*types.PeerStatistic
 			continue
 		}
 
-		uploadBytes, err := strconv.ParseInt(fields[5], 10, 64)
+		rxBytes, err := strconv.ParseInt(fields[5], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse upload bytes: %w", err)
-		}
-		downloadBytes, err := strconv.ParseInt(fields[6], 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse download bytes: %w", err)
+			return fmt.Errorf("failed to parse download bytes: %w", err)
 		}
 
-		items = append(items, &types.PeerStatistic{
-			ID:            id,
-			DownloadBytes: downloadBytes,
-			UploadBytes:   uploadBytes,
+		txBytes, err := strconv.ParseInt(fields[6], 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse upload bytes: %w", err)
+		}
+
+		// Update peer statistics in thread-safe map.
+		s.peers.Update(id, func(p Peer, ok bool) Peer {
+			if !ok {
+				return p
+			}
+
+			p.Current.RxBytes = rxBytes
+			p.Current.TxBytes = txBytes
+			p.Current.Duration = time.Since(p.Timestamp)
+
+			return p
 		})
 	}
 
-	return items, nil
+	return nil
 }

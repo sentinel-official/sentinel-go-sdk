@@ -10,8 +10,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
 	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
@@ -29,14 +31,24 @@ type Server struct {
 	name     string                  // Name of the server instance.
 	peers    *safe.Map[string, Peer] // Thread-safe map to manage peers connected to the server.
 	pools    *netip.AddrPoolSet      // Address pool set for allocating IP addresses to peers.
+
+	cancel context.CancelFunc // Context cancel function to stop background tasks.
+	ctx    context.Context    // Context for server lifecycle management.
+	eg     *errgroup.Group    // Error group for managing background goroutines.
 }
 
 // NewServer creates a new Server instance.
 func NewServer(appDir string) *Server {
+	ctx, cancel := context.WithCancel(context.Background())
+	eg, ctx := errgroup.WithContext(ctx)
+
 	return &Server{
 		homeDir: filepath.Join(appDir, "wireguard"),
 		name:    "wg0",
 		peers:   safe.NewMap[string, Peer](),
+		cancel:  cancel,
+		ctx:     ctx,
+		eg:      eg,
 	}
 }
 
@@ -74,7 +86,7 @@ func (s *Server) Init(force bool) error {
 	// Check if the config file exists at the specified path
 	cfgFileExists, err := utils.IsFileExists(cfgFile)
 	if err != nil {
-		return fmt.Errorf("failed to check config file existance: %w", err)
+		return fmt.Errorf("failed to check config file existence: %w", err)
 	}
 
 	// Write default config only if file doesn't exist or force flag is enabled
@@ -90,17 +102,20 @@ func (s *Server) Init(force bool) error {
 
 // IsUp checks if the WireGuard server process is running.
 func (s *Server) IsUp(ctx context.Context) (bool, error) {
-	// Retrieves the interface name.
-	iface, err := s.interfaceName()
+	// Retrieves the device name.
+	device, err := s.deviceName()
 	if err != nil {
-		return false, fmt.Errorf("failed to get interface name: %w", err)
+		return false, fmt.Errorf("failed to get device name: %w", err)
+	}
+	if device == "" {
+		return false, nil
 	}
 
 	// Executes the 'wg show' command to check the interface status.
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf("show %s", iface))...,
+		strings.Fields(fmt.Sprintf("show %s", device))...,
 	)
 
 	// Capture stderr output.
@@ -120,8 +135,8 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-// PreUp writes the configuration to the config file before starting the server process.
-func (s *Server) PreUp() error {
+// PreUp performs initialization tasks before starting the WireGuard service.
+func (s *Server) PreUp(_ context.Context) error {
 	// Initialize viper instance
 	v := viper.New()
 
@@ -174,18 +189,63 @@ func (s *Server) PreUp() error {
 	return nil
 }
 
-// PostUp performs operations after the server process is started.
-func (s *Server) PostUp() error {
+// PostUp starts background peer synchronization after the server is up.
+func (s *Server) PostUp(ctx context.Context) error {
+	// Create a context that cancels if either server or input context is done.
+	ctx, _ = utils.AnyDoneContext(s.ctx, ctx)
+
+	// Start background goroutine for periodic peer statistics updates.
+	s.eg.Go(func() error {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		// Blocking loop that runs until stop signal is received
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+				// Check if server is up before syncing peers.
+				ok, err := s.IsUp(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to check status: %w", err)
+				}
+				if !ok {
+					continue
+				}
+
+				// Sync peer statistics from WireGuard.
+				if err := s.syncPeers(ctx); err != nil {
+					return fmt.Errorf("failed to sync peer statistics: %w", err)
+				}
+			}
+		}
+	})
+
 	return nil
+}
+
+// Wait waits for all background goroutines to complete.
+func (s *Server) Wait() error {
+	if s.eg == nil {
+		return nil
+	}
+
+	return s.eg.Wait()
 }
 
 // PreDown performs operations before the server process is terminated.
-func (s *Server) PreDown() error {
+func (s *Server) PreDown(_ context.Context) error {
+	// Cancel background tasks if any.
+	if s.cancel != nil {
+		s.cancel()
+	}
+
 	return nil
 }
 
-// PostDown performs cleanup operations after the server process is terminated.
-func (s *Server) PostDown() error {
+// PostDown cleans up configuration files after the server is stopped.
+func (s *Server) PostDown(_ context.Context) error {
 	// Removes configuration file.
 	cfgFile := s.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {
@@ -224,16 +284,17 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 		}
 	}()
 
+	// Build allowed IPs and prefix addresses.
 	allowedIPs := make([]string, 0, len(addrs))
 	prefixAddrs := make([]*netip.Prefix, 0, len(addrs))
 
-	// Build allowed IPs and prefix addresses.
 	for _, addr := range addrs {
 		b := 32
 		if addr.Is6() {
 			b = 128
 		}
 
+		// Create IP prefixes for allowed IPs.
 		prefix, err := addr.Prefix(b)
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to generate prefix addr: %w", err)
@@ -257,8 +318,11 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 
 	// Save the peer details in the local peers map.
 	s.peers.Set(id, Peer{
-		ID:    id,
-		Addrs: addrs,
+		ID:        id,
+		Addrs:     addrs,
+		Current:   &types.PeerStatistics{},
+		Previous:  &types.PeerStatistics{},
+		Timestamp: time.Now(),
 	})
 
 	return id, &AddPeerResponse{
@@ -327,27 +391,54 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error
 	return id, nil
 }
 
-// PeerCount returns the number of peers connected to the WireGuard server.
-func (s *Server) PeerCount() int {
+// PeersLen returns the number of peers connected to the WireGuard server.
+func (s *Server) PeersLen() int {
 	return s.peers.Len()
 }
 
 // PeerStatistics retrieves statistics for each peer connected to the WireGuard server.
-func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatistic, err error) {
-	// Retrieves the interface name.
-	iface, err := s.interfaceName()
+func (s *Server) PeerStatistics(_ context.Context) (map[string]*types.PeerStatistics, error) {
+	// Create map to store statistics.
+	items := make(map[string]*types.PeerStatistics)
+
+	// Iterate over all peers and gather statistics.
+	fn := func(_ string, peer Peer) (bool, error) {
+		items[peer.ID] = &types.PeerStatistics{
+			Duration: peer.TotalDuration(),
+			RxBytes:  peer.TotalRxBytes(),
+			TxBytes:  peer.TotalTxBytes(),
+		}
+
+		return false, nil
+	}
+
+	if err := s.peers.Range(fn); err != nil {
+		return nil, fmt.Errorf("failed to range peer statistics: %w", err)
+	}
+
+	return items, nil
+}
+
+// syncPeers retrieves the latest peer transfer statistics from WireGuard
+// and updates the in-memory peer data accordingly.
+func (s *Server) syncPeers(ctx context.Context) error {
+	// Retrieves the device name.
+	device, err := s.deviceName()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get interface name: %w", err)
+		return fmt.Errorf("failed to get device name: %w", err)
+	}
+	if device == "" {
+		return errors.New("empty device name")
 	}
 
 	// Executes the 'wg show' command to get transfer statistics.
 	output, err := exec.CommandContext(
 		ctx,
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf("show %s transfer", iface))...,
+		strings.Fields(fmt.Sprintf("show %s transfer", device))...,
 	).Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to run command: %w", err)
+		return fmt.Errorf("failed to run command: %w", err)
 	}
 
 	// Split the command output into lines and process each line.
@@ -359,25 +450,30 @@ func (s *Server) PeerStatistics(ctx context.Context) (items []*types.PeerStatist
 		}
 
 		// Parse upload traffic stats.
-		uploadBytes, err := strconv.ParseInt(columns[1], 10, 64)
+		rxBytes, err := strconv.ParseInt(columns[1], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse upload bytes: %w", err)
+			return fmt.Errorf("failed to parse download bytes: %w", err)
 		}
 
 		// Parse download traffic stats.
-		downloadBytes, err := strconv.ParseInt(columns[2], 10, 64)
+		txBytes, err := strconv.ParseInt(columns[2], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse download bytes: %w", err)
+			return fmt.Errorf("failed to parse upload bytes: %w", err)
 		}
 
-		// Append peer statistics to the result collection.
-		items = append(items, &types.PeerStatistic{
-			ID:            columns[0],
-			DownloadBytes: downloadBytes,
-			UploadBytes:   uploadBytes,
+		// Update peer statistics in thread-safe map.
+		s.peers.Update(columns[0], func(p Peer, ok bool) Peer {
+			if !ok {
+				return p
+			}
+
+			p.Current.RxBytes = rxBytes
+			p.Current.TxBytes = txBytes
+			p.Current.Duration = time.Since(p.Timestamp)
+
+			return p
 		})
 	}
 
-	// Return the constructed collection of peer statistics.
-	return items, nil
+	return nil
 }

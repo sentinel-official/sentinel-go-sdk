@@ -12,6 +12,7 @@ import (
 
 	"github.com/shirou/gopsutil/v4/process"
 	"github.com/spf13/viper"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
@@ -25,13 +26,23 @@ type Client struct {
 	cmd     *exec.Cmd // Command for running the V2Ray client.
 	homeDir string    // Home directory for client files.
 	name    string    // Name of the interface.
+
+	cancel context.CancelFunc // Context cancel function to stop background tasks.
+	ctx    context.Context    // Context for server lifecycle management.
+	eg     *errgroup.Group    // Error group for managing background goroutines.
 }
 
 // NewClient creates a new Client instance.
 func NewClient(appDir string) *Client {
+	ctx, cancel := context.WithCancel(context.Background())
+	eg, ctx := errgroup.WithContext(ctx)
+
 	return &Client{
 		homeDir: filepath.Join(appDir, "v2ray"),
 		name:    "v2ray",
+		cancel:  cancel,
+		ctx:     ctx,
+		eg:      eg,
 	}
 }
 
@@ -80,6 +91,9 @@ func (c *Client) readPIDFromFile() (int32, error) {
 	pid, err := strconv.ParseInt(string(data), 10, 32)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse pid: %w", err)
+	}
+	if pid <= 0 {
+		return 0, fmt.Errorf("invalid pid %d", pid)
 	}
 
 	return int32(pid), nil
@@ -176,7 +190,7 @@ func (c *Client) IsUp(ctx context.Context) (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the client process.
-func (c *Client) PreUp() error {
+func (c *Client) PreUp(_ context.Context) error {
 	// Initialize viper instance
 	v := viper.New()
 
@@ -217,6 +231,9 @@ func (c *Client) PreUp() error {
 
 // Up starts the V2Ray client process.
 func (c *Client) Up(ctx context.Context) error {
+	// Create a context that cancels if either server or input context is done.
+	ctx, _ = utils.AnyDoneContext(c.ctx, ctx)
+
 	// Constructs the command to start the V2Ray client.
 	cfgFile := c.serviceConfigFilePath()
 	c.cmd = exec.CommandContext(
@@ -230,30 +247,43 @@ func (c *Client) Up(ctx context.Context) error {
 		return fmt.Errorf("failed to start command: %w", err)
 	}
 
+	// Wait for the V2Ray process to finish in a separate goroutine.
+	c.eg.Go(func() error {
+		if err := c.cmd.Wait(); err != nil {
+			return fmt.Errorf("failed to wait command: %w", err)
+		}
+
+		return nil
+	})
+
 	return nil
 }
 
 // PostUp performs operations after the client process is started.
-func (c *Client) PostUp() error {
-	// Check if command or process is nil.
-	if c.cmd == nil || c.cmd.Process == nil {
-		return fmt.Errorf("nil command or process")
-	}
-
+func (c *Client) PostUp(_ context.Context) error {
 	// Write PID to file.
 	if err := c.writePIDToFile(c.cmd.Process.Pid); err != nil {
 		return fmt.Errorf("failed to write pid to file: %w", err)
 	}
 
-	if err := c.cmd.Wait(); err != nil {
-		return fmt.Errorf("failed to wait for command: %w", err)
+	return nil
+}
+
+// Wait blocks until all goroutines in the error group finish or one returns an error.
+func (c *Client) Wait() error {
+	if err := c.eg.Wait(); err != nil {
+		return err
 	}
 
 	return nil
 }
 
 // PreDown performs operations before the client process is terminated.
-func (c *Client) PreDown() error {
+func (c *Client) PreDown(_ context.Context) error {
+	if c.cancel != nil {
+		c.cancel()
+	}
+
 	return nil
 }
 
@@ -263,6 +293,9 @@ func (c *Client) Down(ctx context.Context) error {
 	pid, err := c.readPIDFromFile()
 	if err != nil {
 		return fmt.Errorf("failed to read pid from file: %w", err)
+	}
+	if pid == 0 {
+		return nil
 	}
 
 	// Retrieve process with the given PID.
@@ -284,7 +317,7 @@ func (c *Client) Down(ctx context.Context) error {
 }
 
 // PostDown performs cleanup operations after the client process is terminated.
-func (c *Client) PostDown() error {
+func (c *Client) PostDown(_ context.Context) error {
 	// Removes configuration file.
 	cfgFile := c.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {

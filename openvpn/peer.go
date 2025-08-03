@@ -1,4 +1,4 @@
-package v2ray
+package openvpn
 
 import (
 	"time"
@@ -6,7 +6,7 @@ import (
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
 
-// Peer represents a V2Ray peer with identifying information and network statistics.
+// Peer represents a OpenVPN peer with identifying information and network statistics.
 type Peer struct {
 	ID        string                `json:"id,omitempty"`        // Unique identifier of the peer.
 	Current   *types.PeerStatistics `json:"current,omitempty"`   // Current session statistics (e.g., active counters).
