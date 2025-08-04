@@ -1,7 +1,10 @@
 package cron
 
 import (
+	"context"
 	"time"
+
+	"github.com/sentinel-official/sentinel-go-sdk/libs/log"
 )
 
 // Worker defines the interface for a scheduler worker.
@@ -14,7 +17,7 @@ type Worker interface {
 	OnRetry(attempt uint, err error) // Called after each failed attempt, passing the attempt count and error.
 	RetryAttempts() uint             // Returns the number of retry attempts for the worker.
 	RetryDelay() time.Duration       // Returns the delay between retry attempts.
-	Run() error                      // Executes the worker and returns an error if it fails.
+	Run(ctx context.Context) error   // Executes the worker and returns an error if it fails.
 }
 
 // Ensure BasicWorker implements the Worker interface.
@@ -22,7 +25,7 @@ var _ Worker = (*BasicWorker)(nil)
 
 // BasicWorker provides a basic implementation of the Worker interface.
 type BasicWorker struct {
-	handler       func() error
+	handler       func(ctx context.Context) error
 	maxRuns       uint
 	interval      time.Duration
 	name          string
@@ -36,9 +39,6 @@ type BasicWorker struct {
 // NewBasicWorker creates a new BasicWorker with default settings.
 func NewBasicWorker() *BasicWorker {
 	w := &BasicWorker{}
-	w.WithOnError(func(_ error) bool { return false })
-	w.WithOnExit(func() {})
-	w.WithOnRetry(func(_ uint, _ error) {})
 	w.WithRetryAttempts(1)
 	w.WithRetryDelay(1 * time.Second)
 
@@ -46,7 +46,7 @@ func NewBasicWorker() *BasicWorker {
 }
 
 // WithHandler sets the handler function for the worker.
-func (w *BasicWorker) WithHandler(handler func() error) *BasicWorker {
+func (w *BasicWorker) WithHandler(handler func(ctx context.Context) error) *BasicWorker {
 	w.handler = handler
 	return w
 }
@@ -116,6 +116,7 @@ func (w *BasicWorker) Name() string {
 
 // OnError processes errors encountered during worker execution.
 func (w *BasicWorker) OnError(err error) bool {
+	log.Debug("Executing OnError callback", "worker", w.name)
 	if w.onError != nil {
 		return w.onError(err)
 	}
@@ -125,6 +126,7 @@ func (w *BasicWorker) OnError(err error) bool {
 
 // OnExit calls the onExit function if it is set.
 func (w *BasicWorker) OnExit() {
+	log.Debug("Executing OnExit callback", "worker", w.name)
 	if w.onExit != nil {
 		w.onExit()
 	}
@@ -132,6 +134,7 @@ func (w *BasicWorker) OnExit() {
 
 // OnRetry processes retry attempts for the worker.
 func (w *BasicWorker) OnRetry(attempt uint, err error) {
+	log.Debug("Executing OnRetry callback", "worker", w.name)
 	if w.onRetry != nil {
 		w.onRetry(attempt, err)
 	}
@@ -148,9 +151,10 @@ func (w *BasicWorker) RetryDelay() time.Duration {
 }
 
 // Run executes the worker's handler function and returns any error encountered.
-func (w *BasicWorker) Run() error {
+func (w *BasicWorker) Run(ctx context.Context) error {
+	log.Debug("Executing worker handler", "worker", w.name)
 	if w.handler != nil {
-		return w.handler()
+		return w.handler(ctx)
 	}
 
 	return nil
