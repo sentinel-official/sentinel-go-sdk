@@ -167,7 +167,7 @@ func (s *Server) Init(force bool) error {
 }
 
 // IsUp checks whether the OpenVPN server is running by verifying its PID and process name.
-func (s *Server) IsUp(ctx context.Context) (bool, error) {
+func (s *Server) IsUp() (bool, error) {
 	pid, err := s.readPIDFromFile()
 	if err != nil {
 		return false, fmt.Errorf("failed to read pid from file: %w", err)
@@ -176,7 +176,7 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 		return false, nil
 	}
 
-	proc, err := process.NewProcessWithContext(ctx, pid)
+	proc, err := process.NewProcess(pid)
 	if err != nil {
 		if errors.Is(err, process.ErrorProcessNotRunning) {
 			return false, nil
@@ -185,7 +185,7 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("failed to get process: %w", err)
 	}
 
-	ok, err := proc.IsRunningWithContext(ctx)
+	ok, err := proc.IsRunning()
 	if err != nil {
 		return false, fmt.Errorf("failed to check running process: %w", err)
 	}
@@ -193,7 +193,7 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 		return false, nil
 	}
 
-	name, err := proc.NameWithContext(ctx)
+	name, err := proc.Name()
 	if err != nil {
 		return false, fmt.Errorf("failed to get process name: %w", err)
 	}
@@ -330,7 +330,7 @@ func (s *Server) PostUp(ctx context.Context) error {
 				return ctx.Err()
 			case <-ticker.C:
 				// Check if server is up before syncing peers.
-				ok, err := s.IsUp(ctx)
+				ok, err := s.IsUp()
 				if err != nil {
 					return fmt.Errorf("failed to check status: %w", err)
 				}
@@ -359,16 +359,15 @@ func (s *Server) Wait() error {
 }
 
 // PreDown is a no-op for now but can be used for pre-shutdown tasks.
-func (s *Server) PreDown(_ context.Context) error {
-	if s.cancel != nil {
-		s.cancel()
-	}
+func (s *Server) PreDown() error {
+	// Cancel background tasks if any.
+	s.cancel()
 
 	return nil
 }
 
 // Down gracefully stops the OpenVPN process using its PID.
-func (s *Server) Down(ctx context.Context) error {
+func (s *Server) Down() error {
 	pid, err := s.readPIDFromFile()
 	if err != nil {
 		return fmt.Errorf("failed to read pid from file: %w", err)
@@ -377,7 +376,7 @@ func (s *Server) Down(ctx context.Context) error {
 		return nil
 	}
 
-	proc, err := process.NewProcessWithContext(ctx, pid)
+	proc, err := process.NewProcess(pid)
 	if err != nil {
 		if errors.Is(err, process.ErrorProcessNotRunning) {
 			return nil
@@ -386,7 +385,7 @@ func (s *Server) Down(ctx context.Context) error {
 		return fmt.Errorf("failed to get process: %w", err)
 	}
 
-	if err := proc.TerminateWithContext(ctx); err != nil {
+	if err := proc.Terminate(); err != nil {
 		return fmt.Errorf("failed to terminate process: %w", err)
 	}
 
@@ -394,7 +393,7 @@ func (s *Server) Down(ctx context.Context) error {
 }
 
 // PostDown removes PID file after the process has stopped.
-func (s *Server) PostDown(_ context.Context) error {
+func (s *Server) PostDown() error {
 	// Removes configuration file.
 	cfgFile := s.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {
@@ -529,7 +528,7 @@ func (s *Server) PeersLen() int {
 }
 
 // PeerStatistics queries the OpenVPN management interface and returns peer usage data.
-func (s *Server) PeerStatistics(_ context.Context) (map[string]*types.PeerStatistics, error) {
+func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 	// Create map to store statistics.
 	items := make(map[string]*types.PeerStatistics)
 

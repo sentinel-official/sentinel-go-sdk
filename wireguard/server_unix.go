@@ -15,11 +15,11 @@ func (s *Server) execFile(name string) string {
 }
 
 // Down shuts down the WireGuard interface.
-func (s *Server) Down(ctx context.Context) error {
+func (s *Server) Down() error {
 	// Executes the 'wg-quick down' command to bring down the interface.
 	cfgFile := s.serviceConfigFilePath()
 	cmd := exec.CommandContext(
-		ctx,
+		context.Background(),
 		s.execFile("wg-quick"),
 		strings.Fields(fmt.Sprintf("down %s", cfgFile))...,
 	)

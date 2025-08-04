@@ -101,7 +101,7 @@ func (s *Server) Init(force bool) error {
 }
 
 // IsUp checks if the WireGuard server process is running.
-func (s *Server) IsUp(ctx context.Context) (bool, error) {
+func (s *Server) IsUp() (bool, error) {
 	// Retrieves the device name.
 	device, err := s.deviceName()
 	if err != nil {
@@ -113,7 +113,7 @@ func (s *Server) IsUp(ctx context.Context) (bool, error) {
 
 	// Executes the 'wg show' command to check the interface status.
 	cmd := exec.CommandContext(
-		ctx,
+		context.Background(),
 		s.execFile("wg"),
 		strings.Fields(fmt.Sprintf("show %s", device))...,
 	)
@@ -206,7 +206,7 @@ func (s *Server) PostUp(ctx context.Context) error {
 				return ctx.Err()
 			case <-ticker.C:
 				// Check if server is up before syncing peers.
-				ok, err := s.IsUp(ctx)
+				ok, err := s.IsUp()
 				if err != nil {
 					return fmt.Errorf("failed to check status: %w", err)
 				}
@@ -227,25 +227,23 @@ func (s *Server) PostUp(ctx context.Context) error {
 
 // Wait waits for all background goroutines to complete.
 func (s *Server) Wait() error {
-	if s.eg == nil {
-		return nil
-	}
-
-	return s.eg.Wait()
-}
-
-// PreDown performs operations before the server process is terminated.
-func (s *Server) PreDown(_ context.Context) error {
-	// Cancel background tasks if any.
-	if s.cancel != nil {
-		s.cancel()
+	if err := s.eg.Wait(); err != nil {
+		return err
 	}
 
 	return nil
 }
 
+// PreDown performs operations before the server process is terminated.
+func (s *Server) PreDown() error {
+	// Cancel background tasks if any.
+	s.cancel()
+
+	return nil
+}
+
 // PostDown cleans up configuration files after the server is stopped.
-func (s *Server) PostDown(_ context.Context) error {
+func (s *Server) PostDown() error {
 	// Removes configuration file.
 	cfgFile := s.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {
@@ -397,7 +395,7 @@ func (s *Server) PeersLen() int {
 }
 
 // PeerStatistics retrieves statistics for each peer connected to the WireGuard server.
-func (s *Server) PeerStatistics(_ context.Context) (map[string]*types.PeerStatistics, error) {
+func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 	// Create map to store statistics.
 	items := make(map[string]*types.PeerStatistics)
 

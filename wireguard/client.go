@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
@@ -23,13 +24,23 @@ var _ types.ClientService = (*Client)(nil)
 type Client struct {
 	homeDir string // Home directory for client files.
 	name    string // Name of the interface.
+
+	cancel context.CancelFunc // Context cancel function to stop background tasks.
+	ctx    context.Context    // Context for server lifecycle management.
+	eg     *errgroup.Group    // Error group for managing background goroutines.
 }
 
 // NewClient creates a new Client instance.
 func NewClient(appDir string) *Client {
+	ctx, cancel := context.WithCancel(context.Background())
+	eg, ctx := errgroup.WithContext(ctx)
+
 	return &Client{
 		homeDir: filepath.Join(appDir, "wireguard"),
 		name:    "wg0",
+		cancel:  cancel,
+		ctx:     ctx,
+		eg:      eg,
 	}
 }
 
@@ -82,7 +93,7 @@ func (c *Client) Init(force bool) error {
 }
 
 // IsUp checks if the WireGuard interface is up.
-func (c *Client) IsUp(ctx context.Context) (bool, error) {
+func (c *Client) IsUp() (bool, error) {
 	// Retrieves the device name.
 	device, err := c.deviceName()
 	if err != nil {
@@ -94,7 +105,7 @@ func (c *Client) IsUp(ctx context.Context) (bool, error) {
 
 	// Executes the 'wg show' command to check the interface status.
 	cmd := exec.CommandContext(
-		ctx,
+		context.Background(),
 		c.execFile("wg"),
 		strings.Fields(fmt.Sprintf("show %s", device))...,
 	)
@@ -161,13 +172,25 @@ func (c *Client) PostUp(_ context.Context) error {
 	return nil
 }
 
+// Wait waits for all background goroutines to complete.
+func (c *Client) Wait() error {
+	if err := c.eg.Wait(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // PreDown performs operations before the client process is terminated.
-func (c *Client) PreDown(_ context.Context) error {
+func (c *Client) PreDown() error {
+	// Cancel background tasks if any.
+	c.cancel()
+
 	return nil
 }
 
 // PostDown performs cleanup operations after the client process is terminated.
-func (c *Client) PostDown(_ context.Context) error {
+func (c *Client) PostDown() error {
 	// Removes configuration file.
 	cfgFile := c.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {
@@ -178,7 +201,7 @@ func (c *Client) PostDown(_ context.Context) error {
 }
 
 // Statistics returns the download and upload statistics for the WireGuard interface.
-func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
+func (c *Client) Statistics() (int64, int64, error) {
 	// Retrieves the device name.
 	device, err := c.deviceName()
 	if err != nil {
@@ -190,7 +213,7 @@ func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 
 	// Executes the 'wg show' command to get transfer statistics.
 	output, err := exec.CommandContext(
-		ctx,
+		context.Background(),
 		c.execFile("wg"),
 		strings.Fields(fmt.Sprintf("show %s transfer", device))...,
 	).Output()

@@ -146,7 +146,7 @@ func (c *Client) Init(force bool) error {
 }
 
 // IsUp checks if the V2Ray client process is running.
-func (c *Client) IsUp(ctx context.Context) (bool, error) {
+func (c *Client) IsUp() (bool, error) {
 	// Read PID from file.
 	pid, err := c.readPIDFromFile()
 	if err != nil {
@@ -157,7 +157,7 @@ func (c *Client) IsUp(ctx context.Context) (bool, error) {
 	}
 
 	// Retrieve process with the given PID.
-	proc, err := process.NewProcessWithContext(ctx, pid)
+	proc, err := process.NewProcess(pid)
 	if err != nil {
 		if errors.Is(err, process.ErrorProcessNotRunning) {
 			return false, nil
@@ -167,7 +167,7 @@ func (c *Client) IsUp(ctx context.Context) (bool, error) {
 	}
 
 	// Check if the process is running.
-	ok, err := proc.IsRunningWithContext(ctx)
+	ok, err := proc.IsRunning()
 	if err != nil {
 		return false, fmt.Errorf("failed to check running process: %w", err)
 	}
@@ -176,7 +176,7 @@ func (c *Client) IsUp(ctx context.Context) (bool, error) {
 	}
 
 	// Retrieve the name of the process.
-	name, err := proc.NameWithContext(ctx)
+	name, err := proc.Name()
 	if err != nil {
 		return false, fmt.Errorf("failed to get process name: %w", err)
 	}
@@ -279,16 +279,15 @@ func (c *Client) Wait() error {
 }
 
 // PreDown performs operations before the client process is terminated.
-func (c *Client) PreDown(_ context.Context) error {
-	if c.cancel != nil {
-		c.cancel()
-	}
+func (c *Client) PreDown() error {
+	// Cancel background tasks if any.
+	c.cancel()
 
 	return nil
 }
 
 // Down terminates the V2Ray client process.
-func (c *Client) Down(ctx context.Context) error {
+func (c *Client) Down() error {
 	// Read PID from file.
 	pid, err := c.readPIDFromFile()
 	if err != nil {
@@ -299,7 +298,7 @@ func (c *Client) Down(ctx context.Context) error {
 	}
 
 	// Retrieve process with the given PID.
-	proc, err := process.NewProcessWithContext(ctx, pid)
+	proc, err := process.NewProcess(pid)
 	if err != nil {
 		if errors.Is(err, process.ErrorProcessNotRunning) {
 			return nil
@@ -309,7 +308,7 @@ func (c *Client) Down(ctx context.Context) error {
 	}
 
 	// Terminate the process.
-	if err := proc.TerminateWithContext(ctx); err != nil {
+	if err := proc.Terminate(); err != nil {
 		return fmt.Errorf("failed to terminate process: %w", err)
 	}
 
@@ -317,7 +316,7 @@ func (c *Client) Down(ctx context.Context) error {
 }
 
 // PostDown performs cleanup operations after the client process is terminated.
-func (c *Client) PostDown(_ context.Context) error {
+func (c *Client) PostDown() error {
 	// Removes configuration file.
 	cfgFile := c.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {
@@ -334,6 +333,6 @@ func (c *Client) PostDown(_ context.Context) error {
 }
 
 // Statistics returns dummy statistics for now (to be implemented).
-func (c *Client) Statistics(_ context.Context) (int64, int64, error) {
+func (c *Client) Statistics() (int64, int64, error) {
 	return 0, 0, nil
 }

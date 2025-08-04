@@ -19,7 +19,7 @@ func (c *Client) deviceName() (string, error) {
 }
 
 // Down uninstalls the WireGuard tunnel service.
-func (c *Client) Down(ctx context.Context) error {
+func (c *Client) Down() error {
 	device, err := c.deviceName()
 	if err != nil {
 		return fmt.Errorf("failed to get device name: %w", err)
@@ -27,7 +27,7 @@ func (c *Client) Down(ctx context.Context) error {
 
 	// Executes the command to uninstall the WireGuard tunnel service.
 	cmd := exec.CommandContext(
-		ctx,
+		context.Background(),
 		c.execFile("wireguard"),
 		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", device))...,
 	)
