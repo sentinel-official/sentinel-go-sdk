@@ -1,6 +1,7 @@
 package speedtest
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -9,19 +10,19 @@ import (
 )
 
 // performTests runs the ping, download, and upload tests on the target server.
-func performTests(target *speedtest.Server) error {
+func performTests(ctx context.Context, target *speedtest.Server) error {
 	// Perform the ping test
-	if err := target.PingTest(nil); err != nil {
+	if err := target.PingTestContext(ctx, nil); err != nil {
 		return fmt.Errorf("failed to perform ping test: %w", err)
 	}
 
 	// Perform the download test
-	if err := target.DownloadTest(); err != nil {
+	if err := target.DownloadTestContext(ctx); err != nil {
 		return fmt.Errorf("failed to perform download test: %w", err)
 	}
 
 	// Perform the upload test
-	if err := target.UploadTest(); err != nil {
+	if err := target.UploadTestContext(ctx); err != nil {
 		return fmt.Errorf("failed to perform upload test: %w", err)
 	}
 
@@ -31,12 +32,12 @@ func performTests(target *speedtest.Server) error {
 }
 
 // Run performs a speed test and returns download and upload speeds.
-func Run() (dlSpeed, ulSpeed math.Int, err error) {
+func Run(ctx context.Context) (dlSpeed, ulSpeed math.Int, err error) {
 	// Create a new Speedtest client
 	st := speedtest.New()
 
 	// Fetch the list of servers from the Speedtest service
-	servers, err := st.FetchServers()
+	servers, err := st.FetchServerListContext(ctx)
 	if err != nil {
 		return math.Int{}, math.Int{}, fmt.Errorf("failed to fetch servers: %w", err)
 	}
@@ -50,7 +51,7 @@ func Run() (dlSpeed, ulSpeed math.Int, err error) {
 	// Iterate through the list of target servers to find a valid result
 	for _, target := range targets {
 		// Perform the tests on the target server
-		if err := performTests(target); err != nil {
+		if err := performTests(ctx, target); err != nil {
 			target.Context.Reset()
 			continue
 		}
