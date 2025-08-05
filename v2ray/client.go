@@ -2,7 +2,6 @@ package v2ray
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -159,7 +158,7 @@ func (c *Client) IsUp() (bool, error) {
 	// Retrieve process with the given PID.
 	proc, err := process.NewProcess(pid)
 	if err != nil {
-		if errors.Is(err, process.ErrorProcessNotRunning) {
+		if utils.ErrorIs(err, process.ErrorProcessNotRunning) {
 			return false, nil
 		}
 
@@ -300,7 +299,7 @@ func (c *Client) Down() error {
 	// Retrieve process with the given PID.
 	proc, err := process.NewProcess(pid)
 	if err != nil {
-		if errors.Is(err, process.ErrorProcessNotRunning) {
+		if utils.ErrorIs(err, process.ErrorProcessNotRunning) {
 			return nil
 		}
 

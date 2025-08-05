@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -178,7 +177,7 @@ func (s *Server) IsUp() (bool, error) {
 
 	proc, err := process.NewProcess(pid)
 	if err != nil {
-		if errors.Is(err, process.ErrorProcessNotRunning) {
+		if utils.ErrorIs(err, process.ErrorProcessNotRunning) {
 			return false, nil
 		}
 
@@ -378,7 +377,7 @@ func (s *Server) Down() error {
 
 	proc, err := process.NewProcess(pid)
 	if err != nil {
-		if errors.Is(err, process.ErrorProcessNotRunning) {
+		if utils.ErrorIs(err, process.ErrorProcessNotRunning) {
 			return nil
 		}
 

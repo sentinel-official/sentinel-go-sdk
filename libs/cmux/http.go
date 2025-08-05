@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -13,6 +12,8 @@ import (
 
 	"github.com/soheilhy/cmux"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // ListenAndServeTLS sets up a server that listens for both TLS and non-TLS traffic on the same address.
@@ -61,7 +62,7 @@ func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, hand
 
 		tlsMux := tls.NewListener(tlsMux, cfg)
 		if err := tlsServer.Serve(tlsMux); err != nil {
-			if errors.Is(err, cmux.ErrServerClosed) {
+			if utils.ErrorIs(err, cmux.ErrServerClosed) {
 				return nil
 			}
 
@@ -74,7 +75,7 @@ func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, hand
 	// Serve non-TLS traffic
 	eg.Go(func() error {
 		if err := anyServer.Serve(anyMux); err != nil {
-			if errors.Is(err, cmux.ErrServerClosed) {
+			if utils.ErrorIs(err, cmux.ErrServerClosed) {
 				return nil
 			}
 
@@ -87,7 +88,7 @@ func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, hand
 	// Start the multiplexer
 	eg.Go(func() error {
 		if err := mux.Serve(); err != nil {
-			if errors.Is(err, net.ErrClosed) {
+			if utils.ErrorIs(err, net.ErrClosed) {
 				return nil
 			}
 

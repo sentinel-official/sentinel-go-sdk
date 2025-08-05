@@ -2,7 +2,6 @@ package input
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +9,8 @@ import (
 
 	"github.com/bgentry/speakeasy"
 	"github.com/mattn/go-isatty"
+
+	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // isTTY checks if the standard input is a terminal.
@@ -22,7 +23,7 @@ func readLineFromBuf(buf *bufio.Reader) (string, error) {
 	line, err := buf.ReadString('\n')
 
 	switch {
-	case errors.Is(err, io.EOF):
+	case utils.ErrorIs(err, io.EOF):
 		// If there's an EOF but we have some data, return it
 		if len(line) > 0 {
 			break
