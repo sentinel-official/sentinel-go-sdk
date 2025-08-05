@@ -203,7 +203,7 @@ func (s *Server) PostUp(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return nil
 			case <-ticker.C:
 				// Check if server is up before syncing peers.
 				ok, err := s.IsUp()

@@ -105,5 +105,10 @@ func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, hand
 		return nil
 	})
 
-	return eg.Wait()
+	// Wait until all workers have completed
+	if err := eg.Wait(); err != nil {
+		return err
+	}
+
+	return nil
 }

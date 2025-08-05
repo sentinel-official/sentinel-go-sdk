@@ -119,7 +119,7 @@ func (s *Scheduler) runWorker(ctx context.Context, w Worker) error {
 		// Sleep for the interval—or stop early if the context is done
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil
 		case <-time.After(w.Interval()):
 		}
 	}
