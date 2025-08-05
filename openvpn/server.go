@@ -298,6 +298,10 @@ func (s *Server) Up(ctx context.Context) error {
 	// Waits for the process to complete in a separate goroutine.
 	s.eg.Go(func() error {
 		if err := s.cmd.Wait(); err != nil {
+			if utils.ErrorIs(ctx.Err(), context.Canceled) {
+				return nil
+			}
+
 			return fmt.Errorf("failed to wait command: %w", err)
 		}
 
