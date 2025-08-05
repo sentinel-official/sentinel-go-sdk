@@ -51,7 +51,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		s.eg.Go(func() error {
 			// Run the worker and log errors without propagating them
 			if err := s.runWorker(ctx, worker); err != nil {
-				log.Error("worker exited with error", "cause", err, "name", worker.Name())
+				log.Error("Worker exited with error", "cause", err, "name", worker.Name())
 			}
 
 			return nil

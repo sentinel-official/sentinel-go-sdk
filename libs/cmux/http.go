@@ -61,7 +61,7 @@ func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, hand
 
 		tlsMux := tls.NewListener(tlsMux, cfg)
 		if err := tlsServer.Serve(tlsMux); err != nil {
-			if errors.Is(err, http.ErrServerClosed) {
+			if errors.Is(err, cmux.ErrServerClosed) {
 				return nil
 			}
 
@@ -74,7 +74,7 @@ func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, hand
 	// Serve non-TLS traffic
 	eg.Go(func() error {
 		if err := anyServer.Serve(anyMux); err != nil {
-			if errors.Is(err, http.ErrServerClosed) {
+			if errors.Is(err, cmux.ErrServerClosed) {
 				return nil
 			}
 
@@ -87,7 +87,7 @@ func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, hand
 	// Start the multiplexer
 	eg.Go(func() error {
 		if err := mux.Serve(); err != nil {
-			if errors.Is(err, http.ErrServerClosed) {
+			if errors.Is(err, net.ErrClosed) {
 				return nil
 			}
 
@@ -101,11 +101,7 @@ func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, hand
 	eg.Go(func() error {
 		<-ctx.Done()
 
-		// Graceful shutdown of servers
-		_ = tlsServer.Shutdown(context.Background())
-		_ = anyServer.Shutdown(context.Background())
-		_ = listener.Close()
-
+		mux.Close()
 		return nil
 	})
 
