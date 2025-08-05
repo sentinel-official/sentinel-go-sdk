@@ -614,15 +614,28 @@ func (s *Server) syncPeers(_ context.Context) error {
 			return fmt.Errorf("failed to parse upload bytes: %w", err)
 		}
 
+		timestamp, err := time.Parse(time.DateTime, fields[7])
+		if err != nil {
+			return fmt.Errorf("failed to parse timestamp: %w", err)
+		}
+
 		// Update peer statistics in thread-safe map.
 		s.peers.Update(id, func(p Peer, ok bool) Peer {
 			if !ok {
 				return p
 			}
 
+			if timestamp.After(p.Timestamp) {
+				p.Previous.Duration += p.Current.Duration
+				p.Previous.RxBytes += p.Current.RxBytes
+				p.Previous.TxBytes += p.Current.TxBytes
+
+				p.Timestamp = timestamp
+			}
+
+			p.Current.Duration = time.Since(p.Timestamp)
 			p.Current.RxBytes = rxBytes
 			p.Current.TxBytes = txBytes
-			p.Current.Duration = time.Since(p.Timestamp)
 
 			return p
 		})
