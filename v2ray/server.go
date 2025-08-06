@@ -2,6 +2,7 @@ package v2ray
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -314,16 +315,17 @@ func (s *Server) Up(ctx context.Context) error {
 	}
 
 	// Wait for the V2Ray process to finish in a separate goroutine.
-	s.eg.Go(func() error {
-		if err := s.cmd.Wait(); err != nil {
-			if utils.ErrorIs(ctx.Err(), context.Canceled) {
-				return nil
-			}
-
-			return fmt.Errorf("failed to wait command: %w", err)
+	s.eg.Go(func() (err error) {
+		if err = s.cmd.Wait(); err == nil {
+			err = errors.New("exited unexpectedly")
 		}
 
-		return nil
+		// If context is canceled, we return nil immediately.
+		if utils.ErrorIs(ctx.Err(), context.Canceled) {
+			return nil
+		}
+
+		return fmt.Errorf("failed to wait for command: %w", err)
 	})
 
 	return nil
