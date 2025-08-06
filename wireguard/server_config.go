@@ -41,6 +41,9 @@ func (c *ServerConfig) InPort() uint16 {
 	if err != nil {
 		panic(err)
 	}
+	if v == nil {
+		panic(errors.New("nil port"))
+	}
 
 	return v.InFrom
 }
@@ -50,6 +53,9 @@ func (c *ServerConfig) OutPort() uint16 {
 	v, err := netip.NewPortFromString(c.Port)
 	if err != nil {
 		panic(err)
+	}
+	if v == nil {
+		panic(errors.New("nil port"))
 	}
 
 	return v.OutFrom

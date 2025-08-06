@@ -48,6 +48,9 @@ func (c *ServerConfig) OutPort() uint16 {
 	if err != nil {
 		panic(err)
 	}
+	if v == nil {
+		panic(errors.New("nil port"))
+	}
 
 	return v.OutFrom
 }

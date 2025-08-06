@@ -124,6 +124,9 @@ func (c *ServerConfig) Validate() error {
 		if err != nil {
 			panic(err)
 		}
+		if port == nil {
+			panic(errors.New("nil port"))
+		}
 
 		// Check inbound ports for duplicates.
 		for p := port.InFrom; p <= port.InTo; p++ {

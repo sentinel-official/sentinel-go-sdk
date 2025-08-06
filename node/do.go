@@ -89,6 +89,9 @@ func (c *Client) getURL(ctx context.Context, pathSuffix string) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("failed to query node: %w", err)
 	}
+	if node == nil {
+		return "", fmt.Errorf("node %s does not exist", c.addr)
+	}
 
 	// Construct base URL with HTTPS scheme.
 	addr := "https" + "://" + node.RemoteAddrs[0]

@@ -83,6 +83,9 @@ func (p *Port) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	if port == nil {
+		return errors.New("nil port")
+	}
 
 	*p = *port
 	return nil

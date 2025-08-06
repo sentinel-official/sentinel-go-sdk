@@ -9,6 +9,8 @@ import (
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/go-bip39"
+
+	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // KeyForAddr retrieves the key record associated with the given account address from the keyring.
@@ -88,7 +90,7 @@ func (c *Client) Key(name string) (*keyring.Record, error) {
 
 	key, err := c.keyring.Key(name)
 	if err != nil {
-		if errors.IsOf(err, errors.ErrKeyNotFound) {
+		if utils.ErrorIs(err, errors.ErrKeyNotFound) {
 			return nil, nil
 		}
 
