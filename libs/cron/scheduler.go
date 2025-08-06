@@ -44,6 +44,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		return errors.New("scheduler is already running")
 	}
 
+	// Combine the scheduler's context and the passed context
 	ctx, _ = utils.AnyDoneContext(s.ctx, ctx)
 
 	for _, w := range s.workers {
@@ -65,6 +66,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 func (s *Scheduler) Wait() error {
 	defer s.running.Store(false)
 
+	// Wait for all worker goroutines to finish
 	if err := s.eg.Wait(); err != nil {
 		return err
 	}

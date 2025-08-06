@@ -341,15 +341,12 @@ func (s *Server) PostUp(ctx context.Context) error {
 
 	// Start background goroutine for periodic peer statistics updates.
 	s.eg.Go(func() error {
-		ticker := time.NewTicker(1 * time.Second)
-		defer ticker.Stop()
-
 		// Blocking loop that runs until stop signal is received
 		for {
 			select {
 			case <-ctx.Done():
 				return nil
-			case <-ticker.C:
+			case <-time.After(time.Second):
 				// Check if server is up before syncing peers.
 				ok, err := s.IsUp()
 				if err != nil {
