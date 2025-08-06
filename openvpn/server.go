@@ -205,7 +205,19 @@ func (s *Server) IsUp() (bool, error) {
 }
 
 // PreUp prepares the server before it is started by initializing PKI and generating config files.
-func (s *Server) PreUp(_ context.Context) error {
+func (s *Server) PreUp(req interface{}) error {
+	// Set default server configuration
+	cfg := DefaultServerConfig()
+
+	// If a request is provided, attempt to cast it to a ServerConfig type
+	if req != nil {
+		if v, ok := req.(*ServerConfig); ok {
+			cfg = v
+		} else {
+			return fmt.Errorf("invalid request type %T", req)
+		}
+	}
+
 	// Initialize viper instance
 	v := viper.New()
 
@@ -227,7 +239,6 @@ func (s *Server) PreUp(_ context.Context) error {
 	}
 
 	// Unmarshal configuration into the config object
-	cfg := DefaultServerConfig()
 	if err := v.Unmarshal(cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal config file: %w", err)
 	}
@@ -235,6 +246,7 @@ func (s *Server) PreUp(_ context.Context) error {
 	cfg.PKIDir = filepath.Join(s.homeDir, "pki")
 	cfg.StatusFile = filepath.Join(s.homeDir, "server.log")
 
+	// Validate the unmarshalled config
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("failed to validate config file: %w", err)
 	}

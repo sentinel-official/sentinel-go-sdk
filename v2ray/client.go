@@ -189,7 +189,19 @@ func (c *Client) IsUp() (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the client process.
-func (c *Client) PreUp(_ context.Context) error {
+func (c *Client) PreUp(req interface{}) error {
+	// Set default client configuration
+	cfg := DefaultClientConfig()
+
+	// If a request is provided, attempt to cast it to a ClientConfig type
+	if req != nil {
+		if v, ok := req.(*ClientConfig); ok {
+			cfg = v
+		} else {
+			return fmt.Errorf("invalid request type %T", req)
+		}
+	}
+
 	// Initialize viper instance
 	v := viper.New()
 
@@ -211,10 +223,11 @@ func (c *Client) PreUp(_ context.Context) error {
 	}
 
 	// Unmarshal configuration into the config object
-	cfg := DefaultClientConfig()
 	if err := v.Unmarshal(cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal config file: %w", err)
 	}
+
+	// Validate the unmarshalled config
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("failed to validate config file: %w", err)
 	}

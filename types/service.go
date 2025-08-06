@@ -57,7 +57,7 @@ type ClientService interface {
 
 	IsUp() (bool, error) // IsUp checks if the client service is currently running.
 
-	PreUp(ctx context.Context) error  // PreUp performs operations before the service is brought up.
+	PreUp(req interface{}) error      // PreUp performs operations before the service is brought up.
 	Up(ctx context.Context) error     // Up brings up the client service.
 	PostUp(ctx context.Context) error // PostUp performs operations after the service is brought up.
 
@@ -77,7 +77,7 @@ type ServerService interface {
 
 	IsUp() (bool, error) // IsUp checks if the server service is currently running.
 
-	PreUp(ctx context.Context) error  // PreUp performs operations before the service is brought up.
+	PreUp(req interface{}) error      // PreUp performs operations before the service is brought up.
 	Up(ctx context.Context) error     // Up brings up the server service.
 	PostUp(ctx context.Context) error // PostUp performs operations after the service is brought up.
 
