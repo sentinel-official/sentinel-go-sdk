@@ -495,7 +495,10 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 
 	// Save the peer details in the local peers map.
 	s.peers.Set(id, Peer{
-		ID: id,
+		ID:        id,
+		Current:   &types.PeerStatistics{},
+		Previous:  &types.PeerStatistics{},
+		Timestamp: time.Now(),
 	})
 
 	// Return nil for success (no additional data to return in response).
