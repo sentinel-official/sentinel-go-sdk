@@ -172,7 +172,7 @@ func (c *ClientConfig) Validate() error {
 // WriteServiceConfig generates the service-level configuration file using the service template.
 func (c *ClientConfig) WriteServiceConfig(filename string) error {
 	// Load the service template from the embedded or filesystem path.
-	text, err := fs.ReadFile("client.conf.tmpl")
+	text, err := fs.ReadFile("client.json.tmpl")
 	if err != nil {
 		return fmt.Errorf("failed to read service template: %w", err)
 	}
