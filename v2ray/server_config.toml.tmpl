@@ -1,14 +1,33 @@
-# Inbound field descriptions:
-# - port: The unique port number on which the inbound connection listens.
-#   It must not conflict with any other services running on the same machine.
-# - proxy: Specifies the proxy protocol for communication on the inbound connection.
-#   Must be either "vmess" (Virtual Machine Service) or "vless" (Virtual Light Service).
-# - security: Determines the security setting for the inbound connection.
-#   Can be "none" for no encryption, or "tls" for Transport Layer Security.
-# - tls_cert_path: The file path to the TLS certificate. This field is required if `security` is set to "tls".
-# - tls_key_path: The file path to the TLS key. This field is required if `security` is set to "tls".
-# - transport: Specifies the type of transport protocol to use for incoming requests.
-#   Must be one of the following: "domainsocket", "gun", "grpc", "http", "mkcp", "quic", "tcp", "websocket".
+# Port for incoming connections as a single port number or "in_port:out_port" mapping format.
+# The mapping format allows the V2Ray service to run internally on in_port while being available to clients on out_port.
+# Must be unique and not conflict with other services on the same machine.
+# Allowed: Single port or port mapping format
+# Example: "10086" or "10086:10086"
+
+# Proxy protocol type for communication on the inbound connection.
+# Determines the protocol used for establishing connections with clients connecting to this V2Ray instance.
+# Allowed: vmess, vless
+# Example: "vmess"
+
+# Security setting for the inbound connection encryption.
+# Determines whether the connection uses encryption and what type of security protocol is applied.
+# Allowed: none, tls
+# Example: "tls"
+
+# File path to the TLS certificate for encrypted connections.
+# Required when security is set to "tls" for establishing secure encrypted communications with clients.
+# Allowed: Valid file path to certificate
+# Example: "/etc/v2ray/cert.pem"
+
+# File path to the TLS private key for encrypted connections.
+# Required when security is set to "tls" for establishing secure encrypted communications with clients.
+# Allowed: Valid file path to private key
+# Example: "/etc/v2ray/key.pem"
+
+# Transport protocol type for handling incoming requests and data transmission.
+# Determines the underlying transport mechanism used for communication between client and server.
+# Allowed: domainsocket, gun, grpc, http, mkcp, quic, tcp, websocket
+# Example: "tcp"
 
 {{- range $index, $inbound := .Inbounds }}
 

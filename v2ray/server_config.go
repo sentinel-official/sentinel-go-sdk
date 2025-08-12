@@ -3,6 +3,7 @@ package v2ray
 import (
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"os"
 
 	"github.com/spf13/pflag"
@@ -206,20 +207,41 @@ func DefaultServerConfig() *ServerConfig {
 		Inbounds: []*InboundServerConfig{
 			{
 				Port:        fmt.Sprintf("%d", utils.RandomPort()),
-				Proxy:       "vmess",
+				Proxy:       randomProxy(),
 				Security:    "none",
 				TLSCertPath: "",
 				TLSKeyPath:  "",
-				Transport:   "grpc",
+				Transport:   randomTransport(),
 			},
 			{
 				Port:        fmt.Sprintf("%d", utils.RandomPort()),
-				Proxy:       "vmess",
+				Proxy:       randomProxy(),
 				Security:    "none",
 				TLSCertPath: "",
 				TLSKeyPath:  "",
-				Transport:   "tcp",
+				Transport:   randomTransport(),
 			},
 		},
 	}
+}
+
+// randomProxy returns a random proxy protocol type (vless or vmess)
+func randomProxy() string {
+	return [...]string{
+		"vless", "vmess",
+	}[rand.IntN(2)]
+}
+
+// randomSecurity returns a random security configuration (none or tls)
+func randomSecurity() string {
+	return [...]string{
+		"none", "tls",
+	}[rand.IntN(2)]
+}
+
+// randomTransport returns a random transport protocol from available options
+func randomTransport() string {
+	return [...]string{
+		"domainsocket", "gun", "grpc", "http", "mkcp", "quic", "tcp", "websocket",
+	}[rand.IntN(8)]
 }

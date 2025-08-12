@@ -3,7 +3,7 @@ package wireguard
 import (
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"strings"
 
@@ -187,7 +187,7 @@ func DefaultServerConfig() *ServerConfig {
 	}
 
 	return &ServerConfig{
-		IPv4Addr:     fmt.Sprintf("10.%d.%d.1/24", rand.Intn(256), rand.Intn(256)),
+		IPv4Addr:     fmt.Sprintf("10.%d.%d.1/24", rand.IntN(256), rand.IntN(256)),
 		IPv6Addr:     "",
 		OutInterface: "eth0",
 		Port:         fmt.Sprintf("%d", utils.RandomPort()),

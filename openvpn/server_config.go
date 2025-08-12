@@ -3,7 +3,7 @@ package openvpn
 import (
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"os"
 
@@ -161,9 +161,8 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet) {}
 
 // DefaultServerConfig returns a ServerConfig instance populated with randomly generated values.
 func DefaultServerConfig() *ServerConfig {
-
 	return &ServerConfig{
-		IPv4Addr:   fmt.Sprintf("10.%d.%d.1/24", rand.Intn(256), rand.Intn(256)),
+		IPv4Addr:   fmt.Sprintf("10.%d.%d.1/24", rand.IntN(256), rand.IntN(256)),
 		IPv6Addr:   "",
 		PKIDir:     "",
 		Port:       fmt.Sprintf("%d", utils.RandomPort()),
@@ -174,5 +173,7 @@ func DefaultServerConfig() *ServerConfig {
 
 // randomProtocol randomly returns either "tcp" or "udp"
 func randomProtocol() string {
-	return [...]string{"tcp", "udp"}[rand.Intn(2)]
+	return [...]string{
+		"tcp", "udp",
+	}[rand.IntN(2)]
 }
