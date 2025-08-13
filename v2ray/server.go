@@ -543,7 +543,7 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error
 	}
 
 	// Remove the peer information from the local collection.
-	s.peers.Delete(id)
+	s.peers.Delete(id, nil)
 	return id, nil
 }
 
@@ -558,19 +558,15 @@ func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 	items := make(map[string]*types.PeerStatistics)
 
 	// Iterate over all peers and gather statistics.
-	fn := func(_ string, peer Peer) (bool, error) {
+	s.peers.RangeGet(func(_ string, peer Peer) bool {
 		items[peer.ID] = &types.PeerStatistics{
 			Duration: peer.TotalDuration(),
 			RxBytes:  peer.TotalRxBytes(),
 			TxBytes:  peer.TotalTxBytes(),
 		}
 
-		return false, nil
-	}
-
-	if err := s.peers.Range(fn); err != nil {
-		return nil, fmt.Errorf("failed to range peer statistics: %w", err)
-	}
+		return false
+	})
 
 	return items, nil
 }
@@ -579,14 +575,14 @@ func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 // and updates the in-memory peer data accordingly.
 func (s *Server) syncPeers(ctx context.Context) error {
 	// Create a copy of the current peers to iterate over.
-	items := make(map[string]Peer)
-	_ = s.peers.Range(func(key string, value Peer) (bool, error) {
-		items[key] = value
-		return false, nil
+	var items []string
+	s.peers.RangeGet(func(key string, _ Peer) bool {
+		items = append(items, key)
+		return false
 	})
 
 	client := statscommand.NewStatsServiceClient(s.conn)
-	for id := range items {
+	for _, id := range items {
 		// Prepare gRPC request to get uplink traffic stats.
 		in := &statscommand.GetStatsRequest{
 			Reset_: false,

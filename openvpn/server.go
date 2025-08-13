@@ -532,7 +532,7 @@ func (s *Server) RemovePeer(_ context.Context, req interface{}) (string, error) 
 		return "", fmt.Errorf("failed to revoke certificate: %w", err)
 	}
 
-	s.peers.Delete(id)
+	s.peers.Delete(id, nil)
 	return id, nil
 }
 
@@ -547,19 +547,15 @@ func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 	items := make(map[string]*types.PeerStatistics)
 
 	// Iterate over all peers and gather statistics.
-	fn := func(_ string, peer Peer) (bool, error) {
+	s.peers.RangeGet(func(_ string, peer Peer) bool {
 		items[peer.ID] = &types.PeerStatistics{
 			Duration: peer.TotalDuration(),
 			RxBytes:  peer.TotalRxBytes(),
 			TxBytes:  peer.TotalTxBytes(),
 		}
 
-		return false, nil
-	}
-
-	if err := s.peers.Range(fn); err != nil {
-		return nil, fmt.Errorf("failed to range peer statistics: %w", err)
-	}
+		return false
+	})
 
 	return items, nil
 }
