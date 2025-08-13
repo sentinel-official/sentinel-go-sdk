@@ -33,6 +33,7 @@ var _ types.ServerService = (*Server)(nil)
 // Server represents the V2Ray server instance.
 type Server struct {
 	cmd      *exec.Cmd               // Command to run the V2Ray server.
+	conn     *grpc.ClientConn        // gRPC client connection to the service.
 	homeDir  string                  // Home directory of the V2Ray server.
 	metadata []*ServerMetadata       // Metadata for server's inbound connections.
 	name     string                  // Name of the server instance.
@@ -141,36 +142,6 @@ func (s *Server) clientConn() (*grpc.ClientConn, error) {
 	}
 
 	return conn, nil
-}
-
-// handlerServiceClient establishes a gRPC client connection to the V2Ray server's handler service.
-func (s *Server) handlerServiceClient() (*grpc.ClientConn, proxymancommand.HandlerServiceClient, error) {
-	// Establish a gRPC client connection using the clientConn method.
-	conn, err := s.clientConn()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get grpc client connection: %w", err)
-	}
-
-	// Create a new HandlerServiceClient using the established connection.
-	client := proxymancommand.NewHandlerServiceClient(conn)
-
-	// Return both the connection and the client.
-	return conn, client, nil
-}
-
-// statsServiceClient establishes a gRPC client connection to the V2Ray server's stats service.
-func (s *Server) statsServiceClient() (*grpc.ClientConn, statscommand.StatsServiceClient, error) {
-	// Establish a gRPC client connection using the clientConn method.
-	conn, err := s.clientConn()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get grpc client connection: %w", err)
-	}
-
-	// Create a new StatsServiceClient using the established connection.
-	client := statscommand.NewStatsServiceClient(conn)
-
-	// Return both the connection and the client.
-	return conn, client, nil
 }
 
 // Type returns the service type of the server.
@@ -358,13 +329,18 @@ func (s *Server) Up(ctx context.Context) error {
 }
 
 // PostUp performs operations after the server process is started.
-func (s *Server) PostUp(ctx context.Context) error {
+func (s *Server) PostUp(ctx context.Context) (err error) {
 	// Create a context that cancels if either server or input context is done.
 	ctx, _ = utils.AnyDoneContext(s.ctx, ctx)
 
 	// Write PID to file.
 	if err := s.writePIDToFile(s.cmd.Process.Pid); err != nil {
 		return fmt.Errorf("failed to write pid to file: %w", err)
+	}
+
+	s.conn, err = s.clientConn()
+	if err != nil {
+		return fmt.Errorf("failed to get grpc client connection: %w", err)
 	}
 
 	// Start background goroutine for periodic peer statistics updates.
@@ -409,6 +385,11 @@ func (s *Server) Wait() error {
 func (s *Server) PreDown() error {
 	// Cancel background tasks if any.
 	s.cancel()
+
+	// Close gRPC client connection.
+	if err := s.conn.Close(); err != nil {
+		return fmt.Errorf("failed to close grpc client connection: %w", err)
+	}
 
 	return nil
 }
@@ -470,22 +451,10 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 		return "", nil, fmt.Errorf("invalid request: %w", err)
 	}
 
-	// Establish a gRPC client connection to the handler service.
-	conn, client, err := s.handlerServiceClient()
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to get handler service client: %w", err)
-	}
-
-	// Ensure the connection is closed when done.
-	defer func() {
-		if err = conn.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
 	// Retrieve the identity from the request.
 	id := r.ID()
 
+	client := proxymancommand.NewHandlerServiceClient(s.conn)
 	for _, md := range s.metadata {
 		// Prepare gRPC request to add a new user to the handler.
 		in := &proxymancommand.AlterInboundRequest{
@@ -549,22 +518,10 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error
 		return "", fmt.Errorf("invalid request: %w", err)
 	}
 
-	// Establish a gRPC client connection to the handler service.
-	conn, client, err := s.handlerServiceClient()
-	if err != nil {
-		return "", fmt.Errorf("failed to get handler service client: %w", err)
-	}
-
-	// Ensure the connection is closed when done.
-	defer func() {
-		if err = conn.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
 	// Retrieve the identity from the request.
 	id := r.ID()
 
+	client := proxymancommand.NewHandlerServiceClient(s.conn)
 	for _, md := range s.metadata {
 		// Prepare gRPC request to remove a user from the handler.
 		in := &proxymancommand.AlterInboundRequest{
@@ -621,19 +578,6 @@ func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 // syncPeers retrieves the latest peer transfer statistics from the stats service
 // and updates the in-memory peer data accordingly.
 func (s *Server) syncPeers(ctx context.Context) error {
-	// Establish a gRPC client connection to the stats service.
-	conn, client, err := s.statsServiceClient()
-	if err != nil {
-		return fmt.Errorf("failed to get stats service client: %w", err)
-	}
-
-	// Ensure the connection is closed when done.
-	defer func() {
-		if err = conn.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
 	// Create a copy of the current peers to iterate over.
 	items := make(map[string]Peer)
 	_ = s.peers.Range(func(key string, value Peer) (bool, error) {
@@ -641,6 +585,7 @@ func (s *Server) syncPeers(ctx context.Context) error {
 		return false, nil
 	})
 
+	client := statscommand.NewStatsServiceClient(s.conn)
 	for id := range items {
 		// Prepare gRPC request to get uplink traffic stats.
 		in := &statscommand.GetStatsRequest{
