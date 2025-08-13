@@ -39,7 +39,7 @@ func NewClient(appDir string) *Client {
 
 	return &Client{
 		homeDir: filepath.Join(appDir, "v2ray"),
-		name:    "v2ray",
+		name:    "client",
 		cancel:  cancel,
 		ctx:     ctx,
 		eg:      eg,

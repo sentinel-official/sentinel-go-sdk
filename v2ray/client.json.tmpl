@@ -59,6 +59,11 @@
             "streamSettings": {
                 "network": "{{ $outbound.Transport }}",
                 "security": "{{ $outbound.Security }}"
+                {{- if eq $outbound.Security "tls" }},
+                "tlsSettings": {
+                    "allowInsecure": true
+                }
+                {{- end }}
             },
             "tag": "{{ $outbound.Tag }}"
         }
