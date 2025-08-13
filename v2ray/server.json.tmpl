@@ -27,8 +27,8 @@
                     "allowInsecure": true,
                     "certificates": [
                         {
-                            "certificateFile": "{{ $inbound.TLSCertPath }}",
-                            "keyFile": "{{ $inbound.TLSKeyPath }}"
+                            "certificateFile": "{{ $.TLSCertFile }}",
+                            "keyFile": "{{ $.TLSKeyFile }}"
                         }
                     ]
                 }

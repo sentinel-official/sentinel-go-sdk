@@ -14,16 +14,6 @@
 # Allowed: none, tls
 # Example: "tls"
 
-# File path to the TLS certificate for encrypted connections.
-# Required when security is set to "tls" for establishing secure encrypted communications with clients.
-# Allowed: Valid file path to certificate
-# Example: "/etc/v2ray/cert.pem"
-
-# File path to the TLS private key for encrypted connections.
-# Required when security is set to "tls" for establishing secure encrypted communications with clients.
-# Allowed: Valid file path to private key
-# Example: "/etc/v2ray/key.pem"
-
 # Transport protocol type for handling incoming requests and data transmission.
 # Determines the underlying transport mechanism used for communication between client and server.
 # Allowed: domainsocket, gun, grpc, http, mkcp, quic, tcp, websocket
@@ -35,8 +25,6 @@
 port = "{{ $inbound.Port }}"
 proxy = "{{ $inbound.Proxy }}"
 security = "{{ $inbound.Security }}"
-tls_cert_path = "{{ $inbound.TLSCertPath }}"
-tls_key_path = "{{ $inbound.TLSKeyPath }}"
 transport = "{{ $inbound.Transport }}"
 
 {{- end }}

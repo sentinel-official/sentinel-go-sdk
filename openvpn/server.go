@@ -67,14 +67,14 @@ func (s *Server) appConfigFilePath() string {
 	return filepath.Join(s.homeDir, "config.toml")
 }
 
-// serviceConfigFilePath returns the full path to the service-specific configuration file.
-func (s *Server) serviceConfigFilePath() string {
-	return filepath.Join(s.homeDir, fmt.Sprintf("%s.conf", s.name))
-}
-
 // pidFilePath returns the full path to the PID file for OpenVPN process.
 func (s *Server) pidFilePath() string {
 	return filepath.Join(s.homeDir, fmt.Sprintf("%s.pid", s.name))
+}
+
+// serviceConfigFilePath returns the full path to the service-specific configuration file.
+func (s *Server) serviceConfigFilePath() string {
+	return filepath.Join(s.homeDir, fmt.Sprintf("%s.conf", s.name))
 }
 
 // readPIDFromFile reads the PID of the running OpenVPN process from a file.

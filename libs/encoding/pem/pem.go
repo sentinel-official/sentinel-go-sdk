@@ -97,39 +97,42 @@ func ReadFile(path string, format Format, out any) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse certificate: %w", err)
 		}
+
 		ptr, ok := out.(*x509.Certificate)
 		if !ok {
 			return fmt.Errorf("invalid out type %T, expected *x509.Certificate", out)
 		}
-		*ptr = *parsed
 
+		*ptr = *parsed
 	case BlockTypePrivateKey:
 		parsed, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 		if err != nil {
 			return fmt.Errorf("failed to parse private key: %w", err)
 		}
+
 		switch pk := parsed.(type) {
 		case *ecdsa.PrivateKey:
 			ptr, ok := out.(*ecdsa.PrivateKey)
 			if !ok {
 				return fmt.Errorf("invalid out type %T, expected *ecdsa.PrivateKey", out)
 			}
+
 			*ptr = *pk
 		default:
 			return fmt.Errorf("unsupported private key type %T", pk)
 		}
-
 	case BlockTypeCRL:
 		parsed, err := x509.ParseRevocationList(block.Bytes)
 		if err != nil {
 			return fmt.Errorf("failed to parse revocation list: %w", err)
 		}
+
 		ptr, ok := out.(*x509.RevocationList)
 		if !ok {
 			return fmt.Errorf("invalid out type %T, expected *x509.RevocationList", out)
 		}
-		*ptr = *parsed
 
+		*ptr = *parsed
 	default:
 		return fmt.Errorf("unsupported block type %s", block.Type)
 	}

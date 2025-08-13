@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/sentinel-official/sentinel-go-sdk/libs/crypto"
 	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
@@ -49,7 +50,7 @@ func NewServer(appDir string) *Server {
 
 	return &Server{
 		homeDir: filepath.Join(appDir, "v2ray"),
-		name:    "v2ray",
+		name:    "server",
 		peers:   safe.NewMap[string, Peer](),
 		cancel:  cancel,
 		ctx:     ctx,
@@ -68,14 +69,14 @@ func (s *Server) appConfigFilePath() string {
 	return filepath.Join(s.homeDir, "config.toml")
 }
 
-// serviceConfigFilePath returns the full path to the service-specific configuration file.
-func (s *Server) serviceConfigFilePath() string {
-	return filepath.Join(s.homeDir, fmt.Sprintf("%s.json", s.name))
-}
-
 // pidFilePath returns the file path of the server's PID file.
 func (s *Server) pidFilePath() string {
 	return filepath.Join(s.homeDir, fmt.Sprintf("%s.pid", s.name))
+}
+
+// serviceConfigFilePath returns the full path to the service-specific configuration file.
+func (s *Server) serviceConfigFilePath() string {
+	return filepath.Join(s.homeDir, fmt.Sprintf("%s.json", s.name))
 }
 
 // readPIDFromFile reads the PID from the server's PID file.
@@ -287,9 +288,21 @@ func (s *Server) PreUp(req interface{}) error {
 		return fmt.Errorf("failed to unmarshal config file: %w", err)
 	}
 
+	cfg.TLSCertFile = filepath.Join(s.homeDir, "tls.crt")
+	cfg.TLSKeyFile = filepath.Join(s.homeDir, "tls.key")
+
 	// Validate the unmarshalled config
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("failed to validate config file: %w", err)
+	}
+
+	// Initialize PKI and issue a tls certificate
+	pki := crypto.NewPKI(s.homeDir)
+	if err := pki.Init(); err != nil {
+		return fmt.Errorf("failed to init PKI: %w", err)
+	}
+	if _, _, err := pki.Issue("tls"); err != nil {
+		return fmt.Errorf("failed to issue certificate: %w", err)
 	}
 
 	for _, inbound := range cfg.Inbounds {

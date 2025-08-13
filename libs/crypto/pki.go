@@ -80,7 +80,7 @@ func (p *PKI) Init(opts ...CertOption) (err error) {
 			Organization: []string{"Sentinel"},
 		},
 		NotBefore:             timestamp,
-		NotAfter:              timestamp.AddDate(10, 0, 0), // 10-year validity
+		NotAfter:              timestamp.AddDate(10, 0, 0),
 		IsCA:                  true,
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,
 		BasicConstraintsValid: true,

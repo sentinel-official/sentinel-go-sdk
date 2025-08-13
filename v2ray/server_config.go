@@ -14,12 +14,10 @@ import (
 
 // InboundServerConfig represents the V2Ray inbound server configuration options.
 type InboundServerConfig struct {
-	Port        string `mapstructure:"port"`          // Port defines the inbound port range.
-	Proxy       string `mapstructure:"proxy"`         // Proxy defines the protocol used (e.g., vmess).
-	Security    string `mapstructure:"security"`      // Security specifies the encryption method.
-	TLSCertPath string `mapstructure:"tls_cert_path"` // TLSCertPath specifies the path to the TLS certificate.
-	TLSKeyPath  string `mapstructure:"tls_key_path"`  // TLSKeyPath specifies the path to the TLS private key.
-	Transport   string `mapstructure:"transport"`     // Transport specifies the transport protocol.
+	Port      string `mapstructure:"port"`      // Port defines the inbound port range.
+	Proxy     string `mapstructure:"proxy"`     // Proxy defines the protocol used (e.g., vmess).
+	Security  string `mapstructure:"security"`  // Security specifies the encryption method.
+	Transport string `mapstructure:"transport"` // Transport specifies the transport protocol.
 }
 
 // GetPort parses and returns the port configuration.
@@ -74,19 +72,8 @@ func (c *InboundServerConfig) Validate() error {
 	}
 
 	// Validate the Security setting.
-	security := NewTransportSecurityFromString(c.Security)
-	if !security.IsValid() {
-		return fmt.Errorf("invalid security %s", security)
-	}
-
-	// Ensure TLS paths are provided if Security is TLS.
-	if security == TransportSecurityTLS {
-		if c.TLSCertPath == "" {
-			return errors.New("tls_cert_path cannot be empty")
-		}
-		if c.TLSKeyPath == "" {
-			return errors.New("tls_key_path cannot be empty")
-		}
+	if v := NewTransportSecurityFromString(c.Security); !v.IsValid() {
+		return fmt.Errorf("invalid security %s", v)
 	}
 
 	// Validate the Transport protocol.
@@ -99,7 +86,9 @@ func (c *InboundServerConfig) Validate() error {
 
 // ServerConfig represents the V2Ray server configuration options.
 type ServerConfig struct {
-	Inbounds []*InboundServerConfig `mapstructure:"inbounds"` // Inbounds is a list of inbound server configurations.
+	Inbounds    []*InboundServerConfig `mapstructure:"inbounds"` // Inbounds is a list of inbound server configurations.
+	TLSCertFile string                 `mapstructure:"-"`        // TLSCertFile is the path to the TLS certificate file.
+	TLSKeyFile  string                 `mapstructure:"-"`        // TLSKeyFile is the path to the TLS private key file.
 }
 
 // Validate validates the ServerConfig fields.
@@ -151,6 +140,16 @@ func (c *ServerConfig) Validate() error {
 			return fmt.Errorf("duplicate tag %s", tag)
 		}
 		tagSet[tag] = true
+	}
+
+	// Validate TLS certificate file is specified.
+	if c.TLSCertFile == "" {
+		return errors.New("tls_cert_file cannot be empty")
+	}
+
+	// Validate TLS key file is specified.
+	if c.TLSKeyFile == "" {
+		return errors.New("tls_key_file cannot be empty")
 	}
 
 	return nil
@@ -206,20 +205,16 @@ func DefaultServerConfig() *ServerConfig {
 	return &ServerConfig{
 		Inbounds: []*InboundServerConfig{
 			{
-				Port:        fmt.Sprintf("%d", utils.RandomPort()),
-				Proxy:       randomProxy(),
-				Security:    "none",
-				TLSCertPath: "",
-				TLSKeyPath:  "",
-				Transport:   randomTransport(),
+				Port:      fmt.Sprintf("%d", utils.RandomPort()),
+				Proxy:     randomProxy(),
+				Security:  randomSecurity(),
+				Transport: randomTransport(),
 			},
 			{
-				Port:        fmt.Sprintf("%d", utils.RandomPort()),
-				Proxy:       randomProxy(),
-				Security:    "none",
-				TLSCertPath: "",
-				TLSKeyPath:  "",
-				Transport:   randomTransport(),
+				Port:      fmt.Sprintf("%d", utils.RandomPort()),
+				Proxy:     randomProxy(),
+				Security:  randomSecurity(),
+				Transport: randomTransport(),
 			},
 		},
 	}
