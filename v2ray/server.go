@@ -32,15 +32,16 @@ var _ types.ServerService = (*Server)(nil)
 
 // Server represents the V2Ray server instance.
 type Server struct {
-	cmd      *exec.Cmd               // Command to run the V2Ray server.
-	conn     *grpc.ClientConn        // gRPC client connection to the service.
-	homeDir  string                  // Home directory of the V2Ray server.
-	metadata []*ServerMetadata       // Metadata for server's inbound connections.
-	name     string                  // Name of the server instance.
-	peers    *safe.Map[string, Peer] // Peer manager for handling peer information.
+	cmd      *exec.Cmd                // Command to run the V2Ray server.
+	conn     *grpc.ClientConn         // gRPC client connection to the service.
+	homeDir  string                   // Home directory of the V2Ray server.
+	metadata []*ServerMetadata        // Metadata for the server's inbound connections.
+	name     string                   // Name of the server instance.
+	peers    *safe.Map[string, Peer]  // Peer manager for handling peer information.
+	proxies  map[string]ProxyProtocol // Proxy protocols used by the server.
 
 	cancel context.CancelFunc // Context cancel function to stop background tasks.
-	ctx    context.Context    // Context for server lifecycle management.
+	ctx    context.Context    // Context for managing the server lifecycle.
 	eg     *errgroup.Group    // Error group for managing background goroutines.
 }
 
@@ -53,6 +54,7 @@ func NewServer(appDir string) *Server {
 		homeDir: filepath.Join(appDir, "v2ray"),
 		name:    "server",
 		peers:   safe.NewMap[string, Peer](),
+		proxies: make(map[string]ProxyProtocol),
 		cancel:  cancel,
 		ctx:     ctx,
 		eg:      eg,
@@ -278,10 +280,14 @@ func (s *Server) PreUp(req interface{}) error {
 
 	for _, inbound := range cfg.Inbounds {
 		metadata := &ServerMetadata{
-			Tag: inbound.Tag(),
+			Port:              inbound.OutPort(),
+			ProxyProtocol:     inbound.GetProxyProtocol(),
+			TransportProtocol: inbound.GetTransportProtocol(),
+			TransportSecurity: inbound.GetTransportSecurity(),
 		}
 
 		s.metadata = append(s.metadata, metadata)
+		s.proxies[inbound.Tag()] = inbound.GetProxyProtocol()
 	}
 
 	// Write configuration to file.
@@ -455,15 +461,15 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	id := r.ID()
 
 	client := proxymancommand.NewHandlerServiceClient(s.conn)
-	for _, md := range s.metadata {
+	for tag, proxy := range s.proxies {
 		// Prepare gRPC request to add a new user to the handler.
 		in := &proxymancommand.AlterInboundRequest{
-			Tag: md.Tag.String(),
+			Tag: tag,
 			Operation: serial.ToTypedMessage(
 				&proxymancommand.AddUserOperation{
 					User: &protocol.User{
 						Email:   id,
-						Account: md.Tag.Account(r.UUID),
+						Account: proxy.Account(r.UUID),
 					},
 				},
 			),
@@ -522,10 +528,10 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error
 	id := r.ID()
 
 	client := proxymancommand.NewHandlerServiceClient(s.conn)
-	for _, md := range s.metadata {
+	for tag := range s.proxies {
 		// Prepare gRPC request to remove a user from the handler.
 		in := &proxymancommand.AlterInboundRequest{
-			Tag: md.Tag.String(),
+			Tag: tag,
 			Operation: serial.ToTypedMessage(
 				&proxymancommand.RemoveUserOperation{
 					Email: id,

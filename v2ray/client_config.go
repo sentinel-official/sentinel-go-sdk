@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/pflag"
 	"github.com/v2fly/v2ray-core/v5/common/uuid"
@@ -14,7 +16,7 @@ import (
 
 // APIClientConfig represents the configuration for the API client.
 type APIClientConfig struct {
-	Port uint16 `mapstructure:"port"`
+	Port uint16 `mapstructure:"port"` // Port specifies the port for the API client.
 }
 
 // Validate validates the APIClientConfig fields.
@@ -30,41 +32,62 @@ func (c *APIClientConfig) Validate() error {
 // DefaultAPIClientConfig creates a default API client configuration.
 func DefaultAPIClientConfig() *APIClientConfig {
 	return &APIClientConfig{
-		Port: utils.RandomPort(),
+		Port: 2323,
 	}
 }
 
 // OutboundClientConfig represents the configuration for outbound connections.
 type OutboundClientConfig struct {
-	Port      uint16 `mapstructure:"port"`
-	Proxy     string `mapstructure:"proxy"`
-	Security  string `mapstructure:"security"`
-	Transport string `mapstructure:"transport"`
+	Addr              string `mapstructure:"addr"`               // Addr specifies the destination server address.
+	Port              uint16 `mapstructure:"port"`               // Port specifies the destination server port.
+	ProxyProtocol     string `mapstructure:"proxy_protocol"`     // ProxyProtocol specifies the proxy protocol to use.
+	TransportProtocol string `mapstructure:"transport_protocol"` // TransportProtocol specifies the transport protocol to use.
+	TransportSecurity string `mapstructure:"transport_security"` // TransportSecurity specifies the transport security type.
 }
 
 // Validate validates the OutboundClientConfig fields.
 func (c *OutboundClientConfig) Validate() error {
+	// Ensure the address is not empty.
+	if c.Addr == "" {
+		return errors.New("addr cannot be empty")
+	}
+
 	// Ensure Port is not empty.
 	if c.Port == 0 {
 		return errors.New("port cannot be empty")
 	}
 
 	// Validate the Proxy protocol.
-	if v := NewProxyProtocolFromString(c.Proxy); !v.IsValid() {
+	if v := NewProxyProtocolFromString(c.ProxyProtocol); !v.IsValid() {
 		return fmt.Errorf("invalid proxy %s", v)
 	}
 
-	// Validate the Security setting.
-	if v := NewTransportSecurityFromString(c.Security); !v.IsValid() {
-		return fmt.Errorf("invalid security %s", v)
-	}
-
 	// Validate the Transport protocol.
-	if v := NewTransportProtocolFromString(c.Transport); !v.IsValid() {
+	if v := NewTransportProtocolFromString(c.TransportProtocol); !v.IsValid() {
 		return fmt.Errorf("invalid transport %s", v)
 	}
 
+	// Validate the Transport Security.
+	if v := NewTransportSecurityFromString(c.TransportSecurity); !v.IsValid() {
+		return fmt.Errorf("invalid security %s", v)
+	}
+
 	return nil
+}
+
+// GetProxyProtocol returns the proxy protocol as a ProxyProtocol type.
+func (c *OutboundClientConfig) GetProxyProtocol() ProxyProtocol {
+	return NewProxyProtocolFromString(c.ProxyProtocol)
+}
+
+// GetTransportProtocol returns the transport protocol as a TransportProtocol type.
+func (c *OutboundClientConfig) GetTransportProtocol() TransportProtocol {
+	return NewTransportProtocolFromString(c.TransportProtocol)
+}
+
+// GetTransportSecurity returns the transport security as a TransportSecurity type.
+func (c *OutboundClientConfig) GetTransportSecurity() TransportSecurity {
+	return NewTransportSecurityFromString(c.TransportSecurity)
 }
 
 // GetPort returns the parsed port configuration.
@@ -77,23 +100,22 @@ func (c *OutboundClientConfig) GetPort() *netip.Port {
 	}
 }
 
-// Tag generates a tag based on the outbound configuration.
-func (c *OutboundClientConfig) Tag() *Tag {
-	proxy := NewProxyProtocolFromString(c.Proxy)
-	security := NewTransportSecurityFromString(c.Security)
-	transport := NewTransportProtocolFromString(c.Transport)
-
-	return &Tag{
-		Port:      c.GetPort(),
-		Proxy:     proxy,
-		Security:  security,
-		Transport: transport,
+// Tag generates a unique tag string based on the outbound connection configuration.
+func (c *OutboundClientConfig) Tag() string {
+	items := []string{
+		c.Addr,
+		strconv.Itoa(int(c.Port)),
+		c.GetProxyProtocol().String(),
+		c.GetTransportProtocol().String(),
+		c.GetTransportSecurity().String(),
 	}
+
+	return strings.Join(items, "_")
 }
 
 // ProxyClientConfig represents the proxy client configuration.
 type ProxyClientConfig struct {
-	Port uint16 `mapstructure:"port"`
+	Port uint16 `mapstructure:"port"` // Port specifies the port for the proxy client.
 }
 
 // Validate validates the ProxyClientConfig fields.
@@ -109,20 +131,20 @@ func (c *ProxyClientConfig) Validate() error {
 // DefaultProxyClientConfig creates a default ProxyClientConfig.
 func DefaultProxyClientConfig() *ProxyClientConfig {
 	return &ProxyClientConfig{
-		Port: utils.RandomPort(),
+		Port: 1080,
 	}
 }
 
 // ClientConfig represents the V2Ray client configuration options.
 type ClientConfig struct {
-	Addr      string                  `mapstructure:"addr"`
-	API       *APIClientConfig        `mapstructure:"api"`
-	ID        string                  `mapstructure:"id"`
-	Name      string                  `mapstructure:"name"`
-	Outbounds []*OutboundClientConfig `mapstructure:"outbounds"`
-	Proxy     *ProxyClientConfig      `mapstructure:"proxy"`
+	API       *APIClientConfig        `mapstructure:"api"`       // API defines the API client configuration.
+	ID        string                  `mapstructure:"id"`        // ID specifies the client identifier in UUID format.
+	Outbounds []*OutboundClientConfig `mapstructure:"outbounds"` // Outbounds defines the list of outbound connection configurations.
+	Proxy     *ProxyClientConfig      `mapstructure:"proxy"`     // Proxy defines the proxy client configuration.
 }
 
+// GetID parses and returns the UUID from the ClientConfig's ID field.
+// It panics if the ID is not a valid UUID string.
 func (c *ClientConfig) GetID() uuid.UUID {
 	id, err := uuid.ParseString(c.ID)
 	if err != nil {
@@ -134,11 +156,6 @@ func (c *ClientConfig) GetID() uuid.UUID {
 
 // Validate validates the ClientConfig fields.
 func (c *ClientConfig) Validate() error {
-	// Ensure the address is not empty.
-	if c.Addr == "" {
-		return errors.New("addr cannot be empty")
-	}
-
 	// Validate the API client configuration.
 	if err := c.API.Validate(); err != nil {
 		return fmt.Errorf("invalid api config: %w", err)
@@ -147,11 +164,6 @@ func (c *ClientConfig) Validate() error {
 	// Ensure the ID is not empty.
 	if c.ID == "" {
 		return errors.New("id cannot be empty")
-	}
-
-	// Ensure the Name is not empty.
-	if c.Name == "" {
-		return errors.New("name cannot be empty")
 	}
 
 	// Validate each outbound client configuration.
@@ -213,7 +225,6 @@ func (c *ClientConfig) WriteAppConfig(filename string) error {
 
 // SetForFlags adds client configuration flags to the specified FlagSet.
 func (c *ClientConfig) SetForFlags(f *pflag.FlagSet) {
-	f.StringVar(&c.Name, "v2ray.name", c.Name, "name of the v2ray client instance")
 	f.Uint16Var(&c.API.Port, "v2ray.api.port", c.API.Port, "port for the v2ray statistics and management operations")
 	f.Uint16Var(&c.Proxy.Port, "v2ray.proxy.port", c.Proxy.Port, "port for the v2ray socks5 proxy server")
 }
@@ -221,10 +232,8 @@ func (c *ClientConfig) SetForFlags(f *pflag.FlagSet) {
 // DefaultClientConfig creates a default ClientConfig with predefined values.
 func DefaultClientConfig() *ClientConfig {
 	return &ClientConfig{
-		Addr:      "",
 		API:       DefaultAPIClientConfig(),
 		ID:        NewStringUUID(),
-		Name:      "v2ray",
 		Outbounds: []*OutboundClientConfig{},
 		Proxy:     DefaultProxyClientConfig(),
 	}

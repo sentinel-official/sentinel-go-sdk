@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"os"
+	"strings"
 
 	"github.com/spf13/pflag"
 
@@ -14,10 +15,10 @@ import (
 
 // InboundServerConfig represents the V2Ray inbound server configuration options.
 type InboundServerConfig struct {
-	Port      string `mapstructure:"port"`      // Port defines the inbound port range.
-	Proxy     string `mapstructure:"proxy"`     // Proxy defines the protocol used (e.g., vmess).
-	Security  string `mapstructure:"security"`  // Security specifies the encryption method.
-	Transport string `mapstructure:"transport"` // Transport specifies the transport protocol.
+	Port              string `mapstructure:"port"`               // Port defines the inbound port range.
+	ProxyProtocol     string `mapstructure:"proxy_protocol"`     // ProxyProtocol defines the protocol used (e.g., vmess).
+	TransportProtocol string `mapstructure:"transport_protocol"` // TransportProtocol specifies the transport protocol.
+	TransportSecurity string `mapstructure:"transport_security"` // TransportSecurity specifies the encryption method.
 }
 
 // GetPort parses and returns the port configuration.
@@ -28,6 +29,21 @@ func (c *InboundServerConfig) GetPort() *netip.Port {
 	}
 
 	return port
+}
+
+// GetProxyProtocol parses and returns the proxy protocol configuration.
+func (c *InboundServerConfig) GetProxyProtocol() ProxyProtocol {
+	return NewProxyProtocolFromString(c.ProxyProtocol)
+}
+
+// GetTransportProtocol parses and returns the transport protocol configuration.
+func (c *InboundServerConfig) GetTransportProtocol() TransportProtocol {
+	return NewTransportProtocolFromString(c.TransportProtocol)
+}
+
+// GetTransportSecurity parses and returns the transport security configuration.
+func (c *InboundServerConfig) GetTransportSecurity() TransportSecurity {
+	return NewTransportSecurityFromString(c.TransportSecurity)
 }
 
 // InPort returns the inbound port range.
@@ -41,17 +57,15 @@ func (c *InboundServerConfig) OutPort() string {
 }
 
 // Tag creates a Tag instance based on the InboundServerConfig configuration.
-func (c *InboundServerConfig) Tag() *Tag {
-	proxy := NewProxyProtocolFromString(c.Proxy)
-	security := NewTransportSecurityFromString(c.Security)
-	transport := NewTransportProtocolFromString(c.Transport)
-
-	return &Tag{
-		Port:      c.GetPort(),
-		Proxy:     proxy,
-		Security:  security,
-		Transport: transport,
+func (c *InboundServerConfig) Tag() string {
+	items := []string{
+		c.InPort(),
+		c.GetProxyProtocol().String(),
+		c.GetTransportProtocol().String(),
+		c.GetTransportSecurity().String(),
 	}
+
+	return strings.Join(items, "_")
 }
 
 // Validate validates the InboundServerConfig fields.
@@ -67,18 +81,18 @@ func (c *InboundServerConfig) Validate() error {
 	}
 
 	// Validate the Proxy protocol.
-	if v := NewProxyProtocolFromString(c.Proxy); !v.IsValid() {
+	if v := NewProxyProtocolFromString(c.ProxyProtocol); !v.IsValid() {
 		return fmt.Errorf("invalid proxy %s", v)
 	}
 
-	// Validate the Security setting.
-	if v := NewTransportSecurityFromString(c.Security); !v.IsValid() {
-		return fmt.Errorf("invalid security %s", v)
+	// Validate the Transport protocol.
+	if v := NewTransportProtocolFromString(c.TransportProtocol); !v.IsValid() {
+		return fmt.Errorf("invalid transport %s", v)
 	}
 
-	// Validate the Transport protocol.
-	if v := NewTransportProtocolFromString(c.Transport); !v.IsValid() {
-		return fmt.Errorf("invalid transport %s", v)
+	// Validate the Transport security.
+	if v := NewTransportSecurityFromString(c.TransportSecurity); !v.IsValid() {
+		return fmt.Errorf("invalid security %s", v)
 	}
 
 	return nil
@@ -135,7 +149,7 @@ func (c *ServerConfig) Validate() error {
 		}
 
 		// Check tags for duplicates.
-		tag := inbound.Tag().String()
+		tag := inbound.Tag()
 		if tagSet[tag] {
 			return fmt.Errorf("duplicate tag %s", tag)
 		}
@@ -205,38 +219,38 @@ func DefaultServerConfig() *ServerConfig {
 	return &ServerConfig{
 		Inbounds: []*InboundServerConfig{
 			{
-				Port:      fmt.Sprintf("%d", utils.RandomPort()),
-				Proxy:     randomProxy(),
-				Security:  randomSecurity(),
-				Transport: randomTransport(),
+				Port:              fmt.Sprintf("%d", utils.RandomPort()),
+				ProxyProtocol:     randomProxyProtocol(),
+				TransportProtocol: randomTransportProtocol(),
+				TransportSecurity: randomTransportSecurity(),
 			},
 			{
-				Port:      fmt.Sprintf("%d", utils.RandomPort()),
-				Proxy:     randomProxy(),
-				Security:  randomSecurity(),
-				Transport: randomTransport(),
+				Port:              fmt.Sprintf("%d", utils.RandomPort()),
+				ProxyProtocol:     randomProxyProtocol(),
+				TransportProtocol: randomTransportProtocol(),
+				TransportSecurity: randomTransportSecurity(),
 			},
 		},
 	}
 }
 
-// randomProxy returns a random proxy protocol type (vless or vmess)
-func randomProxy() string {
+// randomProxyProtocol returns a random proxy protocol type (vless or vmess).
+func randomProxyProtocol() string {
 	return [...]string{
 		"vless", "vmess",
 	}[rand.IntN(2)]
 }
 
-// randomSecurity returns a random security configuration (none or tls)
-func randomSecurity() string {
-	return [...]string{
-		"none", "tls",
-	}[rand.IntN(2)]
-}
-
-// randomTransport returns a random transport protocol from available options
-func randomTransport() string {
+// randomTransportProtocol returns a random transport protocol from available options.
+func randomTransportProtocol() string {
 	return [...]string{
 		"domainsocket", "gun", "grpc", "http", "mkcp", "quic", "tcp", "websocket",
 	}[rand.IntN(8)]
+}
+
+// randomTransportSecurity returns a random security configuration (none or tls).
+func randomTransportSecurity() string {
+	return [...]string{
+		"none", "tls",
+	}[rand.IntN(2)]
 }

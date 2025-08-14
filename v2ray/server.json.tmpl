@@ -18,11 +18,11 @@
         {{- range $index, $inbound := .Inbounds }}
         {
             "port": "{{ $inbound.InPort }}",
-            "protocol": "{{ $inbound.Proxy }}",
+            "protocol": "{{ $inbound.ProxyProtocol }}",
             "streamSettings": {
-                "network": "{{ $inbound.Transport }}",
-                "security": "{{ $inbound.Security }}"
-                {{- if eq $inbound.Security "tls" }},
+                "network": "{{ $inbound.TransportProtocol }}",
+                "security": "{{ $inbound.TransportSecurity }}"
+                {{- if eq $inbound.TransportSecurity "tls" }},
                 "tlsSettings": {
                     "certificates": [
                         {
@@ -33,7 +33,7 @@
                 }
                 {{- end }}
             },
-            "tag": "{{ .Tag }}"
+            "tag": "{{ $inbound.Tag }}"
         }
         {{- if ne (sum $index 1) (len $.Inbounds) }},{{- end }}
         {{- end }}

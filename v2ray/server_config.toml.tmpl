@@ -9,22 +9,22 @@
 # Allowed: vmess, vless
 # Example: "vmess"
 
-# Security setting for the inbound connection encryption.
-# Determines whether the connection uses encryption and what type of security protocol is applied.
-# Allowed: none, tls
-# Example: "tls"
-
 # Transport protocol type for handling incoming requests and data transmission.
 # Determines the underlying transport mechanism used for communication between client and server.
 # Allowed: domainsocket, gun, grpc, http, mkcp, quic, tcp, websocket
 # Example: "tcp"
 
+# Transport Security setting for the inbound connection encryption.
+# Determines whether the connection uses encryption and what type of security protocol is applied.
+# Allowed: none, tls
+# Example: "tls"
+
 {{- range $index, $inbound := .Inbounds }}
 
 [[inbounds]]
 port = "{{ $inbound.Port }}"
-proxy = "{{ $inbound.Proxy }}"
-security = "{{ $inbound.Security }}"
-transport = "{{ $inbound.Transport }}"
+proxy_protocol = "{{ $inbound.ProxyProtocol }}"
+transport_protocol = "{{ $inbound.TransportProtocol }}"
+transport_security = "{{ $inbound.TransportSecurity }}"
 
 {{- end }}

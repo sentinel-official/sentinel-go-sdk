@@ -41,11 +41,11 @@
     "outbounds": [
         {{- range $index, $outbound := .Outbounds }}
         {
-            "protocol": "{{ $outbound.Proxy }}",
+            "protocol": "{{ $outbound.ProxyProtocol }}",
             "settings": {
                 "vnext": [
                     {
-                        "address": "{{ $.Addr }}",
+                        "address": "{{ $outbound.Addr }}",
                         "port": {{ $outbound.Port }},
                         "users": [
                             {
@@ -57,9 +57,9 @@
                 ]
             },
             "streamSettings": {
-                "network": "{{ $outbound.Transport }}",
-                "security": "{{ $outbound.Security }}"
-                {{- if eq $outbound.Security "tls" }},
+                "network": "{{ $outbound.TransportProtocol }}",
+                "security": "{{ $outbound.TransportSecurity }}"
+                {{- if eq $outbound.TransportSecurity "tls" }},
                 "tlsSettings": {
                     "allowInsecure": true
                 }
