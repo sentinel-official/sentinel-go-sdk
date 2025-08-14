@@ -33,7 +33,7 @@ var _ types.ServerService = (*Server)(nil)
 // Server represents the V2Ray server instance.
 type Server struct {
 	cmd      *exec.Cmd                // Command to run the V2Ray server.
-	conn     *grpc.ClientConn         // gRPC client connection to the service.
+	conn     *safe.GRPCConn           // gRPC client connection to the service.
 	homeDir  string                   // Home directory of the V2Ray server.
 	metadata []*ServerMetadata        // Metadata for the server's inbound connections.
 	name     string                   // Name of the server instance.
@@ -51,6 +51,7 @@ func NewServer(appDir string) *Server {
 	eg, ctx := errgroup.WithContext(ctx)
 
 	return &Server{
+		conn:    &safe.GRPCConn{},
 		homeDir: filepath.Join(appDir, "v2ray"),
 		name:    "server",
 		peers:   safe.NewMap[string, Peer](),
@@ -126,24 +127,6 @@ func (s *Server) writePIDToFile(pid int) error {
 	}
 
 	return nil
-}
-
-// clientConn establishes a gRPC client connection to the V2Ray server.
-func (s *Server) clientConn() (*grpc.ClientConn, error) {
-	// Define the target address for the gRPC client connection.
-	target := "127.0.0.1:2323"
-
-	// Establish a gRPC client connection with specified options:
-	// - WithTransportCredentials: Configures insecure transport credentials for the connection.
-	conn, err := grpc.NewClient(
-		target,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create grpc client: %w", err)
-	}
-
-	return conn, nil
 }
 
 // Type returns the service type of the server.
@@ -344,9 +327,14 @@ func (s *Server) PostUp(ctx context.Context) (err error) {
 		return fmt.Errorf("failed to write pid to file: %w", err)
 	}
 
-	s.conn, err = s.clientConn()
-	if err != nil {
-		return fmt.Errorf("failed to get grpc client connection: %w", err)
+	target := "127.0.0.1:2323"
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+
+	// Establish a safe, concurrency-managed gRPC connection to the target.
+	if err := s.conn.Dial(target, opts...); err != nil {
+		return fmt.Errorf("failed to dial target: %w", err)
 	}
 
 	// Start background goroutine for periodic peer statistics updates.
@@ -460,7 +448,10 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	// Retrieve the identity from the request.
 	id := r.ID()
 
-	client := proxymancommand.NewHandlerServiceClient(s.conn)
+	conn, release := s.conn.Acquire()
+	defer release()
+
+	client := proxymancommand.NewHandlerServiceClient(conn)
 	for tag, proxy := range s.proxies {
 		// Prepare gRPC request to add a new user to the handler.
 		in := &proxymancommand.AlterInboundRequest{
@@ -527,7 +518,10 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error
 	// Retrieve the identity from the request.
 	id := r.ID()
 
-	client := proxymancommand.NewHandlerServiceClient(s.conn)
+	conn, release := s.conn.Acquire()
+	defer release()
+
+	client := proxymancommand.NewHandlerServiceClient(conn)
 	for tag := range s.proxies {
 		// Prepare gRPC request to remove a user from the handler.
 		in := &proxymancommand.AlterInboundRequest{
@@ -587,7 +581,10 @@ func (s *Server) syncPeers(ctx context.Context) error {
 		return false
 	})
 
-	client := statscommand.NewStatsServiceClient(s.conn)
+	conn, release := s.conn.Acquire()
+	defer release()
+
+	client := statscommand.NewStatsServiceClient(conn)
 	for _, id := range items {
 		// Prepare gRPC request to get uplink traffic stats.
 		in := &statscommand.GetStatsRequest{
