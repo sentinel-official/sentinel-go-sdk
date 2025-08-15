@@ -23,10 +23,10 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("validating query config: %w", err)
 	}
 	if err := c.RPC.Validate(); err != nil {
-		return fmt.Errorf("validation rpc config: %w", err)
+		return fmt.Errorf("validating rpc config: %w", err)
 	}
 	if err := c.Tx.Validate(); err != nil {
-		return fmt.Errorf("validation tx config: %w", err)
+		return fmt.Errorf("validating tx config: %w", err)
 	}
 
 	return nil
