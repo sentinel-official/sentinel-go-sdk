@@ -453,16 +453,16 @@ func (s *Server) syncPeers(ctx context.Context) error {
 			continue
 		}
 
-		// Parse upload traffic stats.
+		// Parse peer upload traffic stats.
 		rxBytes, err := strconv.ParseInt(columns[1], 10, 64)
 		if err != nil {
-			return fmt.Errorf("failed to parse download bytes: %w", err)
+			return fmt.Errorf("failed to parse uplink bytes: %w", err)
 		}
 
-		// Parse download traffic stats.
+		// Parse peer download traffic stats.
 		txBytes, err := strconv.ParseInt(columns[2], 10, 64)
 		if err != nil {
-			return fmt.Errorf("failed to parse upload bytes: %w", err)
+			return fmt.Errorf("failed to parse downlink bytes: %w", err)
 		}
 
 		// Update peer statistics in thread-safe map.
@@ -471,9 +471,9 @@ func (s *Server) syncPeers(ctx context.Context) error {
 				return p
 			}
 
+			p.Current.Duration = time.Since(p.Timestamp)
 			p.Current.RxBytes = rxBytes
 			p.Current.TxBytes = txBytes
-			p.Current.Duration = time.Since(p.Timestamp)
 
 			return p
 		})

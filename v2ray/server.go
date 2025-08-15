@@ -599,9 +599,9 @@ func (s *Server) syncPeers(ctx context.Context) error {
 		}
 
 		// Extract uplink traffic stats or use an empty stat if not found.
-		txBytes := &statscommand.Stat{}
+		rxBytes := &statscommand.Stat{}
 		if res != nil && res.GetStat() != nil {
-			txBytes = res.GetStat()
+			rxBytes = res.GetStat()
 		}
 
 		// Prepare gRPC request to get downlink traffic stats.
@@ -617,9 +617,9 @@ func (s *Server) syncPeers(ctx context.Context) error {
 		}
 
 		// Extract downlink traffic stats or use an empty stat if not found.
-		rxBytes := &statscommand.Stat{}
+		txBytes := &statscommand.Stat{}
 		if res != nil && res.GetStat() != nil {
-			rxBytes = res.GetStat()
+			txBytes = res.GetStat()
 		}
 
 		s.peers.Update(id, func(p Peer, ok bool) Peer {
@@ -627,9 +627,9 @@ func (s *Server) syncPeers(ctx context.Context) error {
 				return p
 			}
 
+			p.Current.Duration = time.Since(p.Timestamp)
 			p.Current.RxBytes = rxBytes.GetValue()
 			p.Current.TxBytes = txBytes.GetValue()
-			p.Current.Duration = time.Since(p.Timestamp)
 
 			return p
 		})

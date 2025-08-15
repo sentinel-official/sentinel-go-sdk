@@ -46,8 +46,8 @@ func ServiceTypeFromString(s string) ServiceType {
 // PeerStatistics holds network usage metrics for a peer.
 type PeerStatistics struct {
 	Duration time.Duration `json:"duration,omitempty"` // Total time the peer has been active
-	RxBytes  int64         `json:"rx_bytes,omitempty"` // Total bytes received in this snapshot
-	TxBytes  int64         `json:"tx_bytes,omitempty"` // Total bytes transmitted in this snapshot
+	RxBytes  int64         `json:"rx_bytes,omitempty"` // Total uplink bytes received in this snapshot
+	TxBytes  int64         `json:"tx_bytes,omitempty"` // Total downlink bytes transmitted in this snapshot
 }
 
 // ClientService defines the interface for client-side service operations.

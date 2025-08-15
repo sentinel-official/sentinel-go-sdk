@@ -616,12 +616,12 @@ func (s *Server) syncPeers(_ context.Context) error {
 
 		rxBytes, err := strconv.ParseInt(fields[5], 10, 64)
 		if err != nil {
-			return fmt.Errorf("failed to parse download bytes: %w", err)
+			return fmt.Errorf("failed to parse uplink bytes: %w", err)
 		}
 
 		txBytes, err := strconv.ParseInt(fields[6], 10, 64)
 		if err != nil {
-			return fmt.Errorf("failed to parse upload bytes: %w", err)
+			return fmt.Errorf("failed to parse downlink bytes: %w", err)
 		}
 
 		timestamp, err := time.Parse(time.DateTime, fields[7])
