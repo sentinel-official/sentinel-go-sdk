@@ -25,7 +25,7 @@ func NewGeoJSClient(proxyAddr string, timeout time.Duration) (*GeoJSClient, erro
 	if proxyAddr != "" {
 		proxyURL, err := url.Parse(proxyAddr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid proxy addr: %w", err)
+			return nil, fmt.Errorf("parsing proxy addr %q: %w", proxyAddr, err)
 		}
 
 		transport.Proxy = http.ProxyURL(proxyURL)
@@ -50,7 +50,7 @@ func (c *GeoJSClient) Get(ip string) (*Location, error) {
 	// Make the HTTP GET request to the GeoJS API.
 	resp, err := c.c.Get(apiURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("requesting geolocation data for %q: %w", ip, err)
 	}
 
 	defer func() {
@@ -59,7 +59,7 @@ func (c *GeoJSClient) Get(ip string) (*Location, error) {
 
 	// Check if the response status code indicates success.
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to retrieve data, status: %s", resp.Status)
+		return nil, fmt.Errorf("geolocation request for %q failed with status %s", ip, resp.Status)
 	}
 
 	// Parse the JSON response into a temporary structure.
@@ -73,17 +73,17 @@ func (c *GeoJSClient) Get(ip string) (*Location, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decoding geolocation response body: %w", err)
 	}
 
 	// Convert latitude and longitude from string to float.
 	latitude, err := strconv.ParseFloat(result.Latitude, 64)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parsing geolocation latitude: %w", err)
 	}
 	longitude, err := strconv.ParseFloat(result.Longitude, 64)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parsing geolocation longitude: %w", err)
 	}
 
 	// Return the location information as a Location struct.

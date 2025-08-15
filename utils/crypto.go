@@ -2,7 +2,6 @@ package utils
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -28,13 +27,13 @@ func DecodePubKey(s string) (types.PubKey, error) {
 	// Split into type and key parts
 	parts := strings.Split(s, ":")
 	if len(parts) != 2 {
-		return nil, errors.New("invalid public key format")
+		return nil, fmt.Errorf("got %d fields, expected 2 (type:key)", len(parts))
 	}
 
 	// Decode base64 key
 	key, err := base64.StdEncoding.DecodeString(parts[1])
 	if err != nil {
-		return nil, fmt.Errorf("failed to base64 key: %w", err)
+		return nil, fmt.Errorf("decoding key part: %w", err)
 	}
 
 	switch parts[0] {
@@ -43,14 +42,14 @@ func DecodePubKey(s string) (types.PubKey, error) {
 	case "secp256k1":
 		return decodeSecp256k1Key(key)
 	default:
-		return nil, errors.New("unsupported public key type")
+		return nil, fmt.Errorf("unsupported public key type %q", parts[0])
 	}
 }
 
 // decodeEd25519Key validates and decodes an Ed25519 public key.
 func decodeEd25519Key(keyBytes []byte) (types.PubKey, error) {
 	if len(keyBytes) != ed25519.PubKeySize {
-		return nil, errors.New("invalid ed25519 public key size")
+		return nil, fmt.Errorf("invalid ed25519 public key size %d, expected %d", len(keyBytes), ed25519.PubKeySize)
 	}
 
 	return &ed25519.PubKey{Key: keyBytes}, nil
@@ -59,7 +58,7 @@ func decodeEd25519Key(keyBytes []byte) (types.PubKey, error) {
 // decodeSecp256k1Key validates and decodes a Secp256k1 public key.
 func decodeSecp256k1Key(keyBytes []byte) (types.PubKey, error) {
 	if len(keyBytes) != secp256k1.PubKeySize {
-		return nil, errors.New("invalid secp256k1 public key size")
+		return nil, fmt.Errorf("invalid secp256k1 public key size %d, expected %d", len(keyBytes), secp256k1.PubKeySize)
 	}
 
 	return &secp256k1.PubKey{Key: keyBytes}, nil

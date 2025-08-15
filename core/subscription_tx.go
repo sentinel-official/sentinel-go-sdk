@@ -25,7 +25,7 @@ func (c *Client) SubscriptionStartSession(ctx context.Context, id uint64, nodeAd
 	}
 
 	// Broadcast the transaction and wait for its inclusion in a block.
-	_, res, err := c.BroadcastTxBlock(ctx, msgs...)
+	_, res, err := c.BroadcastTxCommit(ctx, msgs...)
 	if err != nil {
 		return 0, fmt.Errorf("subscription start session tx failed: %w", err)
 	}

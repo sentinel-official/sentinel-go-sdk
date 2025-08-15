@@ -29,7 +29,7 @@ func (c *Client) Session(ctx context.Context, id uint64) (res v3.Session, err er
 
 	// Perform the gRPC query to fetch the session details.
 	if err := c.QueryGRPC(ctx, methodQuerySession, req, &resp); err != nil {
-		return nil, IsCodeNotFound(err)
+		return nil, HandleQueryErr(err)
 	}
 
 	// Unpack the session data from the response.
@@ -50,7 +50,7 @@ func (c *Client) Sessions(ctx context.Context, pageReq *query.PageRequest) (res 
 
 	// Perform the gRPC query to fetch the sessions.
 	if err := c.QueryGRPC(ctx, methodQuerySessions, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	// Unpack each session from the response.
@@ -77,7 +77,7 @@ func (c *Client) SessionsForAccount(ctx context.Context, accAddr cosmossdk.AccAd
 
 	// Perform the gRPC query to fetch sessions for the given account.
 	if err := c.QueryGRPC(ctx, methodQuerySessionsForAccount, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	// Unpack each session from the response.
@@ -104,7 +104,7 @@ func (c *Client) SessionsForNode(ctx context.Context, nodeAddr sentinelhub.NodeA
 
 	// Perform the gRPC query to fetch sessions for the given node.
 	if err := c.QueryGRPC(ctx, methodQuerySessionsForNode, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	// Unpack each session from the response.
@@ -131,7 +131,7 @@ func (c *Client) SessionsForSubscription(ctx context.Context, id uint64, pageReq
 
 	// Perform the gRPC query to fetch sessions for the given subscription.
 	if err := c.QueryGRPC(ctx, methodQuerySessionsForSubscription, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	// Unpack each session from the response.
@@ -159,7 +159,7 @@ func (c *Client) SessionsForSubscriptionAllocation(ctx context.Context, id uint6
 
 	// Perform the gRPC query to fetch sessions for the given subscription and account.
 	if err := c.QueryGRPC(ctx, methodQuerySessionsForSubscriptionAllocation, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	// Unpack each session from the response.

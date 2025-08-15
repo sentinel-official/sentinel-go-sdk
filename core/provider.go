@@ -25,7 +25,7 @@ func (c *Client) Provider(ctx context.Context, provAddr types.ProvAddress) (res 
 
 	// Perform the gRPC query to fetch the provider details.
 	if err := c.QueryGRPC(ctx, methodQueryProvider, req, &resp); err != nil {
-		return nil, IsCodeNotFound(err)
+		return nil, HandleQueryErr(err)
 	}
 
 	return &resp.Provider, nil
@@ -44,7 +44,7 @@ func (c *Client) Providers(ctx context.Context, status v1.Status, pageReq *query
 
 	// Perform the gRPC query to fetch the providers.
 	if err := c.QueryGRPC(ctx, methodQueryProviders, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Providers, resp.Pagination, nil

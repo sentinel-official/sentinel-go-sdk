@@ -30,7 +30,7 @@ type Client interface {
 func NewDefaultClient() Client {
 	c, err := NewIPAPIClient("", 5*time.Second)
 	if err != nil {
-		panic(fmt.Errorf("failed to create ip_api client: %w", err))
+		panic(fmt.Errorf("creating ip_api client: %w", err))
 	}
 
 	return c

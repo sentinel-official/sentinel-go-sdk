@@ -1,7 +1,6 @@
 package netip
 
 import (
-	"errors"
 	"fmt"
 	"net/netip"
 	"sync"
@@ -25,7 +24,7 @@ type AddrPool struct {
 func NewAddrPool(cidr string) (*AddrPool, *Prefix, error) {
 	prefix, err := NewPrefix(cidr)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse CIDR %v: %w", cidr, err)
+		return nil, nil, fmt.Errorf("parsing CIDR %q: %w", cidr, err)
 	}
 
 	p := &AddrPool{
@@ -45,7 +44,7 @@ func NewAddrPool(cidr string) (*AddrPool, *Prefix, error) {
 	if p.addr.Is4() {
 		broadcast, err := prefix.BroadcastAddr()
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get broadcast addr for prefix %v: %w", prefix, err)
+			return nil, nil, fmt.Errorf("getting broadcast addr from prefix %q: %w", prefix, err)
 		}
 
 		_ = p.Reserve(broadcast)
@@ -68,13 +67,13 @@ func (p *AddrPool) Assign(addr netip.Addr) error {
 	defer p.rwm.Unlock()
 
 	if !p.prefix.Contains(addr) {
-		return fmt.Errorf("cannot assign %v: outside of prefix", addr)
+		return fmt.Errorf("cannot assign %q: outside of prefix", addr)
 	}
 	if p.reserved[addr] {
-		return fmt.Errorf("cannot assign %v: addr is reserved", addr)
+		return fmt.Errorf("cannot assign %q: addr is reserved", addr)
 	}
 	if p.assigned[addr] {
-		return fmt.Errorf("cannot assign %v: addr is already assigned", addr)
+		return fmt.Errorf("cannot assign %q: addr is already assigned", addr)
 	}
 
 	delete(p.unassigned, addr)
@@ -89,13 +88,13 @@ func (p *AddrPool) Reserve(addr netip.Addr) error {
 	defer p.rwm.Unlock()
 
 	if !p.prefix.Contains(addr) {
-		return fmt.Errorf("cannot reserve %v: outside of prefix", addr)
+		return fmt.Errorf("cannot reserve %q: outside of prefix", addr)
 	}
 	if p.assigned[addr] {
-		return fmt.Errorf("cannot reserve %v: addr is assigned", addr)
+		return fmt.Errorf("cannot reserve %q: addr is assigned", addr)
 	}
 	if p.reserved[addr] {
-		return fmt.Errorf("cannot reserve %v: addr is already reserved", addr)
+		return fmt.Errorf("cannot reserve %q: addr is already reserved", addr)
 	}
 
 	delete(p.unassigned, addr)
@@ -122,7 +121,7 @@ func (p *AddrPool) Acquire() (addr netip.Addr, err error) {
 	// Second attempt: scan the prefix sequentially.
 	for {
 		if !p.prefix.Contains(p.addr) {
-			return netip.Addr{}, errors.New("pool exhausted: no more addrs available")
+			return netip.Addr{}, fmt.Errorf("address pool %s exhausted", p.prefix)
 		}
 
 		addr, p.addr = p.addr, p.addr.Next()
@@ -141,13 +140,13 @@ func (p *AddrPool) Release(addr netip.Addr) error {
 	defer p.rwm.Unlock()
 
 	if !p.prefix.Contains(addr) {
-		return fmt.Errorf("cannot release %v: outside of prefix", addr)
+		return fmt.Errorf("cannot release %q: outside of prefix", addr)
 	}
 	if p.reserved[addr] {
-		return fmt.Errorf("cannot release %v: addr is reserved", addr)
+		return fmt.Errorf("cannot release %q: addr is reserved", addr)
 	}
 	if !p.assigned[addr] {
-		return fmt.Errorf("cannot release %v: addr was not assigned", addr)
+		return fmt.Errorf("cannot release %q: addr was not assigned", addr)
 	}
 
 	delete(p.assigned, addr)
@@ -174,13 +173,13 @@ func NewAddrPoolSet(cidrs ...string) (*AddrPoolSet, error) {
 	for _, cidr := range cidrs {
 		pool, prefix, err := NewAddrPool(cidr)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create pool from CIDR %v: %w", cidr, err)
+			return nil, fmt.Errorf("creating add pool for CIDR %q: %w", cidr, err)
 		}
 
 		// Ensure no overlaps between prefixes.
 		for _, item := range items {
 			if prefix.Overlaps(item) {
-				return nil, fmt.Errorf("prefix %v overlaps with %v", prefix, item)
+				return nil, fmt.Errorf("prefix %q overlaps with %q", prefix, item)
 			}
 		}
 
@@ -211,7 +210,7 @@ func (p *AddrPoolSet) Assign(addrs ...netip.Addr) error {
 	defer p.rwm.Unlock()
 
 	if len(addrs) != len(p.pools) {
-		return fmt.Errorf("invalid addr count: got %v, want %v", len(addrs), len(p.pools))
+		return fmt.Errorf("addr count mismatch: got %d, expected %d", len(addrs), len(p.pools))
 	}
 
 	for _, addr := range addrs {
@@ -219,7 +218,7 @@ func (p *AddrPoolSet) Assign(addrs ...netip.Addr) error {
 		for _, pool := range p.pools {
 			if pool.Contains(addr) {
 				if err := pool.Assign(addr); err != nil {
-					return fmt.Errorf("failed to assign addr %v: %w", addr, err)
+					return fmt.Errorf("assigning addr %q: %w", addr, err)
 				}
 
 				assigned = true
@@ -228,7 +227,7 @@ func (p *AddrPoolSet) Assign(addrs ...netip.Addr) error {
 		}
 
 		if !assigned {
-			return fmt.Errorf("cannot assign %v: pool not found", addr)
+			return fmt.Errorf("cannot assign %q: pool not found", addr)
 		}
 	}
 
@@ -246,7 +245,7 @@ func (p *AddrPoolSet) Reserve(addr netip.Addr) error {
 		}
 	}
 
-	return fmt.Errorf("cannot reserve %v: pool not found", addr)
+	return fmt.Errorf("cannot reserve %q: pool not found", addr)
 }
 
 // Acquire acquires one address from each pool.
@@ -260,7 +259,7 @@ func (p *AddrPoolSet) Acquire() (addrs []netip.Addr, err error) {
 		if len(addrs) != len(p.pools) {
 			for i := 0; i < len(addrs); i++ {
 				if err := p.pools[i].Release(addrs[i]); err != nil {
-					panic(fmt.Errorf("rollback failed for addr %v: %w", addrs[i], err))
+					panic(fmt.Errorf("rollback failed for addr %q: %w", addrs[i], err))
 				}
 			}
 		}
@@ -269,7 +268,7 @@ func (p *AddrPoolSet) Acquire() (addrs []netip.Addr, err error) {
 	for _, pool := range p.pools {
 		addr, err := pool.Acquire()
 		if err != nil {
-			return nil, fmt.Errorf("failed to acquire addr: %w", err)
+			return nil, fmt.Errorf("acquiring addr from pool: %w", err)
 		}
 
 		addrs = append(addrs, addr)
@@ -284,7 +283,7 @@ func (p *AddrPoolSet) Release(addrs []netip.Addr) error {
 	defer p.rwm.Unlock()
 
 	if len(addrs) != len(p.pools) {
-		return fmt.Errorf("invalid addr count: got %v, want %v", len(addrs), len(p.pools))
+		return fmt.Errorf("addr count mismatch: got %d, expected %d", len(addrs), len(p.pools))
 	}
 
 	for _, addr := range addrs {
@@ -292,7 +291,7 @@ func (p *AddrPoolSet) Release(addrs []netip.Addr) error {
 		for _, pool := range p.pools {
 			if pool.Contains(addr) {
 				if err := pool.Release(addr); err != nil {
-					return fmt.Errorf("failed to release addr %v: %w", addr, err)
+					return fmt.Errorf("releasing addr %q: %w", addr, err)
 				}
 
 				released = true
@@ -301,7 +300,7 @@ func (p *AddrPoolSet) Release(addrs []netip.Addr) error {
 		}
 
 		if !released {
-			return fmt.Errorf("cannot release %v: pool not found", addr)
+			return fmt.Errorf("cannot release %q: pool not found", addr)
 		}
 	}
 

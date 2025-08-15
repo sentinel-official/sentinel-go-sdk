@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"strings"
 )
 
 const maxPrefixSize = 1 << 16
@@ -14,18 +15,19 @@ type Prefix struct {
 
 // NewPrefix creates a new Prefix object from a given CIDR string.
 func NewPrefix(cidr string) (*Prefix, error) {
+	cidr = strings.TrimSpace(cidr)
 	if cidr == "" {
-		return nil, errors.New("CIDR string is empty")
+		return nil, errors.New("empty CIDR string")
 	}
 
 	prefix, err := netip.ParsePrefix(cidr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse CIDR %v: %w", cidr, err)
+		return nil, fmt.Errorf("parsing CIDR %q: %w", cidr, err)
 	}
 
 	p := &Prefix{prefix}
 	if err := p.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid prefix: %w", err)
+		return nil, fmt.Errorf("validating CIDR %q: %w", cidr, err)
 	}
 
 	return p, nil
@@ -44,7 +46,7 @@ func (p *Prefix) Len() int64 {
 // Addrs returns a slice of all addresses within the Prefix block.
 func (p *Prefix) Addrs() ([]netip.Addr, error) {
 	if p.Len() > maxPrefixSize {
-		return nil, fmt.Errorf("prefix %v block size exceeds max %v", p, maxPrefixSize)
+		return nil, fmt.Errorf("prefix %q block size %d exceeds max size %d", p, p.Len(), maxPrefixSize)
 	}
 
 	var addrs []netip.Addr
@@ -69,7 +71,7 @@ func (p *Prefix) NetworkAddr() netip.Addr {
 // Returns an error for IPv6.
 func (p *Prefix) BroadcastAddr() (netip.Addr, error) {
 	if !p.Addr().Is4() {
-		return netip.Addr{}, fmt.Errorf("prefix %v is not IPv4 type", p)
+		return netip.Addr{}, fmt.Errorf("broadcast addr not applicable for IPv6 prefix %q", p)
 	}
 
 	size := p.Len() - 1
@@ -84,7 +86,7 @@ func (p *Prefix) BroadcastAddr() (netip.Addr, error) {
 
 	addr, ok := netip.AddrFromSlice(buf[:])
 	if !ok {
-		return netip.Addr{}, fmt.Errorf("failed to parse addr from %v", buf)
+		return netip.Addr{}, fmt.Errorf("creating broadcast addr from slice")
 	}
 
 	return addr, nil

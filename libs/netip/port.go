@@ -2,7 +2,6 @@ package netip
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -52,16 +51,17 @@ func (p *Port) String() string {
 // Validate checks if the Port struct values are valid.
 func (p *Port) Validate() error {
 	if p.InFrom < 1 || p.InTo > 65535 || p.OutFrom < 1 || p.OutTo > 65535 {
-		return errors.New("numbers must be between 1 and 65535")
+		return fmt.Errorf("port numbers are out of range 1-65535 (got: %d-%d:%d-%d)",
+			p.InFrom, p.InTo, p.OutFrom, p.OutTo)
 	}
 	if p.InFrom > p.InTo {
-		return errors.New("in_from cannot be greater than in_to")
+		return fmt.Errorf("in_from %d is greater than in_to %d", p.InFrom, p.InTo)
 	}
 	if p.OutFrom > p.OutTo {
-		return errors.New("out_from cannot be greater than out_to")
+		return fmt.Errorf("out_from %d is greater than out_to %d", p.OutFrom, p.OutTo)
 	}
 	if (p.InTo - p.InFrom) != (p.OutTo - p.OutFrom) {
-		return errors.New("in and out ranges must match in size")
+		return fmt.Errorf("in range size %d does not match out range size %d", p.InTo-p.InFrom, p.OutTo-p.OutFrom)
 	}
 
 	return nil
@@ -76,7 +76,7 @@ func (p *Port) MarshalJSON() ([]byte, error) {
 func (p *Port) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
-		return err
+		return fmt.Errorf("unmarshalling port string from bytes: %w", err)
 	}
 
 	port, err := NewPortFromString(s)
@@ -84,7 +84,7 @@ func (p *Port) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if port == nil {
-		return errors.New("nil port")
+		return fmt.Errorf("empty port string %q", s)
 	}
 
 	*p = *port
@@ -100,7 +100,7 @@ func NewPortFromString(s string) (*Port, error) {
 
 	parts := strings.Split(s, ":")
 	if len(parts) > 2 {
-		return nil, errors.New("invalid format")
+		return nil, fmt.Errorf("too many colons in port %q", s)
 	}
 
 	inRange := parts[0]
@@ -112,12 +112,12 @@ func NewPortFromString(s string) (*Port, error) {
 
 	inFrom, inTo, err := parseRange(inRange)
 	if err != nil {
-		return nil, fmt.Errorf("invalid in range: %w", err)
+		return nil, fmt.Errorf("parsing in range %q: %w", inRange, err)
 	}
 
 	outFrom, outTo, err := parseRange(outRange)
 	if err != nil {
-		return nil, fmt.Errorf("invalid out range: %w", err)
+		return nil, fmt.Errorf("parsing out range %q: %w", outRange, err)
 	}
 
 	port := &Port{
@@ -128,7 +128,7 @@ func NewPortFromString(s string) (*Port, error) {
 	}
 
 	if err := port.Validate(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("validating port %q: %w", port, err)
 	}
 
 	return port, nil
@@ -143,24 +143,24 @@ func parseRange(s string) (uint16, uint16, error) {
 
 	parts := strings.Split(s, "-")
 	if len(parts) > 2 {
-		return 0, 0, errors.New("invalid format")
+		return 0, 0, fmt.Errorf("too many dashes in port %q", s)
 	}
 
 	from, err := parsePort(parts[0])
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("parsing from port %q: %w", parts[0], err)
 	}
 
 	to := from
 	if len(parts) == 2 {
 		to, err = parsePort(parts[1])
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, fmt.Errorf("parsing to port %q: %w", parts[1], err)
 		}
 	}
 
 	if from > to {
-		return 0, 0, errors.New("from cannot be greater than to")
+		return 0, 0, fmt.Errorf("from port %d is greater than to port %d", from, to)
 	}
 
 	return from, to, nil
@@ -175,10 +175,10 @@ func parsePort(s string) (uint16, error) {
 
 	port, err := strconv.Atoi(s)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("parsing port %q: %w", s, err)
 	}
 	if port < 1 || port > 65535 {
-		return 0, errors.New("number must be between 1 and 65535")
+		return 0, fmt.Errorf("port %d is out of range 1-65535", port)
 	}
 
 	return uint16(port), nil

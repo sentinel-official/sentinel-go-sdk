@@ -26,7 +26,7 @@ func (c *Client) Node(ctx context.Context, nodeAddr types.NodeAddress) (res *v3.
 
 	// Perform the gRPC query to fetch the node details.
 	if err := c.QueryGRPC(ctx, methodQueryNode, req, &resp); err != nil {
-		return nil, IsCodeNotFound(err)
+		return nil, HandleQueryErr(err)
 	}
 
 	return &resp.Node, nil
@@ -45,7 +45,7 @@ func (c *Client) Nodes(ctx context.Context, status v1.Status, pageReq *query.Pag
 
 	// Perform the gRPC query to fetch the nodes.
 	if err := c.QueryGRPC(ctx, methodQueryNodes, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Nodes, resp.Pagination, nil
@@ -66,7 +66,7 @@ func (c *Client) NodesForPlan(ctx context.Context, id uint64, status v1.Status, 
 
 	// Perform the gRPC query to fetch nodes for the given plan.
 	if err := c.QueryGRPC(ctx, methodQueryNodesForPlan, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Nodes, resp.Pagination, nil

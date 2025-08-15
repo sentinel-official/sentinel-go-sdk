@@ -58,19 +58,19 @@ func (p *PKI) Init(opts ...CertOption) (err error) {
 
 	// Create the pki directory if it doesn't exist
 	if err := os.MkdirAll(p.Dir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+		return fmt.Errorf("creating PKI directory %q: %w", p.Dir, err)
 	}
 
 	// Generate a new ECDSA private key (P-384 curve)
 	p.Signer, err = ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		return fmt.Errorf("failed to generate private key: %w", err)
+		return fmt.Errorf("generating CA private key: %w", err)
 	}
 
 	// Marshal the private key to PKCS#8 format
 	keyDER, err := x509.MarshalPKCS8PrivateKey(p.Signer)
 	if err != nil {
-		return fmt.Errorf("failed to marshal private key: %w", err)
+		return fmt.Errorf("marshalling CA private key: %w", err)
 	}
 
 	// Define the root certificate template
@@ -89,28 +89,20 @@ func (p *PKI) Init(opts ...CertOption) (err error) {
 	// Apply user-provided customization options
 	for _, fn := range opts {
 		if err := fn(template); err != nil {
-			return fmt.Errorf("failed to apply option: %w", err)
+			return fmt.Errorf("applying CA certificate option: %w", err)
 		}
 	}
 
 	// Self-sign the certificate
 	certDER, err := x509.CreateCertificate(rand.Reader, template, template, p.Signer.Public(), p.Signer)
 	if err != nil {
-		return fmt.Errorf("failed to create certificate: %w", err)
+		return fmt.Errorf("creating CA certificate: %w", err)
 	}
 
 	// Parse the self-signed certificate
 	p.Certificate, err = x509.ParseCertificate(certDER)
 	if err != nil {
-		return fmt.Errorf("failed to parse certificate: %w", err)
-	}
-
-	// Persist the CA's private key and certificate to disk
-	if err := pem.WriteFile(p.KeyPath("ca"), pem.FormatBase64, pem.BlockTypePrivateKey, keyDER); err != nil {
-		return fmt.Errorf("failed to write private key: %w", err)
-	}
-	if err := pem.WriteFile(p.CertPath("ca"), pem.FormatBase64, pem.BlockTypeCertificate, certDER); err != nil {
-		return fmt.Errorf("failed to write certificate: %w", err)
+		return fmt.Errorf("parsing CA certificate: %w", err)
 	}
 
 	// Initialize a new empty CRL
@@ -125,11 +117,18 @@ func (p *PKI) Init(opts ...CertOption) (err error) {
 	// Create and write the CRL to disk
 	rlDER, err := x509.CreateRevocationList(rand.Reader, p.RevocationList, p.Certificate, p.Signer)
 	if err != nil {
-		return fmt.Errorf("failed to create revocation list: %w", err)
+		return fmt.Errorf("creating CA revocation list: %w", err)
 	}
 
+	// Persist the CA's private key, certificate and revocation list to disk
+	if err := pem.WriteFile(p.KeyPath("ca"), pem.FormatBase64, pem.BlockTypePrivateKey, keyDER); err != nil {
+		return fmt.Errorf("writing CA private key: %w", err)
+	}
+	if err := pem.WriteFile(p.CertPath("ca"), pem.FormatBase64, pem.BlockTypeCertificate, certDER); err != nil {
+		return fmt.Errorf("writing CA certificate: %w", err)
+	}
 	if err := pem.WriteFile(p.RLPath("ca"), pem.FormatBase64, pem.BlockTypeCRL, rlDER); err != nil {
-		return fmt.Errorf("failed to write revocation list: %w", err)
+		return fmt.Errorf("writing CA revocation list: %w", err)
 	}
 
 	return nil
@@ -143,13 +142,13 @@ func (p *PKI) Issue(name string, opts ...CertOption) (keyDER []byte, certDER []b
 	// Generate a new ECDSA key for the subject
 	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
+		return nil, nil, fmt.Errorf("generating private key for %q: %w", name, err)
 	}
 
 	// Marshal the private key
 	keyDER, err = x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to marshal private key: %w", err)
+		return nil, nil, fmt.Errorf("marshalling private key for %q: %w", name, err)
 	}
 
 	// Certificate template for the subject
@@ -168,22 +167,22 @@ func (p *PKI) Issue(name string, opts ...CertOption) (keyDER []byte, certDER []b
 	// Apply any customization options
 	for _, fn := range opts {
 		if err := fn(template); err != nil {
-			return nil, nil, fmt.Errorf("failed to apply option: %w", err)
+			return nil, nil, fmt.Errorf("applying certificate option for %q: %w", name, err)
 		}
 	}
 
 	// Sign the certificate using the CA's key
 	certDER, err = x509.CreateCertificate(rand.Reader, template, p.Certificate, key.Public(), p.Signer)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create certificate: %w", err)
+		return nil, nil, fmt.Errorf("creating certificate for %q: %w", name, err)
 	}
 
 	// Write private key and certificate to disk
 	if err := pem.WriteFile(p.KeyPath(name), pem.FormatBase64, pem.BlockTypePrivateKey, keyDER); err != nil {
-		return nil, nil, fmt.Errorf("failed to write private key: %w", err)
+		return nil, nil, fmt.Errorf("writing private key for %q: %w", name, err)
 	}
 	if err := pem.WriteFile(p.CertPath(name), pem.FormatBase64, pem.BlockTypeCertificate, certDER); err != nil {
-		return nil, nil, fmt.Errorf("failed to write certificate: %w", err)
+		return nil, nil, fmt.Errorf("writing certificate for %q: %w", name, err)
 	}
 
 	return keyDER, certDER, nil
@@ -199,7 +198,7 @@ func (p *PKI) Revoke(name string) (err error) {
 	// Load the certificate to be revoked
 	cert := new(x509.Certificate)
 	if err := pem.ReadFile(p.CertPath(name), pem.FormatBase64, cert); err != nil {
-		return fmt.Errorf("failed to read certificate: %w", err)
+		return fmt.Errorf("reading certificate %q for revocation: %w", name, err)
 	}
 
 	// Update CRL number and append the revoked certificate entry
@@ -218,20 +217,20 @@ func (p *PKI) Revoke(name string) (err error) {
 	// Create the updated CRL
 	rlDER, err := x509.CreateRevocationList(rand.Reader, p.RevocationList, p.Certificate, p.Signer)
 	if err != nil {
-		return fmt.Errorf("failed to create revocation list: %w", err)
+		return fmt.Errorf("creating updated revocation list: %w", err)
 	}
 
 	// Write updated CRL to disk
 	if err := pem.WriteFile(p.RLPath("ca"), pem.FormatBase64, pem.BlockTypeCRL, rlDER); err != nil {
-		return fmt.Errorf("failed to write revocation list: %w", err)
+		return fmt.Errorf("writing updated revocation list: %w", err)
 	}
 
 	// Delete the revoked certificate and key files
 	if err := utils.RemoveFile(p.KeyPath(name)); err != nil {
-		return fmt.Errorf("failed to remove key file: %w", err)
+		return fmt.Errorf("removing private key for %q: %w", name, err)
 	}
 	if err := utils.RemoveFile(p.CertPath(name)); err != nil {
-		return fmt.Errorf("failed to remove certificate file: %w", err)
+		return fmt.Errorf("removing certificate for %q: %w", name, err)
 	}
 
 	return nil

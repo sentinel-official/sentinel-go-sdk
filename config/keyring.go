@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/spf13/pflag"
@@ -47,7 +48,7 @@ func (c *KeyringConfig) Validate() error {
 		"test":    true,
 	}
 	if !validBackends[c.Backend] {
-		return errors.New("backend must be one of: file, kwallet, memory, os, pass, test")
+		return fmt.Errorf("unsupported backend %q (allowed: file, kwallet, memory, os, pass, test)", c.Backend)
 	}
 
 	// Ensure the keyring name is not empty.

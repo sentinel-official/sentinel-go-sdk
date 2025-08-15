@@ -29,7 +29,7 @@ func (c *Client) Subscription(ctx context.Context, id uint64) (res *v3.Subscript
 
 	// Perform the gRPC query to fetch the subscription details.
 	if err := c.QueryGRPC(ctx, methodQuerySubscription, req, &resp); err != nil {
-		return nil, IsCodeNotFound(err)
+		return nil, HandleQueryErr(err)
 	}
 
 	return &resp.Subscription, nil
@@ -45,7 +45,7 @@ func (c *Client) Subscriptions(ctx context.Context, pageReq *query.PageRequest) 
 
 	// Perform the gRPC query to fetch the subscriptions.
 	if err := c.QueryGRPC(ctx, methodQuerySubscriptions, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Subscriptions, resp.Pagination, nil
@@ -64,7 +64,7 @@ func (c *Client) SubscriptionsForAccount(ctx context.Context, accAddr cosmossdk.
 
 	// Perform the gRPC query to fetch subscriptions for the given account.
 	if err := c.QueryGRPC(ctx, methodQuerySubscriptionsForAccount, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Subscriptions, resp.Pagination, nil
@@ -83,7 +83,7 @@ func (c *Client) SubscriptionsForPlan(ctx context.Context, id uint64, pageReq *q
 
 	// Perform the gRPC query to fetch subscriptions for the given plan.
 	if err := c.QueryGRPC(ctx, methodQuerySubscriptionsForPlan, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Subscriptions, resp.Pagination, nil
@@ -102,7 +102,7 @@ func (c *Client) SubscriptionAllocation(ctx context.Context, id uint64, accAddr 
 
 	// Perform the gRPC query to fetch the allocation details.
 	if err := c.QueryGRPC(ctx, methodQuerySubscriptionAllocation, req, &resp); err != nil {
-		return nil, IsCodeNotFound(err)
+		return nil, HandleQueryErr(err)
 	}
 
 	return &resp.Allocation, nil
@@ -121,7 +121,7 @@ func (c *Client) SubscriptionAllocations(ctx context.Context, id uint64, pageReq
 
 	// Perform the gRPC query to fetch the allocations.
 	if err := c.QueryGRPC(ctx, methodQuerySubscriptionAllocations, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Allocations, resp.Pagination, nil

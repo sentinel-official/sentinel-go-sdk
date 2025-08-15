@@ -42,6 +42,7 @@ func (c *RPCConfig) GetTimeout() time.Duration {
 	if err != nil {
 		panic(err)
 	}
+
 	return v
 }
 
@@ -52,21 +53,21 @@ func (c *RPCConfig) Validate() error {
 		return errors.New("addrs cannot be empty")
 	}
 
+	// Validate each address in Addrs.
+	for _, addr := range c.Addrs {
+		if err := validateURL(addr); err != nil {
+			return fmt.Errorf("validating addr %q: %w", addr, err)
+		}
+	}
+
 	// Ensure ChainID is not empty.
 	if c.ChainID == "" {
 		return errors.New("chain_id cannot be empty")
 	}
 
-	// Validate each address in Addrs.
-	for _, addr := range c.Addrs {
-		if err := validateURL(addr); err != nil {
-			return fmt.Errorf("invalid addr: %w", err)
-		}
-	}
-
 	// Validate that Timeout is a valid time.Duration.
 	if _, err := time.ParseDuration(c.Timeout); err != nil {
-		return fmt.Errorf("invalid timeout: %w", err)
+		return fmt.Errorf("parsing timeout %q: %w", c.Timeout, err)
 	}
 
 	return nil
@@ -94,22 +95,22 @@ func DefaultRPCConfig() *RPCConfig {
 func validateURL(s string) error {
 	u, err := url.Parse(s)
 	if err != nil {
-		return fmt.Errorf("invalid url: %w", err)
+		return fmt.Errorf("parsing URL %q: %w", s, err)
 	}
 	if u.Scheme == "" {
-		return errors.New("url must have a valid scheme")
+		return errors.New("URL scheme cannot be empty")
 	}
 	if u.Host == "" {
-		return errors.New("url must have a valid host")
+		return errors.New("URL host cannot be empty")
 	}
 
 	// Check if the port is a valid number.
 	port, err := strconv.Atoi(u.Port())
 	if err != nil {
-		return fmt.Errorf("invalid port: %w", err)
+		return fmt.Errorf("parsing URL port %q: %w", u.Port(), err)
 	}
 	if port < 1 || port > 65535 {
-		return errors.New("url must have a valid port")
+		return fmt.Errorf("URL port %d is out of range 1-65535", port)
 	}
 
 	return nil

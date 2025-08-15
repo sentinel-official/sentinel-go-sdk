@@ -33,13 +33,13 @@ func (c *Client) GetInfo(ctx context.Context) (*GetInfoResult, error) {
 	// Get the API endpoint URL for retrieving node information.
 	path, err := c.getURL(ctx, "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get url: %w", err)
+		return nil, fmt.Errorf("getting node API URL: %w", err)
 	}
 
 	// Send an HTTP GET request to fetch node details.
 	var res GetInfoResult
 	if err := c.do(ctx, http.MethodGet, path, nil, &res); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("performing get info request: %w", err)
 	}
 
 	// Return the retrieved node information.

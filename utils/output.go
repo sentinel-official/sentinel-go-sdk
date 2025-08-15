@@ -10,7 +10,7 @@ import (
 func writeJSON(w io.Writer, v interface{}) error {
 	buf, err := json.Marshal(v)
 	if err != nil {
-		return fmt.Errorf("failed to marshal json: %w", err)
+		return fmt.Errorf("marshalling to JSON: %w", err)
 	}
 
 	_, _ = fmt.Fprintf(w, "%s", buf)
@@ -21,7 +21,7 @@ func writeJSON(w io.Writer, v interface{}) error {
 func writeText(w io.Writer, v interface{}) error {
 	buf, err := YAMLFromJSON(v)
 	if err != nil {
-		return fmt.Errorf("failed to convert yaml form json: %w", err)
+		return fmt.Errorf("converting JSON to YAML: %w", err)
 	}
 
 	_, _ = fmt.Fprintf(w, "%s", buf)
@@ -36,14 +36,14 @@ func Write(w io.Writer, v interface{}, format string) error {
 	case "text":
 		return writeText(w, v)
 	default:
-		return fmt.Errorf("unsupported output format %s", format)
+		return fmt.Errorf("unsupported output format %q", format)
 	}
 }
 
 // Writeln writes the formatted output to the writer and adds a newline.
 func Writeln(w io.Writer, v interface{}, format string) error {
 	if err := Write(w, v, format); err != nil {
-		return fmt.Errorf("failed to write: %w", err)
+		return fmt.Errorf("writing %s output: %w", format, err)
 	}
 
 	_, _ = fmt.Fprintln(w)

@@ -207,6 +207,23 @@ func (c *Client) HTTP() (*http.HTTP, error) {
 	return http.NewWithTimeout(c.rpcAddr, "/websocket", timeout)
 }
 
+// MsgFromAddr returns the account address from which messages will be sent.
+func (c *Client) MsgFromAddr() (cosmossdk.AccAddress, error) {
+	if !c.txAuthzGranterAddr.Empty() {
+		return c.txAuthzGranterAddr, nil
+	}
+
+	addr, err := c.KeyAddr(c.txFromName)
+	if err != nil {
+		return nil, fmt.Errorf("getting addr for key %q: %w", c.txFromName, err)
+	}
+	if addr == nil {
+		return nil, fmt.Errorf("addr for key %q is empty", c.txFromName)
+	}
+
+	return addr, nil
+}
+
 // NewClientFromConfig creates a new Client instance based on the provided configuration.
 func NewClientFromConfig(c *config.Config) (*Client, error) {
 	v := NewClient().
@@ -233,7 +250,7 @@ func NewClientFromConfig(c *config.Config) (*Client, error) {
 
 	// Setup the keyring for the client
 	if err := v.SetupKeyring(c.Keyring); err != nil {
-		return nil, fmt.Errorf("failed to setup keyring: %w", err)
+		return nil, fmt.Errorf("setting up keyring: %w", err)
 	}
 
 	return v, nil

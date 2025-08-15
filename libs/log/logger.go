@@ -1,7 +1,7 @@
 package log
 
 import (
-	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -56,7 +56,7 @@ func NewLogger(w io.Writer, format, level string) (log.Logger, error) {
 		"text": true,
 	}
 	if !validFormats[format] {
-		return nil, errors.New("format must be one of: json, text")
+		return nil, fmt.Errorf("unsupported log format %q (allowed: json, text)", format)
 	}
 
 	// Check if the level is valid.
@@ -67,13 +67,13 @@ func NewLogger(w io.Writer, format, level string) (log.Logger, error) {
 		"warn":  true,
 	}
 	if !validLevels[level] {
-		return nil, errors.New("level must be one of: debug, error, info, warn")
+		return nil, fmt.Errorf("unsupported log level %q (allowed: debug, error, info, warn)", format)
 	}
 
 	// Parse the log level from the string
 	logLevel, err := zerolog.ParseLevel(level)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parsing log level %q: %w", level, err)
 	}
 
 	// Prepare options for logger

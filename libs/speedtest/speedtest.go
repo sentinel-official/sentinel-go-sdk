@@ -10,24 +10,24 @@ import (
 )
 
 // performTests runs the ping, download, and upload tests on the target server.
-func performTests(ctx context.Context, target *speedtest.Server) error {
+func performTests(ctx context.Context, s *speedtest.Server) error {
 	// Perform the ping test
-	if err := target.PingTestContext(ctx, nil); err != nil {
-		return fmt.Errorf("failed to perform ping test: %w", err)
+	if err := s.PingTestContext(ctx, nil); err != nil {
+		return fmt.Errorf("performing ping test on server %q: %w", s.Name, err)
 	}
 
 	// Perform the download test
-	if err := target.DownloadTestContext(ctx); err != nil {
-		return fmt.Errorf("failed to perform download test: %w", err)
+	if err := s.DownloadTestContext(ctx); err != nil {
+		return fmt.Errorf("performing download test on server %q: %w", s.Name, err)
 	}
 
 	// Perform the upload test
-	if err := target.UploadTestContext(ctx); err != nil {
-		return fmt.Errorf("failed to perform upload test: %w", err)
+	if err := s.UploadTestContext(ctx); err != nil {
+		return fmt.Errorf("performing upload test on server %q: %w", s.Name, err)
 	}
 
 	// Wait for the context to be ready after the tests
-	target.Context.Wait()
+	s.Context.Wait()
 	return nil
 }
 
@@ -39,13 +39,13 @@ func Run(ctx context.Context) (dlSpeed, ulSpeed math.Int, err error) {
 	// Fetch the list of servers from the Speedtest service
 	servers, err := st.FetchServerListContext(ctx)
 	if err != nil {
-		return math.Int{}, math.Int{}, fmt.Errorf("failed to fetch servers: %w", err)
+		return math.Int{}, math.Int{}, fmt.Errorf("fetching speedtest servers: %w", err)
 	}
 
 	// Find the best server from the list
 	targets, err := servers.FindServer(nil)
 	if err != nil {
-		return math.Int{}, math.Int{}, fmt.Errorf("failed to find targets: %w", err)
+		return math.Int{}, math.Int{}, fmt.Errorf("finding optimal servers: %w", err)
 	}
 
 	// Iterate through the list of target servers to find a valid result
@@ -84,5 +84,5 @@ func Run(ctx context.Context) (dlSpeed, ulSpeed math.Int, err error) {
 	}
 
 	// Return an error if no valid result was found
-	return math.Int{}, math.Int{}, errors.New("no server provided valid results")
+	return math.Int{}, math.Int{}, errors.New("no servers returned valid speedtest results")
 }

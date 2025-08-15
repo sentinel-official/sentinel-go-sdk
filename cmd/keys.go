@@ -28,12 +28,12 @@ func NewKeysCmd(cfg *config.KeyringConfig) *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Validate the provided configuration
 			if err := cfg.Validate(); err != nil {
-				return fmt.Errorf("failed to validate config: %w", err)
+				return fmt.Errorf("validating config: %w", err)
 			}
 
 			// Setup the keyring for the base client
 			if err := c.SetupKeyring(cfg); err != nil {
-				return fmt.Errorf("failed to setup keyring: %w", err)
+				return fmt.Errorf("setting up keyring: %w", err)
 			}
 
 			return nil
@@ -68,54 +68,54 @@ func keysAddCmd(c *core.Client) *cobra.Command {
 			// Check if the key already exists
 			ok, err := c.HasKey(args[0])
 			if err != nil {
-				return fmt.Errorf("failed to check existance of key: %w", err)
+				return fmt.Errorf("checking if key %q exists: %w", args[0], err)
 			}
 			if ok {
-				return fmt.Errorf("key %s already exists", args[0])
+				return fmt.Errorf("key %q already exists", args[0])
 			}
 
 			// Initialize a reader for user input
 			reader := bufio.NewReader(cmd.InOrStdin())
 
 			// Prompt for mnemonic
-			mnemonic, err := input.GetString("Enter your bip39 mnemonic, or hit enter to generate one:\n", reader)
+			mnemonic, err := input.GetString("Enter your BIP-39 mnemonic, or hit enter to generate one:\n", reader)
 			if err != nil {
-				return fmt.Errorf("failed to get input: %w", err)
+				return fmt.Errorf("getting BIP-39 mnemonic input: %w", err)
 			}
 
 			// Validate the provided mnemonic
 			if mnemonic != "" && !bip39.IsMnemonicValid(mnemonic) {
-				return errors.New("invalid mnemonic")
+				return errors.New("invalid BIP-39 mnemonic")
 			}
 
 			// Prompt for bip39 passphrase
-			bip39Pass, err := input.GetPassword("Enter your bip39 passphrase, or hit enter to use the default:", reader)
+			bip39Pass, err := input.GetPassword("Enter your BIP-39 passphrase, or hit enter to use the default:", reader)
 			if err != nil {
-				return fmt.Errorf("failed to get input: %w", err)
+				return fmt.Errorf("getting BIP-39 passphrase input: %w", err)
 			}
 
 			// Confirm passphrase if provided
 			if bip39Pass != "" {
-				confirmPass, err := input.GetPassword("Confirm bip39 passphrase:", reader)
+				confirmPass, err := input.GetPassword("Confirm BIP-39 passphrase:", reader)
 				if err != nil {
-					return fmt.Errorf("failed to get input: %w", err)
+					return fmt.Errorf("getting BIP-39 passphrase confirmation input: %w", err)
 				}
 
 				if bip39Pass != confirmPass {
-					return errors.New("bip39 passphrase does not match")
+					return errors.New("BIP-39 passphrase mismatch")
 				}
 			}
 
 			// Create the key with the provided details
 			newMnemonic, key, err := c.CreateKey(args[0], mnemonic, bip39Pass, hdPath)
 			if err != nil {
-				return fmt.Errorf("failed to create new key: %w", err)
+				return fmt.Errorf("creating new key %q: %w", args[0], err)
 			}
 
 			// Format the output for the created key
 			output, err := keyring.MkAccKeyOutput(key)
 			if err != nil {
-				return fmt.Errorf("failed to create key output: %w", err)
+				return fmt.Errorf("preparing output for key %q: %w", key.Name, err)
 			}
 
 			// Display a mnemonic warning if a new mnemonic is generated
@@ -133,7 +133,7 @@ func keysAddCmd(c *core.Client) *cobra.Command {
 
 			// Output the key details
 			if err := utils.Writeln(cmd.OutOrStdout(), output, outputFormat); err != nil {
-				return fmt.Errorf("failed to write to output: %w", err)
+				return fmt.Errorf("writing key %q output: %w", key.Name, err)
 			}
 
 			cmd.Println("Key created successfully")
@@ -158,10 +158,10 @@ func keysDeleteCmd(c *core.Client) *cobra.Command {
 			// Check if the key exists
 			ok, err := c.HasKey(args[0])
 			if err != nil {
-				return fmt.Errorf("failed to check existance of key: %w", err)
+				return fmt.Errorf("checking if key %q exists: %w", args[0], err)
 			}
 			if !ok {
-				return fmt.Errorf("key %s does not exist", args[0])
+				return fmt.Errorf("key %q does not exist", args[0])
 			}
 
 			// Initialize a reader for user input
@@ -170,15 +170,15 @@ func keysDeleteCmd(c *core.Client) *cobra.Command {
 			// Prompt for confirmation before deletion
 			confirm, err := input.GetConfirmation("Are you sure you want to delete this key? [y/N]:", reader)
 			if err != nil {
-				return fmt.Errorf("failed to get input: %w", err)
+				return fmt.Errorf("getting key delete confirmation input: %w", err)
 			}
 			if !confirm {
-				return errors.New("deletion aborted")
+				return fmt.Errorf("key %q deletion aborted", args[0])
 			}
 
 			// Delete the key
 			if err := c.DeleteKey(args[0]); err != nil {
-				return fmt.Errorf("failed to delete key: %w", err)
+				return fmt.Errorf("deleting key %q: %w", args[0], err)
 			}
 
 			cmd.Println("Key deleted successfully")
@@ -201,18 +201,18 @@ func keysListCmd(c *core.Client) *cobra.Command {
 			// Fetch the list of keys from the client
 			keys, err := c.Keys()
 			if err != nil {
-				return fmt.Errorf("failed to retreive keys: %w", err)
+				return fmt.Errorf("retreiving keys: %w", err)
 			}
 
 			// Format the keys for output
 			output, err := keyring.MkAccKeysOutput(keys)
 			if err != nil {
-				return fmt.Errorf("failed to create keys output: %w", err)
+				return fmt.Errorf("preparing output for keys: %w", err)
 			}
 
 			// Output the keys in the specified format
 			if err := utils.Writeln(cmd.OutOrStdout(), output, outputFormat); err != nil {
-				return fmt.Errorf("failed to write to output: %w", err)
+				return fmt.Errorf("writing keys to output: %w", err)
 			}
 
 			return nil
@@ -238,18 +238,18 @@ func keysShowCmd(c *core.Client) *cobra.Command {
 			// Retrieve key details from the client
 			key, err := c.Key(args[0])
 			if err != nil {
-				return fmt.Errorf("failed to retrieve key: %w", err)
+				return fmt.Errorf("retrieving key %q: %w", args[0], err)
 			}
 
 			// Format the key for output
 			output, err := keyring.MkAccKeyOutput(key)
 			if err != nil {
-				return fmt.Errorf("failed to create key output: %w", err)
+				return fmt.Errorf("preparing output for key %q: %w", key.Name, err)
 			}
 
 			// Output the key details in the specified format
 			if err := utils.Writeln(cmd.OutOrStdout(), output, outputFormat); err != nil {
-				return fmt.Errorf("failed to write to output: %w", err)
+				return fmt.Errorf("writing key %q output: %w", key.Name, err)
 			}
 
 			return nil

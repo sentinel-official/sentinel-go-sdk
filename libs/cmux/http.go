@@ -21,13 +21,13 @@ func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, hand
 	// Load the TLS certificate and key
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		return fmt.Errorf("failed to load tls certificate: %w", err)
+		return fmt.Errorf("loading TLS X509 certificate key pair from %q and %q: %w", certFile, keyFile, err)
 	}
 
 	// Create a TCP listener
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("failed to listen: %w", err)
+		return fmt.Errorf("creating TCP listener on %q: %w", addr, err)
 	}
 
 	// Create a cmux multiplexer
@@ -66,7 +66,7 @@ func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, hand
 				return nil
 			}
 
-			return fmt.Errorf("failed to serve tls server: %w", err)
+			return fmt.Errorf("serving TLS server: %w", err)
 		}
 
 		return nil
@@ -79,7 +79,7 @@ func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, hand
 				return nil
 			}
 
-			return fmt.Errorf("failed to serve any server: %w", err)
+			return fmt.Errorf("serving any server: %w", err)
 		}
 
 		return nil
@@ -92,7 +92,7 @@ func ListenAndServeTLS(ctx context.Context, addr, certFile, keyFile string, hand
 				return nil
 			}
 
-			return fmt.Errorf("failed to serve: %w", err)
+			return fmt.Errorf("serving multiplexer: %w", err)
 		}
 
 		return nil

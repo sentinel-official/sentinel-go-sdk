@@ -44,7 +44,7 @@ func Encode(w io.Writer, b *pem.Block, format Format) error {
 	case FormatHex:
 		return encodeHex(w, b)
 	default:
-		return fmt.Errorf("unsupported format %s", format)
+		return fmt.Errorf("unsupported format %q", format)
 	}
 }
 
@@ -64,7 +64,7 @@ func Decode(data []byte, format Format) (*pem.Block, []byte) {
 func WriteFile(path string, format Format, blockType string, data []byte) error {
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
+		return fmt.Errorf("opening file %q: %w", path, err)
 	}
 
 	defer func() {
@@ -73,7 +73,7 @@ func WriteFile(path string, format Format, blockType string, data []byte) error 
 
 	block := &pem.Block{Type: blockType, Bytes: data}
 	if err := Encode(file, block, format); err != nil {
-		return fmt.Errorf("failed to encode block: %w", err)
+		return fmt.Errorf("encoding %s block to %q: %w", blockType, path, err)
 	}
 
 	return nil
@@ -83,58 +83,58 @@ func WriteFile(path string, format Format, blockType string, data []byte) error 
 func ReadFile(path string, format Format, out any) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
+		return fmt.Errorf("reading file %q: %w", path, err)
 	}
 
 	block, _ := Decode(data, format)
 	if block == nil {
-		return fmt.Errorf("failed to decode PEM block: no valid block found")
+		return fmt.Errorf("decoding PEM block from %q: got nil block", path)
 	}
 
 	switch block.Type {
 	case BlockTypeCertificate:
 		parsed, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			return fmt.Errorf("failed to parse certificate: %w", err)
+			return fmt.Errorf("parsing certificate: %w", err)
 		}
 
 		ptr, ok := out.(*x509.Certificate)
 		if !ok {
-			return fmt.Errorf("invalid out type %T, expected *x509.Certificate", out)
+			return fmt.Errorf("output parameter for %q is %T, expected *x509.Certificate", path, out)
 		}
 
 		*ptr = *parsed
 	case BlockTypePrivateKey:
 		parsed, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 		if err != nil {
-			return fmt.Errorf("failed to parse private key: %w", err)
+			return fmt.Errorf("parsing private key: %w", err)
 		}
 
 		switch pk := parsed.(type) {
 		case *ecdsa.PrivateKey:
 			ptr, ok := out.(*ecdsa.PrivateKey)
 			if !ok {
-				return fmt.Errorf("invalid out type %T, expected *ecdsa.PrivateKey", out)
+				return fmt.Errorf("output parameter for %q is %T, expected *ecdsa.PrivateKey", path, out)
 			}
 
 			*ptr = *pk
 		default:
-			return fmt.Errorf("unsupported private key type %T", pk)
+			return fmt.Errorf("unsupported private-key subtype %T in %q", pk, path)
 		}
 	case BlockTypeCRL:
 		parsed, err := x509.ParseRevocationList(block.Bytes)
 		if err != nil {
-			return fmt.Errorf("failed to parse revocation list: %w", err)
+			return fmt.Errorf("parsing revocation list: %w", err)
 		}
 
 		ptr, ok := out.(*x509.RevocationList)
 		if !ok {
-			return fmt.Errorf("invalid out type %T, expected *x509.RevocationList", out)
+			return fmt.Errorf("output parameter for %q is %T, expected *x509.RevocationList", path, out)
 		}
 
 		*ptr = *parsed
 	default:
-		return fmt.Errorf("unsupported block type %s", block.Type)
+		return fmt.Errorf("unsupported PEM block type %q in %q", block.Type, path)
 	}
 
 	return nil

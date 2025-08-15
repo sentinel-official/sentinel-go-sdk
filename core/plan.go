@@ -26,7 +26,7 @@ func (c *Client) Plan(ctx context.Context, id uint64) (res *v3.Plan, err error) 
 
 	// Perform the gRPC query to fetch the plan details.
 	if err := c.QueryGRPC(ctx, methodQueryPlan, req, &resp); err != nil {
-		return nil, IsCodeNotFound(err)
+		return nil, HandleQueryErr(err)
 	}
 
 	return &resp.Plan, nil
@@ -45,7 +45,7 @@ func (c *Client) Plans(ctx context.Context, status v1.Status, pageReq *query.Pag
 
 	// Perform the gRPC query to fetch the plans.
 	if err := c.QueryGRPC(ctx, methodQueryPlans, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Plans, resp.Pagination, nil
@@ -66,7 +66,7 @@ func (c *Client) PlansForProvider(ctx context.Context, provAddr types.ProvAddres
 
 	// Perform the gRPC query to fetch plans for the given provider.
 	if err := c.QueryGRPC(ctx, methodQueryPlansForProvider, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Plans, resp.Pagination, nil

@@ -117,7 +117,7 @@ func (c *TxConfig) Validate() error {
 	// Validate AuthzGranterAddr if it's not empty.
 	if c.AuthzGranterAddr != "" {
 		if _, err := types.AccAddressFromBech32(c.AuthzGranterAddr); err != nil {
-			return fmt.Errorf("invalid authz_granter_addr: %w", err)
+			return fmt.Errorf("decoding bech32 authz_granter_addr %q: %w", c.AuthzGranterAddr, err)
 		}
 	}
 
@@ -129,7 +129,7 @@ func (c *TxConfig) Validate() error {
 	// Validate FeeGranterAddr if it's not empty.
 	if c.FeeGranterAddr != "" {
 		if _, err := types.AccAddressFromBech32(c.FeeGranterAddr); err != nil {
-			return fmt.Errorf("invalid fee_granter_addr: %w", err)
+			return fmt.Errorf("decoding bech32 fee_granter_addr %q: %w", c.FeeGranterAddr, err)
 		}
 	}
 
@@ -146,7 +146,7 @@ func (c *TxConfig) Validate() error {
 	// Validate GasPrices if it's not empty.
 	if c.GasPrices != "" {
 		if _, err := types.ParseDecCoins(c.GasPrices); err != nil {
-			return fmt.Errorf("invalid gas_prices: %w", err)
+			return fmt.Errorf("parsing gas_prices %q: %w", c.GasPrices, err)
 		}
 	}
 

@@ -44,7 +44,7 @@ func (c *QueryConfig) Validate() error {
 
 	// Ensure RetryDelay is a valid time.Duration string.
 	if _, err := time.ParseDuration(c.RetryDelay); err != nil {
-		return fmt.Errorf("invalid retry_delay: %w", err)
+		return fmt.Errorf("parsing retry_delay %q: %w", c.RetryDelay, err)
 	}
 
 	return nil

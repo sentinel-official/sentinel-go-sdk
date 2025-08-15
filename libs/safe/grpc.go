@@ -23,16 +23,15 @@ func (c *GRPCConn) Dial(target string, opts ...grpc.DialOption) error {
 	defer c.mu.Unlock()
 
 	if c.closed.Load() {
-		return errors.New("already closed")
+		return errors.New("gRPC connection already closed")
 	}
-
 	if c.c != nil {
 		return nil
 	}
 
 	conn, err := grpc.NewClient(target, opts...)
 	if err != nil {
-		return fmt.Errorf("failed to create grpc client: %w", err)
+		return fmt.Errorf("creating gRPC client for %q: %w", target, err)
 	}
 
 	c.c = conn
@@ -71,7 +70,7 @@ func (c *GRPCConn) Close() error {
 	}
 
 	if err := c.c.Close(); err != nil {
-		return fmt.Errorf("failed to close grpc connection: %w", err)
+		return fmt.Errorf("closing gRPC connection: %w", err)
 	}
 
 	c.c = nil

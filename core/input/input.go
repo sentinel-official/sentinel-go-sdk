@@ -28,6 +28,7 @@ func readLineFromBuf(buf *bufio.Reader) (string, error) {
 		if len(line) > 0 {
 			break
 		}
+
 		return "", err
 	case err != nil:
 		return "", err

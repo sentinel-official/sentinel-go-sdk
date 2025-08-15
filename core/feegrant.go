@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"strings"
 
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
@@ -29,11 +28,7 @@ func (c *Client) FeegrantAllowance(ctx context.Context, granter, grantee types.A
 
 	// Perform the gRPC query to fetch the fee grant allowance.
 	if err := c.QueryGRPC(ctx, methodQueryFeegrantAllowance, req, &resp); err != nil {
-		if strings.Contains(err.Error(), "fee-grant not found") {
-			return nil, nil
-		}
-
-		return nil, err
+		return nil, HandleQueryErr(err)
 	}
 
 	return resp.Allowance, nil
@@ -52,7 +47,7 @@ func (c *Client) FeegrantAllowances(ctx context.Context, grantee types.AccAddres
 
 	// Perform the gRPC query to fetch the fee grants for the given grantee.
 	if err := c.QueryGRPC(ctx, methodQueryFeegrantAllowances, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Allowances, resp.Pagination, nil
@@ -71,7 +66,7 @@ func (c *Client) FeegrantAllowancesByGranter(ctx context.Context, granter types.
 
 	// Perform the gRPC query to fetch the fee grants issued by the specified granter.
 	if err := c.QueryGRPC(ctx, methodQueryFeegrantAllowancesByGranter, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Allowances, resp.Pagination, nil

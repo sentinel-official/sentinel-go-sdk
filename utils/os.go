@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 )
 
@@ -11,7 +12,7 @@ func IsFileExists(path string) (bool, error) {
 			return false, nil
 		}
 
-		return false, err
+		return false, fmt.Errorf("stat %q: %w", path, err)
 	}
 
 	return true, nil
@@ -22,14 +23,18 @@ func IsFileExists(path string) (bool, error) {
 // If the file removal fails, it returns an error.
 func RemoveFile(path string) error {
 	// Check if the file exists at the given path.
-	exist, err := IsFileExists(path)
+	exists, err := IsFileExists(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("checking if file %q exists: %w", path, err)
 	}
-	if !exist {
+	if !exists {
 		return nil
 	}
 
 	// Remove the file and return the resulting error, if any.
-	return os.Remove(path)
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("removing file %q: %w", path, err)
+	}
+
+	return nil
 }

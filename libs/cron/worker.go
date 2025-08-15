@@ -152,7 +152,7 @@ func (w *BasicWorker) RetryDelay() time.Duration {
 
 // Run executes the worker's handler function and returns any error encountered.
 func (w *BasicWorker) Run(ctx context.Context) error {
-	log.Debug("Executing worker handler", "worker", w.name)
+	log.Debug("Executing handler", "worker", w.name)
 	if w.handler != nil {
 		return w.handler(ctx)
 	}

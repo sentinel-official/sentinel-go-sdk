@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -18,7 +17,7 @@ func getEventName(t interface{}) (string, error) {
 	case proto.Message:
 		return proto.MessageName(v), nil
 	default:
-		return "", fmt.Errorf("unsupported type %T", t)
+		return "", fmt.Errorf("unsupported event type %T", t)
 	}
 }
 
@@ -27,7 +26,7 @@ func EventFromEvents(items []types.Event, t interface{}) (*types.Event, error) {
 	// Retrieve the event name
 	name, err := getEventName(t)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get event name: %w", err)
+		return nil, fmt.Errorf("getting event name for %T: %w", t, err)
 	}
 
 	for _, item := range items {
@@ -36,7 +35,7 @@ func EventFromEvents(items []types.Event, t interface{}) (*types.Event, error) {
 		}
 	}
 
-	return nil, errors.New("event not found")
+	return nil, fmt.Errorf("event %T does not exist", t)
 }
 
 // AttributeValueFromEvent searches for an attribute within an event by its key name.
@@ -47,7 +46,7 @@ func AttributeValueFromEvent(item *types.Event, key string) (string, error) {
 		}
 	}
 
-	return "", errors.New("attribute not found")
+	return "", fmt.Errorf("attribute %q does not exist", key)
 }
 
 // AttributeValueFromEvents retrieves an attribute's value from a list of events.
@@ -55,13 +54,13 @@ func AttributeValueFromEvents(items []types.Event, t interface{}, key string) (s
 	// Find the event with the given type
 	event, err := EventFromEvents(items, t)
 	if err != nil {
-		return "", fmt.Errorf("failed to get event from events: %w", err)
+		return "", fmt.Errorf("getting event %T from events: %w", t, err)
 	}
 
 	// Retrieve the attribute value from the event
 	value, err := AttributeValueFromEvent(event, key)
 	if err != nil {
-		return "", fmt.Errorf("failed to get attribute from event: %w", err)
+		return "", fmt.Errorf("getting attribute %q from event %T: %w", key, event, err)
 	}
 
 	return value, nil
@@ -69,10 +68,12 @@ func AttributeValueFromEvents(items []types.Event, t interface{}, key string) (s
 
 // IDFromEvents extracts the "id" attribute from an event of the given type in a list of events.
 func IDFromEvents(items []types.Event, t interface{}) (uint64, error) {
+	key := "id"
+
 	// Retrieve the "id" attribute from the specified event type
-	value, err := AttributeValueFromEvents(items, t, "id")
+	value, err := AttributeValueFromEvents(items, t, key)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get id from events: %w", err)
+		return 0, fmt.Errorf("getting attribute %q from events: %w", key, err)
 	}
 
 	value = strings.Trim(value, `"`)
@@ -80,7 +81,7 @@ func IDFromEvents(items []types.Event, t interface{}) (uint64, error) {
 	// Convert the ID string to uint64
 	id, err := strconv.ParseUint(value, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse id from value: %w", err)
+		return 0, fmt.Errorf("parsing ID %q: %w", value, err)
 	}
 
 	return id, nil

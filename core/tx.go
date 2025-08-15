@@ -17,20 +17,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/authz"
 )
 
-// MsgFromAddr returns the account address from which messages will be sent.
-func (c *Client) MsgFromAddr() (cosmossdk.AccAddress, error) {
-	if !c.txAuthzGranterAddr.Empty() {
-		return c.txAuthzGranterAddr, nil
-	}
-
-	addr, err := c.KeyAddr(c.txFromName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get key addr for tx_from_name:%w", err)
-	}
-
-	return addr, nil
-}
-
 // calculateFees computes transaction fees based on the provided gas prices and gas limit.
 func calculateFees(gasPrices cosmossdk.DecCoins, gasLimit uint64) cosmossdk.Coins {
 	fees := make(cosmossdk.Coins, len(gasPrices))
@@ -42,18 +28,18 @@ func calculateFees(gasPrices cosmossdk.DecCoins, gasLimit uint64) cosmossdk.Coin
 	return fees
 }
 
-// gasSimulateTx simulates the execution of a transaction to estimate the gas usage.
-func (c *Client) gasSimulateTx(ctx context.Context, txb client.TxBuilder) (uint64, error) {
+// estimateGas simulates the execution of a transaction to estimate the gas usage.
+func (c *Client) estimateGas(ctx context.Context, txb client.TxBuilder) (uint64, error) {
 	// Encode the transaction into bytes.
 	buf, err := c.txConfig.TxEncoder()(txb.GetTx())
 	if err != nil {
-		return 0, fmt.Errorf("failed to encode tx: %w", err)
+		return 0, fmt.Errorf("encoding tx: %w", err)
 	}
 
 	// Simulate the transaction execution to estimate gas usage.
 	res, err := c.Simulate(ctx, buf)
 	if err != nil {
-		return 0, fmt.Errorf("failed to simulate tx: %w", err)
+		return 0, fmt.Errorf("simulating tx: %w", err)
 	}
 
 	// Apply the gas adjustment factor to the simulated gas used.
@@ -67,7 +53,7 @@ func (c *Client) prepareTx(ctx context.Context, key *keyring.Record, acc auth.Ac
 
 	// Set the transaction messages.
 	if err := txb.SetMsgs(msgs...); err != nil {
-		return nil, fmt.Errorf("failed to set messages: %w", err)
+		return nil, fmt.Errorf("setting messages: %w", err)
 	}
 
 	// Set static transaction parameters.
@@ -92,7 +78,7 @@ func (c *Client) prepareTx(ctx context.Context, key *keyring.Record, acc auth.Ac
 	// Retrieve the public key from the key record.
 	pubKey, err := key.GetPubKey()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get public key from key: %w", err)
+		return nil, fmt.Errorf("getting public key from key %q: %w", key.Name, err)
 	}
 
 	// Create the signature information with the account sequence.
@@ -104,14 +90,14 @@ func (c *Client) prepareTx(ctx context.Context, key *keyring.Record, acc auth.Ac
 
 	// Set the initial (placeholder) signature in the transaction builder.
 	if err := txb.SetSignatures(signature); err != nil {
-		return nil, fmt.Errorf("failed to set initial signatures: %w", err)
+		return nil, fmt.Errorf("setting initial signatures: %w", err)
 	}
 
 	// If simulation is enabled, simulate the transaction to recalculate the gas limit and fees.
 	if c.txSimulateAndExecute {
-		gasLimit, err := c.gasSimulateTx(ctx, txb)
+		gasLimit, err := c.estimateGas(ctx, txb)
 		if err != nil {
-			return nil, fmt.Errorf("failed to simulate tx for gas estimation: %w", err)
+			return nil, fmt.Errorf("estimating gas: %w", err)
 		}
 
 		// Update the gas limit based on simulation.
@@ -138,7 +124,7 @@ func (c *Client) signTx(txb client.TxBuilder, key *keyring.Record, acc auth.Acco
 	// Retrieve the public key from the key record.
 	pubKey, err := key.GetPubKey()
 	if err != nil {
-		return fmt.Errorf("failed to get public key from key: %w", err)
+		return fmt.Errorf("getting public key from key %q: %w", key.Name, err)
 	}
 
 	// Create the signature information including the account sequence.
@@ -150,7 +136,7 @@ func (c *Client) signTx(txb client.TxBuilder, key *keyring.Record, acc auth.Acco
 
 	// Set the initial (placeholder) signature in the transaction builder.
 	if err := txb.SetSignatures(signature); err != nil {
-		return fmt.Errorf("failed to set initial signatures: %w", err)
+		return fmt.Errorf("setting initial signatures: %w", err)
 	}
 
 	// Prepare the signer data required for signing the transaction.
@@ -163,13 +149,13 @@ func (c *Client) signTx(txb client.TxBuilder, key *keyring.Record, acc auth.Acco
 	// Obtain the bytes to be signed from the transaction builder.
 	buf, err := c.txConfig.SignModeHandler().GetSignBytes(singleSignatureData.SignMode, signerData, txb.GetTx())
 	if err != nil {
-		return fmt.Errorf("failed to get tx sign bytes: %w", err)
+		return fmt.Errorf("getting tx sign bytes: %w", err)
 	}
 
 	// Sign the transaction bytes using the provided key (identified by c.txFromName).
 	buf, _, err = c.Sign(c.txFromName, buf)
 	if err != nil {
-		return fmt.Errorf("failed to sign tx bytes: %w", err)
+		return fmt.Errorf("signing tx bytes: %w", err)
 	}
 
 	// Update the signature data with the generated signature.
@@ -178,7 +164,7 @@ func (c *Client) signTx(txb client.TxBuilder, key *keyring.Record, acc auth.Acco
 
 	// Update the transaction builder with the final signature.
 	if err := txb.SetSignatures(signature); err != nil {
-		return fmt.Errorf("failed to set updated signatures: %w", err)
+		return fmt.Errorf("setting updated signatures: %w", err)
 	}
 
 	return nil
@@ -189,16 +175,16 @@ func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	// Retrieve the signing key using the configured sender name.
 	key, err := c.Key(c.txFromName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get key: %w", err)
+		return nil, fmt.Errorf("getting key %q: %w", c.txFromName, err)
 	}
 	if key == nil {
-		return nil, newErrNotFound(fmt.Errorf("key %s does not exist", c.txFromName))
+		return nil, NewErrNotFound(fmt.Errorf("key %q does not exist", c.txFromName))
 	}
 
 	// Get the sender's address from the key record.
 	addr, err := key.GetAddress()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get addr from key: %w", err)
+		return nil, fmt.Errorf("getting addr from key %q: %w", c.txFromName, err)
 	}
 
 	if !c.txAuthzGranterAddr.Empty() {
@@ -209,46 +195,46 @@ func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	// Validate each message and return an error if any fail.
 	for i, msg := range msgs {
 		if err := msg.ValidateBasic(); err != nil {
-			return nil, fmt.Errorf("failed to validate message at index %d: %w", i, err)
+			return nil, fmt.Errorf("validating message at index %d: %w", i, err)
 		}
 	}
 
 	// Retrieve the sender's account information from the blockchain.
 	acc, err := c.Account(ctx, addr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query account: %w", err)
+		return nil, fmt.Errorf("querying account %q: %w", addr, err)
 	}
 	if acc == nil {
-		return nil, newErrNotFound(fmt.Errorf("acconut %s does not exist", addr))
+		return nil, NewErrNotFound(fmt.Errorf("account %q does not exist", addr))
 	}
 
 	// Prepare the transaction (set messages, fees, gas, etc.) for broadcasting.
 	txb, err := c.prepareTx(ctx, key, acc, msgs...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to prepare tx: %w", err)
+		return nil, fmt.Errorf("preparing tx: %w", err)
 	}
 
 	// Sign the transaction.
 	if err := c.signTx(txb, key, acc); err != nil {
-		return nil, fmt.Errorf("failed to sign tx: %w", err)
+		return nil, fmt.Errorf("signing tx: %w", err)
 	}
 
 	// Encode the signed transaction into bytes.
 	buf, err := c.txConfig.TxEncoder()(txb.GetTx())
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode tx: %w", err)
+		return nil, fmt.Errorf("encoding tx: %w", err)
 	}
 
 	// Get the HTTP client for broadcasting the transaction.
 	http, err := c.HTTP()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create rpc client: %w", err)
+		return nil, fmt.Errorf("creating RPC client: %w", err)
 	}
 
 	// Broadcast the transaction synchronously via the HTTP client.
 	res, err := http.BroadcastTxSync(ctx, buf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sync broadcast tx: %w", err)
+		return nil, fmt.Errorf("broadcasting tx synchronously: %w", err)
 	}
 
 	return res, nil
@@ -264,12 +250,7 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 		// Attempt to broadcast the transaction.
 		resp, err = c.broadcastTxSync(ctx, msgs...)
 		if err != nil {
-			// Return nil if the error is related to a mempool cache issue.
-			if IsTxInMempoolCacheError(err) {
-				return nil
-			}
-
-			return err
+			return HandleBroadcastTxSyncErr(err)
 		}
 
 		return nil
@@ -278,7 +259,7 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	// retryIfFunc determines whether a retry should occur based on the error.
 	retryIfFunc := func(err error) bool {
 		// Retry if the error is an account sequence mismatch.
-		if IsWrongSequenceError(err) {
+		if IsWrongSequenceErr(err) {
 			return true
 		}
 
@@ -294,7 +275,7 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 		retry.LastErrorOnly(true),
 		retry.RetryIf(retryIfFunc),
 	); err != nil {
-		return nil, fmt.Errorf("tx sync broadcast failed after retries: %w", err)
+		return nil, fmt.Errorf("broadcasting tx synchronously failed after %d attempts: %w", c.txBroadcastRetryAttempts, err)
 	}
 
 	return resp, nil
@@ -305,13 +286,13 @@ func (c *Client) tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, e
 	// Get the HTTP client for querying the blockchain.
 	http, err := c.HTTP()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create rpc client: %w", err)
+		return nil, fmt.Errorf("creating RPC client: %w", err)
 	}
 
 	// Perform the query using the transaction hash.
 	res, err := http.Tx(ctx, hash, c.queryProve)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query tx: %w", err)
+		return nil, fmt.Errorf("querying tx: %w", err)
 	}
 
 	return res, nil
@@ -346,16 +327,16 @@ func (c *Client) Tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, e
 		retry.LastErrorOnly(true),
 		retry.RetryIf(retryIfFunc),
 	); err != nil {
-		return nil, fmt.Errorf("tx query failed after retries: %w", err)
+		return nil, fmt.Errorf("querying tx failed after %d attempts: %w", c.txQueryRetryAttempts, err)
 	}
 
 	return result, nil
 }
 
-// BroadcastTxBlock broadcasts a transaction and waits for it to be included in a block.
+// BroadcastTxCommit broadcasts a transaction and waits for it to be included in a block.
 // It first calls BroadcastTxSync to send the transaction and then queries for the transaction result.
 // Returns both the broadcast response and the transaction result or an error if any step fails.
-func (c *Client) BroadcastTxBlock(ctx context.Context, msgs ...cosmossdk.Msg) (*core.ResultBroadcastTx, *core.ResultTx, error) {
+func (c *Client) BroadcastTxCommit(ctx context.Context, msgs ...cosmossdk.Msg) (*core.ResultBroadcastTx, *core.ResultTx, error) {
 	// Broadcast the transaction synchronously.
 	resp, err := c.BroadcastTxSync(ctx, msgs...)
 	if err != nil {
@@ -364,8 +345,8 @@ func (c *Client) BroadcastTxBlock(ctx context.Context, msgs ...cosmossdk.Msg) (*
 
 	//  Ensure the transaction was accepted by the mempool.
 	if resp.Code != abci.CodeTypeOK {
-		err := fmt.Errorf("code=%d, codespace=%s, log=%s", resp.Code, resp.Codespace, resp.Log)
-		return resp, nil, fmt.Errorf("tx sync broadcast failed: %w", err)
+		err := fmt.Errorf("code=%s/%d, log=%s", resp.Codespace, resp.Code, resp.Log)
+		return resp, nil, fmt.Errorf("tx rejected by mempool: %w", err)
 	}
 
 	// Wait for the transaction to be included in a block.
@@ -376,7 +357,7 @@ func (c *Client) BroadcastTxBlock(ctx context.Context, msgs ...cosmossdk.Msg) (*
 
 	//  Ensure the transaction executed successfully.
 	if !res.TxResult.IsOK() {
-		err := fmt.Errorf("code=%d, codespace=%s, log=%s", res.TxResult.Code, res.TxResult.Codespace, res.TxResult.Log)
+		err := fmt.Errorf("code=%s/%d, log=%s", res.TxResult.Codespace, res.TxResult.Code, res.TxResult.Log)
 		return resp, res, fmt.Errorf("tx failed: %w", err)
 	}
 

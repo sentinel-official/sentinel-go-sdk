@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/types/tx"
 )
@@ -22,7 +21,7 @@ func (c *Client) Simulate(ctx context.Context, buf []byte) (*tx.SimulateResponse
 
 	// Perform a gRPC query to simulate the transaction.
 	if err := c.QueryGRPC(ctx, methodSimulate, req, &resp); err != nil {
-		return nil, fmt.Errorf("failed to query simulate: %w", err)
+		return nil, HandleQueryErr(err)
 	}
 
 	return &resp, nil

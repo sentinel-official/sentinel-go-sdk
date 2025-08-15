@@ -24,7 +24,7 @@ func (c *Client) Deposit(ctx context.Context, accAddr types.AccAddress) (res *v1
 
 	// Perform the gRPC query to fetch the deposit details.
 	if err := c.QueryGRPC(ctx, methodQueryDeposit, req, &resp); err != nil {
-		return nil, IsCodeNotFound(err)
+		return nil, HandleQueryErr(err)
 	}
 
 	return &resp.Deposit, nil
@@ -42,7 +42,7 @@ func (c *Client) Deposits(ctx context.Context, pageReq *query.PageRequest) (res 
 
 	// Perform the gRPC query to fetch the deposits.
 	if err := c.QueryGRPC(ctx, methodQueryDeposits, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Deposits, resp.Pagination, nil

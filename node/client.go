@@ -51,27 +51,30 @@ func (c *Client) WithTimeout(timeout time.Duration) *Client {
 }
 
 // NewClientFromConfig creates a new Client instance based on the provided configuration.
-func NewClientFromConfig(c *config.Config) (*Client, error) {
-	cc, err := core.NewClientFromConfig(c)
+func NewClientFromConfig(cfg *config.Config) (*Client, error) {
+	c, err := core.NewClientFromConfig(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create client: %w", err)
+		return nil, fmt.Errorf("creating core client: %w", err)
 	}
 
-	fromName := c.Tx.GetFromName()
-	if addr := c.Tx.GetAuthzGranterAddr(); !addr.Empty() {
-		key, err := cc.KeyForAddr(addr)
+	fromName := cfg.Tx.GetFromName()
+	if addr := cfg.Tx.GetAuthzGranterAddr(); !addr.Empty() {
+		key, err := c.KeyForAddr(addr)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get key for addr: %w", err)
+			return nil, fmt.Errorf("retrieving key for authz_granter_addr %q: %w", addr, err)
+		}
+		if key == nil {
+			return nil, fmt.Errorf("key for authz_granter_addr %q does not exist", addr)
 		}
 
 		fromName = key.Name
 	}
 
-	v := NewClient(cc).
+	v := NewClient(c).
 		WithAddr(nil).
 		WithFromName(fromName).
 		WithInsecure(false).
-		WithTimeout(c.RPC.GetTimeout())
+		WithTimeout(cfg.RPC.GetTimeout())
 
 	return v, nil
 }

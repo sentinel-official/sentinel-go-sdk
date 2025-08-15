@@ -33,7 +33,7 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 	if reqBody != nil {
 		buf, err := json.Marshal(reqBody)
 		if err != nil {
-			return fmt.Errorf("failed to encode request body: %w", err)
+			return fmt.Errorf("marshalling request body: %w", err)
 		}
 
 		body = bytes.NewReader(buf)
@@ -42,7 +42,7 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 	// Create the HTTP request.
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return fmt.Errorf("creating %q request to %q: %w", method, url, err)
 	}
 
 	// Set headers
@@ -51,7 +51,7 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 	// Perform the HTTP request.
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to perform request: %w", err)
+		return fmt.Errorf("performing %q request to %q: %w", method, url, err)
 	}
 
 	defer func() {
@@ -61,22 +61,22 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 	// Decode the JSON response into a predefined structure.
 	var respBody types.Response
 	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		return fmt.Errorf("failed to decode response body: %w", err)
+		return fmt.Errorf("unmarshalling response body: %w", err)
 	}
 
 	// Check for errors in the response.
 	if err := respBody.Err(); err != nil {
-		return fmt.Errorf("response error: %w", err)
+		return fmt.Errorf("response body contains error: %w", err)
 	}
 
 	// Decode the Result field if a result target is provided.
 	if result != nil {
 		buf, err := json.Marshal(respBody.Result)
 		if err != nil {
-			return fmt.Errorf("failed to encode data: %w", err)
+			return fmt.Errorf("marshalling response body result: %w", err)
 		}
 		if err := json.Unmarshal(buf, result); err != nil {
-			return fmt.Errorf("failed to decode result: %w", err)
+			return fmt.Errorf("unmarshalling response body result: %w", err)
 		}
 	}
 
@@ -87,10 +87,10 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 func (c *Client) getURL(ctx context.Context, pathSuffix string) (string, error) {
 	node, err := c.Node(ctx, c.addr)
 	if err != nil {
-		return "", fmt.Errorf("failed to query node: %w", err)
+		return "", fmt.Errorf("querying node %q: %w", c.addr, err)
 	}
 	if node == nil {
-		return "", fmt.Errorf("node %s does not exist", c.addr)
+		return "", fmt.Errorf("node %q does not exist", c.addr)
 	}
 
 	// Construct base URL with HTTPS scheme.
@@ -99,7 +99,7 @@ func (c *Client) getURL(ctx context.Context, pathSuffix string) (string, error) 
 	// Join base URL with the provided path suffix.
 	path, err := url.JoinPath(addr, pathSuffix)
 	if err != nil {
-		return "", fmt.Errorf("failed to join url path: %w", err)
+		return "", fmt.Errorf("constructing URL path %q: %w", pathSuffix, err)
 	}
 
 	return path, nil

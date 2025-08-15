@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -26,7 +25,7 @@ func (r *InitHandshakeRequestBody) AccAddr() (types.AccAddress, error) {
 	// Decode the public key.
 	pubKey, err := utils.DecodePubKey(r.PubKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode public key: %w", err)
+		return nil, fmt.Errorf("decoding public key %q: %w", r.PubKey, err)
 	}
 
 	return pubKey.Address().Bytes(), nil
@@ -44,18 +43,18 @@ func (r *InitHandshakeRequestBody) Verify() error {
 	// Decode the public key.
 	pubKey, err := utils.DecodePubKey(r.PubKey)
 	if err != nil {
-		return fmt.Errorf("failed to decode public key: %w", err)
+		return fmt.Errorf("decoding public key %q: %w", r.PubKey, err)
 	}
 
 	// Decode the signature from Base64.
 	signature, err := base64.StdEncoding.DecodeString(r.Signature)
 	if err != nil {
-		return fmt.Errorf("failed to decode signature: %w", err)
+		return fmt.Errorf("decoding signature %q: %w", r.Signature, err)
 	}
 
 	// Verify the signature against the message and public key.
 	if !pubKey.VerifySignature(r.Msg(), signature) {
-		return errors.New("signature verification failed")
+		return fmt.Errorf("signature verification failed for session %d", r.ID)
 	}
 
 	return nil
@@ -76,13 +75,13 @@ func (c *Client) InitHandshake(ctx context.Context, id uint64, data interface{})
 
 	// Encode session data into JSON format.
 	if req.Data, err = json.Marshal(data); err != nil {
-		return nil, fmt.Errorf("failed to encode data: %w", err)
+		return nil, fmt.Errorf("encoding session %d data: %w", id, err)
 	}
 
 	// Sign the session message using the client's private key.
 	signature, pubKey, err := c.Sign(c.fromName, req.Msg())
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign session data: %w", err)
+		return nil, fmt.Errorf("signing session %d data: %w", id, err)
 	}
 
 	// Set the public key and Base64-encoded signature in the request.
@@ -92,13 +91,13 @@ func (c *Client) InitHandshake(ctx context.Context, id uint64, data interface{})
 	// Retrieve the API endpoint URL for adding a session.
 	path, err := c.getURL(ctx, "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get url: %w", err)
+		return nil, fmt.Errorf("getting node API URL: %w", err)
 	}
 
 	// Send the HTTP POST request to add the session.
 	res = &InitHandshakeResult{}
 	if err := c.do(ctx, http.MethodPost, path, req, &res); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("performing init handshake request for session %d: %w", id, err)
 	}
 
 	// Return the response containing session details.

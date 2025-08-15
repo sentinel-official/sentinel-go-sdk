@@ -24,7 +24,7 @@ func (c *Client) Account(ctx context.Context, accAddr cosmossdk.AccAddress) (res
 
 	// Perform the gRPC query to fetch the account details.
 	if err := c.QueryGRPC(ctx, methodQueryAccount, req, &resp); err != nil {
-		return nil, IsCodeNotFound(err)
+		return nil, HandleQueryErr(err)
 	}
 
 	// Unpack the retrieved account data into the account interface.
@@ -45,7 +45,7 @@ func (c *Client) Accounts(ctx context.Context, pageReq *query.PageRequest) (res 
 
 	// Perform the gRPC query to fetch paginated account details.
 	if err := c.QueryGRPC(ctx, methodQueryAccounts, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	// Allocate memory for account slice and unpack each account record.

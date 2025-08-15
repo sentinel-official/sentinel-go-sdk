@@ -26,7 +26,7 @@ func (c *Client) Lease(ctx context.Context, id uint64) (res *v1.Lease, err error
 
 	// Perform the gRPC query to fetch the lease details.
 	if err := c.QueryGRPC(ctx, methodQueryLease, req, &resp); err != nil {
-		return nil, IsCodeNotFound(err)
+		return nil, HandleQueryErr(err)
 	}
 
 	return &resp.Lease, nil
@@ -42,7 +42,7 @@ func (c *Client) Leases(ctx context.Context, pageReq *query.PageRequest) (res []
 
 	// Perform the gRPC query to fetch the leases.
 	if err := c.QueryGRPC(ctx, methodQueryLeases, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Leases, resp.Pagination, nil
@@ -61,7 +61,7 @@ func (c *Client) LeasesForNode(ctx context.Context, nodeAddr types.NodeAddress, 
 
 	// Perform the gRPC query to fetch leases for the given node.
 	if err := c.QueryGRPC(ctx, methodQueryLeasesForNode, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Leases, resp.Pagination, nil
@@ -80,7 +80,7 @@ func (c *Client) LeasesForProvider(ctx context.Context, provAddr types.ProvAddre
 
 	// Perform the gRPC query to fetch leases for the given provider.
 	if err := c.QueryGRPC(ctx, methodQueryLeasesForProvider, req, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, HandleQueryErr(err)
 	}
 
 	return resp.Leases, resp.Pagination, nil

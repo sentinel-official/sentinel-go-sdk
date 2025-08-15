@@ -24,7 +24,7 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 		// Get the RPC client for querying.
 		http, err := c.HTTP()
 		if err != nil {
-			return fmt.Errorf("failed to create rpc client: %w", err)
+			return fmt.Errorf("creating RPC client: %w", err)
 		}
 
 		// Configure the query options.
@@ -36,7 +36,7 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 		// Perform the query and store the result.
 		result, err = http.ABCIQueryWithOptions(ctx, path, data, opts)
 		if err != nil {
-			return fmt.Errorf("failed to perform abci query: %w", err)
+			return fmt.Errorf("performing ABCI query: %w", err)
 		}
 
 		return nil
@@ -56,7 +56,7 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 		retry.LastErrorOnly(true),
 		retry.RetryIf(retryIfFunc),
 	); err != nil {
-		return nil, fmt.Errorf("query failed after retries: %w", err)
+		return nil, fmt.Errorf("ABCI query failed after %d attempts: %w", c.queryRetryAttempts, err)
 	}
 
 	// Return nil if no result was produced.
@@ -77,7 +77,7 @@ func (c *Client) QueryKey(ctx context.Context, store string, data bytes.HexBytes
 	// Perform the query.
 	reply, err := c.ABCIQueryWithOptions(ctx, path, data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query key: %w", err)
+		return nil, fmt.Errorf("querying key from store %q: %w", store, err)
 	}
 
 	return reply, nil
@@ -93,7 +93,7 @@ func (c *Client) QuerySubspace(ctx context.Context, store string, data bytes.Hex
 	// Perform the query.
 	reply, err := c.ABCIQueryWithOptions(ctx, path, data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query subspace: %w", err)
+		return nil, fmt.Errorf("querying subspace from store %q: %w", store, err)
 	}
 
 	return reply, nil
@@ -106,18 +106,18 @@ func (c *Client) QueryGRPC(ctx context.Context, method string, req, resp codec.P
 	// Marshal the request into bytes.
 	data, err := c.ProtoCodec().Marshal(req)
 	if err != nil {
-		return fmt.Errorf("failed to marshal request: %w", err)
+		return fmt.Errorf("marshalling gRPC request: %w", err)
 	}
 
 	// Perform the query using ABCIQueryWithOptions.
 	reply, err := c.ABCIQueryWithOptions(ctx, method, data)
 	if err != nil {
-		return fmt.Errorf("failed to perform grpc query: %w", err)
+		return fmt.Errorf("performing gRPC query: %w", err)
 	}
 
 	// Check for a nil reply.
 	if reply == nil {
-		return errors.New("nil reply")
+		return errors.New("nil reply from gRPC query")
 	}
 	if reply.IsErr() {
 		return errors.New(reply.Log)
@@ -125,7 +125,7 @@ func (c *Client) QueryGRPC(ctx context.Context, method string, req, resp codec.P
 
 	// Unmarshal the response value into the provided response object.
 	if err := c.ProtoCodec().Unmarshal(reply.Value, resp); err != nil {
-		return fmt.Errorf("failed to unmarshal response: %w", err)
+		return fmt.Errorf("unmarshalling gRPC response: %w", err)
 	}
 
 	return nil
