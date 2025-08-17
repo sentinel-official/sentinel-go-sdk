@@ -217,9 +217,6 @@ func (c *Client) MsgFromAddr() (cosmossdk.AccAddress, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getting addr for key %q: %w", c.txFromName, err)
 	}
-	if addr == nil {
-		return nil, fmt.Errorf("addr for key %q is empty", c.txFromName)
-	}
 
 	return addr, nil
 }

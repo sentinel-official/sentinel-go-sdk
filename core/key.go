@@ -160,7 +160,7 @@ func (c *Client) KeyAddr(name string) (cosmossdk.AccAddress, error) {
 		return nil, fmt.Errorf("getting key %q: %w", name, err)
 	}
 	if key == nil {
-		return nil, nil
+		return nil, fmt.Errorf("key %q does not exist", name)
 	}
 
 	// Obtain and return the address from the key.
