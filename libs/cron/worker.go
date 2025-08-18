@@ -37,9 +37,11 @@ type BasicWorker struct {
 }
 
 // NewBasicWorker creates a new BasicWorker with default settings.
-func NewBasicWorker() *BasicWorker {
-	w := &BasicWorker{}
-	w.WithRetryAttempts(1)
+func NewBasicWorker(name string) *BasicWorker {
+	w := &BasicWorker{
+		name: name,
+	}
+	w.WithRetryAttempts(5)
 	w.WithRetryDelay(1 * time.Second)
 
 	return w
@@ -60,12 +62,6 @@ func (w *BasicWorker) WithInterval(interval time.Duration) *BasicWorker {
 // WithMaxRuns sets the maximum number of times the worker should run.
 func (w *BasicWorker) WithMaxRuns(runs uint) *BasicWorker {
 	w.maxRuns = runs
-	return w
-}
-
-// WithName sets the name of the worker.
-func (w *BasicWorker) WithName(name string) *BasicWorker {
-	w.name = name
 	return w
 }
 

@@ -117,7 +117,7 @@ func (c *TxConfig) Validate() error {
 	// Validate AuthzGranterAddr if it's not empty.
 	if c.AuthzGranterAddr != "" {
 		if _, err := types.AccAddressFromBech32(c.AuthzGranterAddr); err != nil {
-			return fmt.Errorf("decoding bech32 authz_granter_addr %q: %w", c.AuthzGranterAddr, err)
+			return fmt.Errorf("decoding Bech32 authz_granter_addr %q: %w", c.AuthzGranterAddr, err)
 		}
 	}
 
@@ -129,7 +129,7 @@ func (c *TxConfig) Validate() error {
 	// Validate FeeGranterAddr if it's not empty.
 	if c.FeeGranterAddr != "" {
 		if _, err := types.AccAddressFromBech32(c.FeeGranterAddr); err != nil {
-			return fmt.Errorf("decoding bech32 fee_granter_addr %q: %w", c.FeeGranterAddr, err)
+			return fmt.Errorf("decoding Bech32 fee_granter_addr %q: %w", c.FeeGranterAddr, err)
 		}
 	}
 
@@ -182,7 +182,7 @@ func DefaultTxConfig() *TxConfig {
 		FeeGranterAddr:         "",
 		FromName:               "main",
 		Gas:                    200_000,
-		GasAdjustment:          1.0 + 1.0/6,
+		GasAdjustment:          1.15,
 		GasPrices:              "0.1udvpn",
 		QueryRetryAttempts:     30,
 		QueryRetryDelay:        "1s",
