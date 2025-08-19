@@ -1,7 +1,9 @@
 package core
 
 import (
+	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/cometbft/cometbft/rpc/client/http"
@@ -41,6 +43,10 @@ type Client struct {
 	txQueryRetryDelay        time.Duration             // Delay between transaction query retries
 	txSimulateAndExecute     bool                      // Flag for simulating and executing transactions
 	txTimeoutHeight          uint64                    // Transaction timeout height
+
+	sealed bool
+
+	fm sync.RWMutex
 }
 
 // NewClient initializes a new Client instance.
@@ -57,158 +63,34 @@ func NewClient() *Client {
 	return c
 }
 
-// ProtoCodec returns the protobuf codec used for marshaling and unmarshaling data.
-func (c *Client) ProtoCodec() codec.ProtoCodecMarshaler {
-	return c.protoCodec
+// checkSealed verifies if the client is sealed to prevent modification.
+func (c *Client) checkSealed() {
+	if c.sealed {
+		panic(errors.New("client is sealed"))
+	}
 }
 
-// WithKeyring assigns the keyring to the Client and returns the updated Client.
-func (c *Client) WithKeyring(keyring keyring.Keyring) *Client {
-	c.keyring = keyring
-	return c
-}
-
-// WithProtoCodec sets the protobuf codec and returns the updated Client.
-func (c *Client) WithProtoCodec(protoCodec codec.ProtoCodecMarshaler) *Client {
-	c.protoCodec = protoCodec
-	return c
-}
-
-// WithQueryProve sets the prove flag for queries and returns the updated Client.
-func (c *Client) WithQueryProve(prove bool) *Client {
-	c.queryProve = prove
-	return c
-}
-
-// WithQueryRetryAttempts sets the number of retry attempts for queries and returns the updated Client.
-func (c *Client) WithQueryRetryAttempts(attempts uint) *Client {
-	c.queryRetryAttempts = attempts
-	return c
-}
-
-// WithQueryRetryDelay sets the retry delay duration for queries and returns the updated Client.
-func (c *Client) WithQueryRetryDelay(delay time.Duration) *Client {
-	c.queryRetryDelay = delay
-	return c
-}
-
-// WithRPCAddr sets the RPC server address and returns the updated Client.
-func (c *Client) WithRPCAddr(rpcAddr string) *Client {
-	c.rpcAddr = rpcAddr
-	return c
-}
-
-// WithRPCChainID sets the blockchain chain ID and returns the updated Client.
-func (c *Client) WithRPCChainID(chainID string) *Client {
-	c.rpcChainID = chainID
-	return c
-}
-
-// WithRPCTimeout sets the RPC timeout duration and returns the updated Client.
-func (c *Client) WithRPCTimeout(timeout time.Duration) *Client {
-	c.rpcTimeout = timeout
-	return c
-}
-
-// WithTxAuthzGranterAddr sets the transaction authorization granter address and returns the updated Client.
-func (c *Client) WithTxAuthzGranterAddr(addr cosmossdk.AccAddress) *Client {
-	c.txAuthzGranterAddr = addr
-	return c
-}
-
-// WithTxBroadcastRetryAttempts sets the number of retry attempts for broadcasting transactions and returns the updated Client.
-func (c *Client) WithTxBroadcastRetryAttempts(attempts uint) *Client {
-	c.txBroadcastRetryAttempts = attempts
-	return c
-}
-
-// WithTxBroadcastRetryDelay sets the retry delay duration for broadcasting transactions and returns the updated Client.
-func (c *Client) WithTxBroadcastRetryDelay(delay time.Duration) *Client {
-	c.txBroadcastRetryDelay = delay
-	return c
-}
-
-// WithTxConfig sets the transaction configuration and returns the updated Client.
-func (c *Client) WithTxConfig(txConfig client.TxConfig) *Client {
-	c.txConfig = txConfig
-	return c
-}
-
-// WithTxFeeGranterAddr sets the transaction fee granter address and returns the updated Client.
-func (c *Client) WithTxFeeGranterAddr(addr cosmossdk.AccAddress) *Client {
-	c.txFeeGranterAddr = addr
-	return c
-}
-
-// WithTxFees assigns transaction fees and returns the updated Client.
-func (c *Client) WithTxFees(fees cosmossdk.Coins) *Client {
-	c.txFees = fees
-	return c
-}
-
-// WithTxFromName sets the "from" name for transactions and returns the updated Client.
-func (c *Client) WithTxFromName(name string) *Client {
-	c.txFromName = name
-	return c
-}
-
-// WithTxGasAdjustment sets the gas adjustment factor for transactions and returns the updated Client.
-func (c *Client) WithTxGasAdjustment(adjustment float64) *Client {
-	c.txGasAdjustment = adjustment
-	return c
-}
-
-// WithTxGasPrices sets the gas prices for transactions and returns the updated Client.
-func (c *Client) WithTxGasPrices(prices cosmossdk.DecCoins) *Client {
-	c.txGasPrices = prices
-	return c
-}
-
-// WithTxGas sets the gas limit for transactions and returns the updated Client.
-func (c *Client) WithTxGas(gas uint64) *Client {
-	c.txGas = gas
-	return c
-}
-
-// WithTxMemo sets the memo for transactions and returns the updated Client.
-func (c *Client) WithTxMemo(memo string) *Client {
-	c.txMemo = memo
-	return c
-}
-
-// WithTxQueryRetryAttempts sets the number of retry attempts for transaction queries and returns the updated Client.
-func (c *Client) WithTxQueryRetryAttempts(attempts uint) *Client {
-	c.txQueryRetryAttempts = attempts
-	return c
-}
-
-// WithTxQueryRetryDelay sets the retry delay duration for transaction queries and returns the updated Client.
-func (c *Client) WithTxQueryRetryDelay(delay time.Duration) *Client {
-	c.txQueryRetryDelay = delay
-	return c
-}
-
-// WithTxSimulateAndExecute sets the simulate and execute flag and returns the updated Client.
-func (c *Client) WithTxSimulateAndExecute(simulate bool) *Client {
-	c.txSimulateAndExecute = simulate
-	return c
-}
-
-// WithTxTimeoutHeight sets the timeout height for transactions and returns the updated Client.
-func (c *Client) WithTxTimeoutHeight(height uint64) *Client {
-	c.txTimeoutHeight = height
+// Seal marks the client as sealed, preventing further modifications.
+func (c *Client) Seal() *Client {
+	c.sealed = true
 	return c
 }
 
 // HTTP creates an HTTP client for the given RPC address and timeout configuration.
 // Returns the HTTP client or an error if initialization fails.
 func (c *Client) HTTP() (*http.HTTP, error) {
+	c.fm.RLock()
+	defer c.fm.RUnlock()
+
 	timeout := uint(c.rpcTimeout / time.Second)
 	return http.NewWithTimeout(c.rpcAddr, "/websocket", timeout)
 }
 
 // MsgFromAddr returns the account address from which messages will be sent.
 func (c *Client) MsgFromAddr() (cosmossdk.AccAddress, error) {
+	c.fm.RLock()
+	defer c.fm.RUnlock()
+
 	if !c.txAuthzGranterAddr.Empty() {
 		return c.txAuthzGranterAddr, nil
 	}
@@ -221,34 +103,208 @@ func (c *Client) MsgFromAddr() (cosmossdk.AccAddress, error) {
 	return addr, nil
 }
 
+// ProtoCodec returns the protobuf codec used for marshaling and unmarshaling data.
+func (c *Client) ProtoCodec() codec.ProtoCodecMarshaler {
+	c.fm.RLock()
+	defer c.fm.RUnlock()
+	return c.protoCodec
+}
+
+func (c *Client) SetRPCAddr(addr string) {
+	c.fm.Lock()
+	defer c.fm.Unlock()
+	c.rpcAddr = addr
+}
+
+// WithKeyring assigns the keyring to the Client and returns the updated Client.
+func (c *Client) WithKeyring(keyring keyring.Keyring) *Client {
+	c.checkSealed()
+	c.keyring = keyring
+	return c
+}
+
+// WithProtoCodec sets the protobuf codec and returns the updated Client.
+func (c *Client) WithProtoCodec(protoCodec codec.ProtoCodecMarshaler) *Client {
+	c.checkSealed()
+	c.protoCodec = protoCodec
+	return c
+}
+
+// WithQueryProve sets the prove flag for queries and returns the updated Client.
+func (c *Client) WithQueryProve(prove bool) *Client {
+	c.checkSealed()
+	c.queryProve = prove
+	return c
+}
+
+// WithQueryRetryAttempts sets the number of retry attempts for queries and returns the updated Client.
+func (c *Client) WithQueryRetryAttempts(attempts uint) *Client {
+	c.checkSealed()
+	c.queryRetryAttempts = attempts
+	return c
+}
+
+// WithQueryRetryDelay sets the retry delay duration for queries and returns the updated Client.
+func (c *Client) WithQueryRetryDelay(delay time.Duration) *Client {
+	c.checkSealed()
+	c.queryRetryDelay = delay
+	return c
+}
+
+// WithRPCAddr sets the RPC server address and returns the updated Client.
+func (c *Client) WithRPCAddr(rpcAddr string) *Client {
+	c.checkSealed()
+	c.rpcAddr = rpcAddr
+	return c
+}
+
+// WithRPCChainID sets the blockchain chain ID and returns the updated Client.
+func (c *Client) WithRPCChainID(chainID string) *Client {
+	c.checkSealed()
+	c.rpcChainID = chainID
+	return c
+}
+
+// WithRPCTimeout sets the RPC timeout duration and returns the updated Client.
+func (c *Client) WithRPCTimeout(timeout time.Duration) *Client {
+	c.checkSealed()
+	c.rpcTimeout = timeout
+	return c
+}
+
+// WithTxAuthzGranterAddr sets the transaction authorization granter address and returns the updated Client.
+func (c *Client) WithTxAuthzGranterAddr(addr cosmossdk.AccAddress) *Client {
+	c.checkSealed()
+	c.txAuthzGranterAddr = addr
+	return c
+}
+
+// WithTxBroadcastRetryAttempts sets the number of retry attempts for broadcasting transactions and returns the updated Client.
+func (c *Client) WithTxBroadcastRetryAttempts(attempts uint) *Client {
+	c.checkSealed()
+	c.txBroadcastRetryAttempts = attempts
+	return c
+}
+
+// WithTxBroadcastRetryDelay sets the retry delay duration for broadcasting transactions and returns the updated Client.
+func (c *Client) WithTxBroadcastRetryDelay(delay time.Duration) *Client {
+	c.checkSealed()
+	c.txBroadcastRetryDelay = delay
+	return c
+}
+
+// WithTxConfig sets the transaction configuration and returns the updated Client.
+func (c *Client) WithTxConfig(txConfig client.TxConfig) *Client {
+	c.checkSealed()
+	c.txConfig = txConfig
+	return c
+}
+
+// WithTxFeeGranterAddr sets the transaction fee granter address and returns the updated Client.
+func (c *Client) WithTxFeeGranterAddr(addr cosmossdk.AccAddress) *Client {
+	c.checkSealed()
+	c.txFeeGranterAddr = addr
+	return c
+}
+
+// WithTxFees assigns transaction fees and returns the updated Client.
+func (c *Client) WithTxFees(fees cosmossdk.Coins) *Client {
+	c.checkSealed()
+	c.txFees = fees
+	return c
+}
+
+// WithTxFromName sets the "from" name for transactions and returns the updated Client.
+func (c *Client) WithTxFromName(name string) *Client {
+	c.checkSealed()
+	c.txFromName = name
+	return c
+}
+
+// WithTxGasAdjustment sets the gas adjustment factor for transactions and returns the updated Client.
+func (c *Client) WithTxGasAdjustment(adjustment float64) *Client {
+	c.checkSealed()
+	c.txGasAdjustment = adjustment
+	return c
+}
+
+// WithTxGasPrices sets the gas prices for transactions and returns the updated Client.
+func (c *Client) WithTxGasPrices(prices cosmossdk.DecCoins) *Client {
+	c.checkSealed()
+	c.txGasPrices = prices
+	return c
+}
+
+// WithTxGas sets the gas limit for transactions and returns the updated Client.
+func (c *Client) WithTxGas(gas uint64) *Client {
+	c.checkSealed()
+	c.txGas = gas
+	return c
+}
+
+// WithTxMemo sets the memo for transactions and returns the updated Client.
+func (c *Client) WithTxMemo(memo string) *Client {
+	c.checkSealed()
+	c.txMemo = memo
+	return c
+}
+
+// WithTxQueryRetryAttempts sets the number of retry attempts for transaction queries and returns the updated Client.
+func (c *Client) WithTxQueryRetryAttempts(attempts uint) *Client {
+	c.checkSealed()
+	c.txQueryRetryAttempts = attempts
+	return c
+}
+
+// WithTxQueryRetryDelay sets the retry delay duration for transaction queries and returns the updated Client.
+func (c *Client) WithTxQueryRetryDelay(delay time.Duration) *Client {
+	c.checkSealed()
+	c.txQueryRetryDelay = delay
+	return c
+}
+
+// WithTxSimulateAndExecute sets the simulate and execute flag and returns the updated Client.
+func (c *Client) WithTxSimulateAndExecute(simulate bool) *Client {
+	c.checkSealed()
+	c.txSimulateAndExecute = simulate
+	return c
+}
+
+// WithTxTimeoutHeight sets the timeout height for transactions and returns the updated Client.
+func (c *Client) WithTxTimeoutHeight(height uint64) *Client {
+	c.checkSealed()
+	c.txTimeoutHeight = height
+	return c
+}
+
 // NewClientFromConfig creates a new Client instance based on the provided configuration.
-func NewClientFromConfig(c *config.Config) (*Client, error) {
-	v := NewClient().
-		WithQueryProve(c.Query.GetProve()).
-		WithQueryRetryAttempts(c.Query.GetRetryAttempts()).
-		WithQueryRetryDelay(c.Query.GetRetryDelay()).
-		WithRPCAddr(c.RPC.GetAddrs()[0]).
-		WithRPCChainID(c.RPC.GetChainID()).
-		WithRPCTimeout(c.RPC.GetTimeout()).
-		WithTxAuthzGranterAddr(c.Tx.GetAuthzGranterAddr()).
-		WithTxBroadcastRetryAttempts(c.Tx.GetBroadcastRetryAttempts()).
-		WithTxBroadcastRetryDelay(c.Tx.GetBroadcastRetryDelay()).
-		WithTxFeeGranterAddr(c.Tx.GetFeeGranterAddr()).
+func NewClientFromConfig(cfg *config.Config) (*Client, error) {
+	c := NewClient().
+		WithQueryProve(cfg.Query.GetProve()).
+		WithQueryRetryAttempts(cfg.Query.GetRetryAttempts()).
+		WithQueryRetryDelay(cfg.Query.GetRetryDelay()).
+		WithRPCAddr(cfg.RPC.GetAddrs()[0]).
+		WithRPCChainID(cfg.RPC.GetChainID()).
+		WithRPCTimeout(cfg.RPC.GetTimeout()).
+		WithTxAuthzGranterAddr(cfg.Tx.GetAuthzGranterAddr()).
+		WithTxBroadcastRetryAttempts(cfg.Tx.GetBroadcastRetryAttempts()).
+		WithTxBroadcastRetryDelay(cfg.Tx.GetBroadcastRetryDelay()).
+		WithTxFeeGranterAddr(cfg.Tx.GetFeeGranterAddr()).
 		WithTxFees(nil).
-		WithTxFromName(c.Tx.GetFromName()).
-		WithTxGasAdjustment(c.Tx.GetGasAdjustment()).
-		WithTxGas(c.Tx.GetGas()).
-		WithTxGasPrices(c.Tx.GetGasPrices()).
+		WithTxFromName(cfg.Tx.GetFromName()).
+		WithTxGasAdjustment(cfg.Tx.GetGasAdjustment()).
+		WithTxGas(cfg.Tx.GetGas()).
+		WithTxGasPrices(cfg.Tx.GetGasPrices()).
 		WithTxMemo("").
-		WithTxQueryRetryAttempts(c.Tx.GetQueryRetryAttempts()).
-		WithTxQueryRetryDelay(c.Tx.GetQueryRetryDelay()).
-		WithTxSimulateAndExecute(c.Tx.GetSimulateAndExecute()).
+		WithTxQueryRetryAttempts(cfg.Tx.GetQueryRetryAttempts()).
+		WithTxQueryRetryDelay(cfg.Tx.GetQueryRetryDelay()).
+		WithTxSimulateAndExecute(cfg.Tx.GetSimulateAndExecute()).
 		WithTxTimeoutHeight(0)
 
-	// Setup the keyring for the client
-	if err := v.SetupKeyring(c.Keyring); err != nil {
+	// Set up the keyring for the client
+	if err := c.SetupKeyring(cfg.Keyring); err != nil {
 		return nil, fmt.Errorf("setting up keyring: %w", err)
 	}
 
-	return v, nil
+	return c, nil
 }
