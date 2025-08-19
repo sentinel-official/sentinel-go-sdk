@@ -283,7 +283,7 @@ func NewClientFromConfig(cfg *config.Config) (*Client, error) {
 		WithQueryProve(cfg.Query.GetProve()).
 		WithQueryRetryAttempts(cfg.Query.GetRetryAttempts()).
 		WithQueryRetryDelay(cfg.Query.GetRetryDelay()).
-		WithRPCAddr(cfg.RPC.GetAddrs()[0]).
+		WithRPCAddr(cfg.RPC.GetAddr()).
 		WithRPCChainID(cfg.RPC.GetChainID()).
 		WithRPCTimeout(cfg.RPC.GetTimeout()).
 		WithTxAuthzGranterAddr(cfg.Tx.GetAuthzGranterAddr()).
