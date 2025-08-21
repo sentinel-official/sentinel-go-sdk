@@ -61,7 +61,7 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 	// Decode the JSON response into a predefined structure.
 	var respBody types.Response
 	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		return fmt.Errorf("unmarshalling response body: %w", err)
+		return fmt.Errorf("unmarshaling response body: %w", err)
 	}
 
 	// Check for errors in the response.
@@ -76,7 +76,7 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 			return fmt.Errorf("marshalling response body result: %w", err)
 		}
 		if err := json.Unmarshal(buf, result); err != nil {
-			return fmt.Errorf("unmarshalling response body result: %w", err)
+			return fmt.Errorf("unmarshaling response body result: %w", err)
 		}
 	}
 
@@ -87,10 +87,10 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 func (c *Client) getURL(ctx context.Context, pathSuffix string) (string, error) {
 	node, err := c.Node(ctx, c.addr)
 	if err != nil {
-		return "", fmt.Errorf("querying node %q: %w", c.addr, err)
+		return "", fmt.Errorf("querying node %q: %w", c.addr.String(), err)
 	}
 	if node == nil {
-		return "", fmt.Errorf("node %q does not exist", c.addr)
+		return "", fmt.Errorf("node %q does not exist", c.addr.String())
 	}
 
 	// Construct base URL with HTTPS scheme.

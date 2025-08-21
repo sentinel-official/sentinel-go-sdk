@@ -76,7 +76,7 @@ func (p *Port) MarshalJSON() ([]byte, error) {
 func (p *Port) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
-		return fmt.Errorf("unmarshalling port string from bytes: %w", err)
+		return fmt.Errorf("unmarshaling port string from bytes: %w", err)
 	}
 
 	port, err := NewPortFromString(s)

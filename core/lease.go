@@ -11,6 +11,7 @@ import (
 const (
 	// gRPC methods for querying lease information
 	methodQueryLease             = "/sentinel.lease.v1.QueryService/QueryLease"             // Retrieve a specific lease by ID
+	methodQueryLeaseParams       = "/sentinel.lease.v1.QueryService/QueryParams"            // Retrieve module parameters for leases
 	methodQueryLeases            = "/sentinel.lease.v1.QueryService/QueryLeases"            // List leases with pagination
 	methodQueryLeasesForNode     = "/sentinel.lease.v1.QueryService/QueryLeasesForNode"     // List leases associated with a specific node
 	methodQueryLeasesForProvider = "/sentinel.lease.v1.QueryService/QueryLeasesForProvider" // List leases associated with a specific provider
@@ -30,6 +31,22 @@ func (c *Client) Lease(ctx context.Context, id uint64) (res *v1.Lease, err error
 	}
 
 	return &resp.Lease, nil
+}
+
+// LeaseParams retrieves the current parameters for the lease module.
+// Returns the lease parameters and any error encountered.
+func (c *Client) LeaseParams(ctx context.Context) (res *v1.Params, err error) {
+	var (
+		resp v1.QueryParamsResponse
+		req  = &v1.QueryParamsRequest{}
+	)
+
+	// Perform the gRPC query to fetch the lease module parameters.
+	if err := c.QueryGRPC(ctx, methodQueryLeaseParams, req, &resp); err != nil {
+		return nil, HandleQueryErr(err)
+	}
+
+	return &resp.Params, nil
 }
 
 // Leases retrieves a paginated list of all leases.

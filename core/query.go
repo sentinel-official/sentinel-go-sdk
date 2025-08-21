@@ -125,7 +125,7 @@ func (c *Client) QueryGRPC(ctx context.Context, method string, req, resp codec.P
 
 	// Unmarshal the response value into the provided response object.
 	if err := c.ProtoCodec().Unmarshal(reply.Value, resp); err != nil {
-		return fmt.Errorf("unmarshalling gRPC response: %w", err)
+		return fmt.Errorf("unmarshaling gRPC response: %w", err)
 	}
 
 	return nil

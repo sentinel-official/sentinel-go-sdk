@@ -12,11 +12,12 @@ import (
 const (
 	// gRPC methods for querying subscription and allocation information
 	methodQuerySubscription            = "/sentinel.subscription.v3.QueryService/QuerySubscription"            // Fetch details of a specific subscription
+	methodQuerySubscriptionAllocation  = "/sentinel.subscription.v2.QueryService/QueryAllocation"              // Fetch details of a specific allocation within a subscription
+	methodQuerySubscriptionAllocations = "/sentinel.subscription.v2.QueryService/QueryAllocations"             // Fetch a list of allocations within a subscription
+	methodQuerySubscriptionParams      = "/sentinel.subscription.v3.QueryService/QueryParams"                  // Retrieve module parameters for subscriptions
 	methodQuerySubscriptions           = "/sentinel.subscription.v3.QueryService/QuerySubscriptions"           // Fetch a list of all subscriptions
 	methodQuerySubscriptionsForAccount = "/sentinel.subscription.v3.QueryService/QuerySubscriptionsForAccount" // Fetch subscriptions associated with an account
 	methodQuerySubscriptionsForPlan    = "/sentinel.subscription.v3.QueryService/QuerySubscriptionsForPlan"    // Fetch subscriptions associated with a specific plan
-	methodQuerySubscriptionAllocation  = "/sentinel.subscription.v2.QueryService/QueryAllocation"              // Fetch details of a specific allocation within a subscription
-	methodQuerySubscriptionAllocations = "/sentinel.subscription.v2.QueryService/QueryAllocations"             // Fetch a list of allocations within a subscription
 )
 
 // Subscription retrieves details of a specific subscription by its ID.
@@ -33,6 +34,60 @@ func (c *Client) Subscription(ctx context.Context, id uint64) (res *v3.Subscript
 	}
 
 	return &resp.Subscription, nil
+}
+
+// SubscriptionAllocation retrieves details of a specific allocation within a subscription.
+// Returns the allocation details and any error encountered.
+func (c *Client) SubscriptionAllocation(ctx context.Context, id uint64, accAddr cosmossdk.AccAddress) (res *v2.Allocation, err error) {
+	var (
+		resp v2.QueryAllocationResponse
+		req  = &v2.QueryAllocationRequest{
+			Id:      id,
+			Address: accAddr.String(),
+		}
+	)
+
+	// Perform the gRPC query to fetch the allocation details.
+	if err := c.QueryGRPC(ctx, methodQuerySubscriptionAllocation, req, &resp); err != nil {
+		return nil, HandleQueryErr(err)
+	}
+
+	return &resp.Allocation, nil
+}
+
+// SubscriptionAllocations retrieves a paginated list of allocations within a specific subscription.
+// Returns the allocations, pagination details, and any error encountered.
+func (c *Client) SubscriptionAllocations(ctx context.Context, id uint64, pageReq *query.PageRequest) (res []v2.Allocation, pageRes *query.PageResponse, err error) {
+	var (
+		resp v2.QueryAllocationsResponse
+		req  = &v2.QueryAllocationsRequest{
+			Id:         id,
+			Pagination: pageReq,
+		}
+	)
+
+	// Perform the gRPC query to fetch the allocations.
+	if err := c.QueryGRPC(ctx, methodQuerySubscriptionAllocations, req, &resp); err != nil {
+		return nil, nil, HandleQueryErr(err)
+	}
+
+	return resp.Allocations, resp.Pagination, nil
+}
+
+// SubscriptionParams retrieves the current parameters for the subscription module.
+// Returns the subscription parameters and any error encountered.
+func (c *Client) SubscriptionParams(ctx context.Context) (res *v3.Params, err error) {
+	var (
+		resp v3.QueryParamsResponse
+		req  = &v3.QueryParamsRequest{}
+	)
+
+	// Perform the gRPC query to fetch the subscription module parameters.
+	if err := c.QueryGRPC(ctx, methodQuerySubscriptionParams, req, &resp); err != nil {
+		return nil, HandleQueryErr(err)
+	}
+
+	return &resp.Params, nil
 }
 
 // Subscriptions retrieves a paginated list of all subscriptions.
@@ -87,42 +142,4 @@ func (c *Client) SubscriptionsForPlan(ctx context.Context, id uint64, pageReq *q
 	}
 
 	return resp.Subscriptions, resp.Pagination, nil
-}
-
-// SubscriptionAllocation retrieves details of a specific allocation within a subscription.
-// Returns the allocation details and any error encountered.
-func (c *Client) SubscriptionAllocation(ctx context.Context, id uint64, accAddr cosmossdk.AccAddress) (res *v2.Allocation, err error) {
-	var (
-		resp v2.QueryAllocationResponse
-		req  = &v2.QueryAllocationRequest{
-			Id:      id,
-			Address: accAddr.String(),
-		}
-	)
-
-	// Perform the gRPC query to fetch the allocation details.
-	if err := c.QueryGRPC(ctx, methodQuerySubscriptionAllocation, req, &resp); err != nil {
-		return nil, HandleQueryErr(err)
-	}
-
-	return &resp.Allocation, nil
-}
-
-// SubscriptionAllocations retrieves a paginated list of allocations within a specific subscription.
-// Returns the allocations, pagination details, and any error encountered.
-func (c *Client) SubscriptionAllocations(ctx context.Context, id uint64, pageReq *query.PageRequest) (res []v2.Allocation, pageRes *query.PageResponse, err error) {
-	var (
-		resp v2.QueryAllocationsResponse
-		req  = &v2.QueryAllocationsRequest{
-			Id:         id,
-			Pagination: pageReq,
-		}
-	)
-
-	// Perform the gRPC query to fetch the allocations.
-	if err := c.QueryGRPC(ctx, methodQuerySubscriptionAllocations, req, &resp); err != nil {
-		return nil, nil, HandleQueryErr(err)
-	}
-
-	return resp.Allocations, resp.Pagination, nil
 }

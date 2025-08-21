@@ -106,7 +106,7 @@ func (c *Client) KeyForAddr(addr cosmossdk.AccAddress) (*keyring.Record, error) 
 			return nil, nil
 		}
 
-		return nil, fmt.Errorf("retrieving key for addr %q from keyring: %w", addr, err)
+		return nil, fmt.Errorf("retrieving key for addr %q from keyring: %w", addr.String(), err)
 	}
 
 	return key, nil

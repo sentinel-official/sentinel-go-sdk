@@ -61,10 +61,10 @@ func NewClientFromConfig(cfg *config.Config) (*Client, error) {
 	if addr := cfg.Tx.GetAuthzGranterAddr(); !addr.Empty() {
 		key, err := c.KeyForAddr(addr)
 		if err != nil {
-			return nil, fmt.Errorf("retrieving key for authz_granter_addr %q: %w", addr, err)
+			return nil, fmt.Errorf("retrieving key for authz_granter_addr %q: %w", addr.String(), err)
 		}
 		if key == nil {
-			return nil, fmt.Errorf("key for authz_granter_addr %q does not exist", addr)
+			return nil, fmt.Errorf("key for authz_granter_addr %q does not exist", addr.String())
 		}
 
 		fromName = key.Name

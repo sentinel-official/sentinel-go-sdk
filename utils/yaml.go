@@ -15,12 +15,12 @@ func YAMLFromJSON(i interface{}) ([]byte, error) {
 	case []byte:
 		// If input is a JSON byte slice, unmarshal into an interface
 		if err := json.Unmarshal(v, &in); err != nil {
-			return nil, fmt.Errorf("unmarshalling JSON from bytes: %w", err)
+			return nil, fmt.Errorf("unmarshaling JSON from bytes: %w", err)
 		}
 	case string:
 		// If input is a JSON string, convert it to bytes and unmarshal
 		if err := json.Unmarshal([]byte(v), &in); err != nil {
-			return nil, fmt.Errorf("unmarshalling JSON from string: %w", err)
+			return nil, fmt.Errorf("unmarshaling JSON from string: %w", err)
 		}
 	default:
 		// Marshal struct or other types to JSON
@@ -28,9 +28,10 @@ func YAMLFromJSON(i interface{}) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("marshalling input to JSON: %w", err)
 		}
+
 		// Unmarshal the JSON into an interface to maintain its structure
 		if err := json.Unmarshal(buf, &in); err != nil {
-			return nil, fmt.Errorf("unmarshalling JSON for YAML conversion: %w", err)
+			return nil, fmt.Errorf("unmarshaling JSON for YAML conversion: %w", err)
 		}
 	}
 

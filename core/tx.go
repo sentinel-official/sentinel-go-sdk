@@ -202,10 +202,10 @@ func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	// Retrieve the sender's account information from the blockchain.
 	acc, err := c.Account(ctx, addr)
 	if err != nil {
-		return nil, fmt.Errorf("querying account %q: %w", addr, err)
+		return nil, fmt.Errorf("querying account %q: %w", addr.String(), err)
 	}
 	if acc == nil {
-		return nil, NewErrNotFound(fmt.Errorf("account %q does not exist", addr))
+		return nil, NewErrNotFound(fmt.Errorf("account %q does not exist", addr.String()))
 	}
 
 	// Prepare the transaction (set messages, fees, gas, etc.) for broadcasting.

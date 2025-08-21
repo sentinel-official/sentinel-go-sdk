@@ -12,6 +12,7 @@ import (
 const (
 	// gRPC methods for querying session information
 	methodQuerySession                           = "/sentinel.session.v3.QueryService/QuerySession"                 // Retrieve details of a specific session
+	methodQuerySessionParams                     = "/sentinel.session.v3.QueryService/QueryParams"                  // Retrieve module parameters for sessions
 	methodQuerySessions                          = "/sentinel.session.v3.QueryService/QuerySessions"                // Retrieve a list of sessions with pagination
 	methodQuerySessionsForAccount                = "/sentinel.session.v3.QueryService/QuerySessionsForAccount"      // Retrieve sessions associated with a specific account
 	methodQuerySessionsForNode                   = "/sentinel.session.v3.QueryService/QuerySessionsForNode"         // Retrieve sessions associated with a specific node
@@ -38,6 +39,22 @@ func (c *Client) Session(ctx context.Context, id uint64) (res v3.Session, err er
 	}
 
 	return res, nil
+}
+
+// SessionParams retrieves the current parameters for the session module.
+// Returns the session parameters and any error encountered.
+func (c *Client) SessionParams(ctx context.Context) (res *v3.Params, err error) {
+	var (
+		resp v3.QueryParamsResponse
+		req  = &v3.QueryParamsRequest{}
+	)
+
+	// Perform the gRPC query to fetch the session module parameters.
+	if err := c.QueryGRPC(ctx, methodQuerySessionParams, req, &resp); err != nil {
+		return nil, HandleQueryErr(err)
+	}
+
+	return &resp.Params, nil
 }
 
 // Sessions retrieves a paginated list of all sessions.

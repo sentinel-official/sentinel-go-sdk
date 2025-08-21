@@ -12,6 +12,7 @@ import (
 const (
 	// gRPC methods for querying node information
 	methodQueryNode         = "/sentinel.node.v3.QueryService/QueryNode"         // Retrieve details of a specific node
+	methodQueryNodeParams   = "/sentinel.node.v3.QueryService/QueryParams"       // Retrieve module parameters for nodes
 	methodQueryNodes        = "/sentinel.node.v3.QueryService/QueryNodes"        // Retrieve a list of nodes with optional filtering
 	methodQueryNodesForPlan = "/sentinel.node.v3.QueryService/QueryNodesForPlan" // Retrieve nodes associated with a specific plan
 )
@@ -30,6 +31,22 @@ func (c *Client) Node(ctx context.Context, nodeAddr types.NodeAddress) (res *v3.
 	}
 
 	return &resp.Node, nil
+}
+
+// NodeParams retrieves the current parameters for the node module.
+// Returns the node parameters and any error encountered.
+func (c *Client) NodeParams(ctx context.Context) (res *v3.Params, err error) {
+	var (
+		resp v3.QueryParamsResponse
+		req  = &v3.QueryParamsRequest{}
+	)
+
+	// Perform the gRPC query to fetch the node module parameters.
+	if err := c.QueryGRPC(ctx, methodQueryNodeParams, req, &resp); err != nil {
+		return nil, HandleQueryErr(err)
+	}
+
+	return &resp.Params, nil
 }
 
 // Nodes retrieves a paginated list of nodes filtered by their status.
