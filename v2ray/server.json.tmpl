@@ -19,6 +19,11 @@
         {
             "port": "{{ $inbound.InPort }}",
             "protocol": "{{ $inbound.ProxyProtocol }}",
+            {{- if eq $inbound.ProxyProtocol "vless" }}
+            "settings": {
+                "decryption": "none"
+            },
+            {{- end }}
             "streamSettings": {
                 "network": "{{ $inbound.TransportProtocol }}",
                 "security": "{{ $inbound.TransportSecurity }}"

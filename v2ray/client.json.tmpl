@@ -49,8 +49,13 @@
                         "port": {{ $outbound.Port }},
                         "users": [
                             {
-                                "alterId": 0,
                                 "id": "{{ $.ID }}"
+                                {{- if eq $outbound.ProxyProtocol "vless" }},
+                                "encryption": "none"
+                                {{- end }}
+                                {{- if eq $outbound.ProxyProtocol "vmess" }},
+                                "alterId": 0
+                                {{- end }}
                             }
                         ]
                     }

@@ -56,7 +56,7 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 		retry.LastErrorOnly(true),
 		retry.RetryIf(retryIfFunc),
 	); err != nil {
-		return nil, fmt.Errorf("ABCI query failed after %d attempts: %w", c.queryRetryAttempts, err)
+		return nil, fmt.Errorf("ABCI query failed after %d attempt(s): %w", c.queryRetryAttempts, err)
 	}
 
 	// Return nil if no result was produced.

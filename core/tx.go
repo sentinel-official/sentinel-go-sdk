@@ -275,7 +275,7 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 		retry.LastErrorOnly(true),
 		retry.RetryIf(retryIfFunc),
 	); err != nil {
-		return nil, fmt.Errorf("broadcasting tx synchronously failed after %d attempts: %w", c.txBroadcastRetryAttempts, err)
+		return nil, fmt.Errorf("broadcasting tx synchronously failed after %d attempt(s): %w", c.txBroadcastRetryAttempts, err)
 	}
 
 	return resp, nil
@@ -327,7 +327,7 @@ func (c *Client) Tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, e
 		retry.LastErrorOnly(true),
 		retry.RetryIf(retryIfFunc),
 	); err != nil {
-		return nil, fmt.Errorf("querying tx failed after %d attempts: %w", c.txQueryRetryAttempts, err)
+		return nil, fmt.Errorf("querying tx failed after %d attempt(s): %w", c.txQueryRetryAttempts, err)
 	}
 
 	return result, nil
