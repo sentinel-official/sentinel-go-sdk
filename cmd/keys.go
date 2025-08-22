@@ -26,11 +26,6 @@ func NewKeysCmd(cfg *config.KeyringConfig) *cobra.Command {
 		Short:        "Sub-commands for managing keys",
 		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			// Validate the provided configuration
-			if err := cfg.Validate(); err != nil {
-				return fmt.Errorf("validating config: %w", err)
-			}
-
 			// Setup the keyring for the base client
 			if err := c.SetupKeyring(cfg); err != nil {
 				return fmt.Errorf("setting up keyring: %w", err)

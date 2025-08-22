@@ -68,7 +68,7 @@ func (c *KeyringConfig) SetForFlags(f *pflag.FlagSet) {
 // DefaultKeyringConfig returns the default Keyring configuration.
 func DefaultKeyringConfig() *KeyringConfig {
 	return &KeyringConfig{
-		Backend: "test",
+		Backend: "os",
 		HomeDir: "",
 		Input:   nil,
 		Name:    "sentinel",
