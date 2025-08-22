@@ -1,8 +1,7 @@
 package geoip
 
 import (
-	"fmt"
-	"time"
+	"context"
 
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
@@ -23,15 +22,10 @@ func (l *Location) String() string {
 
 // Client is an interface for resolving IP addresses into location data.
 type Client interface {
-	Get(ip string) (*Location, error)
+	Get(context.Context, string) (*Location, error)
 }
 
 // NewDefaultClient creates a new default Client instance using the default IPAPIClient.
 func NewDefaultClient() Client {
-	c, err := NewIPAPIClient("", 5*time.Second)
-	if err != nil {
-		panic(fmt.Errorf("creating ip_api client: %w", err))
-	}
-
-	return c
+	return NewIPAPIClient()
 }

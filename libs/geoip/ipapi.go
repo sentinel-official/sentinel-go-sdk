@@ -1,11 +1,10 @@
 package geoip
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
-	"time"
 )
 
 // Ensure IPAPIClient implements the Client interface.
@@ -16,35 +15,26 @@ type IPAPIClient struct {
 	c *http.Client
 }
 
-// NewIPAPIClient creates and returns a new instance of IPAPIClient with the specified timeout and optional proxy address.
-func NewIPAPIClient(proxyAddr string, timeout time.Duration) (*IPAPIClient, error) {
-	transport := &http.Transport{}
-
-	// If a proxy address is provided, configure the HTTP client to use it.
-	if proxyAddr != "" {
-		proxyURL, err := url.Parse(proxyAddr)
-		if err != nil {
-			return nil, fmt.Errorf("parsing proxy addr %q: %w", proxyAddr, err)
-		}
-
-		transport.Proxy = http.ProxyURL(proxyURL)
-	}
-
+// NewIPAPIClient creates and returns a new instance of IPAPIClient.
+func NewIPAPIClient() *IPAPIClient {
 	return &IPAPIClient{
-		c: &http.Client{
-			Timeout:   timeout,
-			Transport: transport,
-		},
-	}, nil
+		c: &http.Client{},
+	}
 }
 
 // Get retrieves location data for the specified IP address using the ip-api.com service.
-func (c *IPAPIClient) Get(ip string) (*Location, error) {
+func (c *IPAPIClient) Get(ctx context.Context, ip string) (*Location, error) {
 	// Construct the URL for the API request using the provided IP address.
 	apiURL := fmt.Sprintf("http://ip-api.com/json/%s", ip)
 
-	// Make the HTTP GET request to the ip-api.com service.
-	resp, err := c.c.Get(apiURL)
+	// Create the HTTP GET request to the ip-api.com service.
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request with context: %w", err)
+	}
+
+	// Make the request.
+	resp, err := c.c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("requesting geolocation data for %q: %w", ip, err)
 	}
