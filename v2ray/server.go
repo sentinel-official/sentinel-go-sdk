@@ -91,7 +91,7 @@ func (s *Server) readPIDFromFile() (int32, error) {
 	// Check if the PID file exists
 	exists, err := utils.IsFileExists(pidFile)
 	if err != nil {
-		return 0, fmt.Errorf("failed to check existence of pid file: %w", err)
+		return 0, fmt.Errorf("checking if PID file %q exists: %w", pidFile, err)
 	}
 	if !exists {
 		return 0, nil
@@ -100,16 +100,16 @@ func (s *Server) readPIDFromFile() (int32, error) {
 	// Read PID from the PID file.
 	data, err := os.ReadFile(pidFile)
 	if err != nil {
-		return 0, fmt.Errorf("failed to read file: %w", err)
+		return 0, fmt.Errorf("reading PID file %q: %w", pidFile, err)
 	}
 
 	// Convert PID data to integer.
 	pid, err := strconv.ParseInt(string(data), 10, 32)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse pid: %w", err)
+		return 0, fmt.Errorf("parsing PID: %w", err)
 	}
 	if pid <= 0 {
-		return 0, fmt.Errorf("invalid pid %d", pid)
+		return 0, fmt.Errorf("invalid PID %d", pid)
 	}
 
 	return int32(pid), nil
@@ -123,7 +123,7 @@ func (s *Server) writePIDToFile(pid int) error {
 	// Write PID to file with appropriate permissions.
 	pidFile := s.pidFilePath()
 	if err := os.WriteFile(pidFile, data, 0644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+		return fmt.Errorf("writing PID file %q: %w", pidFile, err)
 	}
 
 	return nil
@@ -138,7 +138,7 @@ func (s *Server) Type() types.ServiceType {
 func (s *Server) Init(force bool) error {
 	// Create the home directory if it doesn't exist
 	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
-		return fmt.Errorf("failed to create home directory: %w", err)
+		return fmt.Errorf("creating home directory %q: %w", s.homeDir, err)
 	}
 
 	// Construct the full path to the config file
@@ -147,14 +147,14 @@ func (s *Server) Init(force bool) error {
 	// Check if the config file exists at the specified path
 	cfgFileExists, err := utils.IsFileExists(cfgFile)
 	if err != nil {
-		return fmt.Errorf("failed to check if config file exists: %w", err)
+		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
 	// Write default config only if file doesn't exist or force flag is enabled
 	if !cfgFileExists || force {
 		cfg := DefaultServerConfig()
 		if err := cfg.WriteAppConfig(cfgFile); err != nil {
-			return fmt.Errorf("failed to write config file: %w", err)
+			return fmt.Errorf("writing config file %q: %w", cfgFile, err)
 		}
 	}
 
@@ -166,7 +166,7 @@ func (s *Server) IsUp() (bool, error) {
 	// Read PID from file.
 	pid, err := s.readPIDFromFile()
 	if err != nil {
-		return false, fmt.Errorf("failed to read pid from file: %w", err)
+		return false, fmt.Errorf("reading PID from file: %w", err)
 	}
 	if pid == 0 {
 		return false, nil
@@ -179,13 +179,13 @@ func (s *Server) IsUp() (bool, error) {
 			return false, nil
 		}
 
-		return false, fmt.Errorf("failed to get process: %w", err)
+		return false, fmt.Errorf("getting process for PID %d: %w", pid, err)
 	}
 
 	// Check if the process is running.
 	ok, err := proc.IsRunning()
 	if err != nil {
-		return false, fmt.Errorf("failed to check running process: %w", err)
+		return false, fmt.Errorf("checking process status: %w", err)
 	}
 	if !ok {
 		return false, nil
@@ -194,7 +194,7 @@ func (s *Server) IsUp() (bool, error) {
 	// Retrieve the name of the process.
 	name, err := proc.Name()
 	if err != nil {
-		return false, fmt.Errorf("failed to get process name: %w", err)
+		return false, fmt.Errorf("getting process name: %w", err)
 	}
 
 	// Check if the process name matches constant v2ray.
@@ -228,20 +228,20 @@ func (s *Server) PreUp(req interface{}) error {
 	// Check if the config file exists at the specified path
 	cfgFileExists, err := utils.IsFileExists(cfgFile)
 	if err != nil {
-		return fmt.Errorf("failed to check if config file exists: %w", err)
+		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
 	// If the config file exists, proceed to read its contents
 	if cfgFileExists {
 		v.SetConfigFile(cfgFile)
 		if err := v.ReadInConfig(); err != nil {
-			return fmt.Errorf("failed to read config file: %w", err)
+			return fmt.Errorf("reading config file %q: %w", cfgFile, err)
 		}
 	}
 
 	// Unmarshal configuration into the config object
 	if err := v.Unmarshal(cfg); err != nil {
-		return fmt.Errorf("failed to unmarshal config file: %w", err)
+		return fmt.Errorf("unmarshaling config file %q: %w", cfgFile, err)
 	}
 
 	cfg.TLSCertFile = filepath.Join(s.homeDir, "tls.crt")
@@ -249,16 +249,16 @@ func (s *Server) PreUp(req interface{}) error {
 
 	// Validate the unmarshalled config
 	if err := cfg.Validate(); err != nil {
-		return fmt.Errorf("failed to validate config file: %w", err)
+		return fmt.Errorf("validating config: %w", err)
 	}
 
 	// Initialize PKI and issue a tls certificate
 	pki := crypto.NewPKI(s.homeDir)
 	if err := pki.Init(); err != nil {
-		return fmt.Errorf("failed to init PKI: %w", err)
+		return fmt.Errorf("initializing PKI: %w", err)
 	}
 	if _, _, err := pki.Issue("tls"); err != nil {
-		return fmt.Errorf("failed to issue certificate: %w", err)
+		return fmt.Errorf("issuing TLS certificate and key: %w", err)
 	}
 
 	for _, inbound := range cfg.Inbounds {
@@ -276,7 +276,7 @@ func (s *Server) PreUp(req interface{}) error {
 	// Write configuration to file.
 	cfgFile = s.serviceConfigFilePath()
 	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
-		return fmt.Errorf("failed to write config to file: %w", err)
+		return fmt.Errorf("writing config file %q: %w", cfgFile, err)
 	}
 
 	return nil
@@ -297,13 +297,13 @@ func (s *Server) Up(ctx context.Context) error {
 
 	// Starts the V2Ray server process.
 	if err := s.cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start command: %w", err)
+		return fmt.Errorf("starting command: %w", err)
 	}
 
 	// Wait for the V2Ray process to finish in a separate goroutine.
 	s.eg.Go(func() (err error) {
 		if err = s.cmd.Wait(); err == nil {
-			err = errors.New("exited unexpectedly")
+			err = errors.New("command exited unexpectedly")
 		}
 
 		// If context is canceled, we return nil immediately.
@@ -311,7 +311,7 @@ func (s *Server) Up(ctx context.Context) error {
 			return nil
 		}
 
-		return fmt.Errorf("failed to wait for command: %w", err)
+		return fmt.Errorf("waiting command: %w", err)
 	})
 
 	return nil
@@ -324,7 +324,7 @@ func (s *Server) PostUp(ctx context.Context) (err error) {
 
 	// Write PID to file.
 	if err := s.writePIDToFile(s.cmd.Process.Pid); err != nil {
-		return fmt.Errorf("failed to write pid to file: %w", err)
+		return fmt.Errorf("writing PID to file: %w", err)
 	}
 
 	target := "127.0.0.1:2323"
@@ -334,7 +334,7 @@ func (s *Server) PostUp(ctx context.Context) (err error) {
 
 	// Establish a safe, concurrency-managed gRPC connection to the target.
 	if err := s.conn.Dial(target, opts...); err != nil {
-		return fmt.Errorf("failed to dial target: %w", err)
+		return fmt.Errorf("gRPC dialing target %q: %w", target, err)
 	}
 
 	// Start background goroutine for periodic peer statistics updates.
@@ -348,7 +348,7 @@ func (s *Server) PostUp(ctx context.Context) (err error) {
 				// Check if server is up before syncing peers.
 				ok, err := s.IsUp()
 				if err != nil {
-					return fmt.Errorf("failed to check status: %w", err)
+					return fmt.Errorf("checking serivce status: %w", err)
 				}
 				if !ok {
 					continue
@@ -356,7 +356,7 @@ func (s *Server) PostUp(ctx context.Context) (err error) {
 
 				// Sync peer statistics from WireGuard.
 				if err := s.syncPeers(ctx); err != nil {
-					return fmt.Errorf("failed to sync peer statistics: %w", err)
+					return fmt.Errorf("syncing peer statistics: %w", err)
 				}
 			}
 		}
@@ -382,7 +382,7 @@ func (s *Server) PreDown() error {
 
 	// Close gRPC client connection.
 	if err := s.conn.Close(); err != nil {
-		return fmt.Errorf("failed to close grpc client connection: %w", err)
+		return fmt.Errorf("closing gRPC client connection: %w", err)
 	}
 
 	return nil
@@ -393,7 +393,7 @@ func (s *Server) Down() error {
 	// Read PID from file.
 	pid, err := s.readPIDFromFile()
 	if err != nil {
-		return fmt.Errorf("failed to read pid from file: %w", err)
+		return fmt.Errorf("reading PID from file: %w", err)
 	}
 	if pid == 0 {
 		return nil
@@ -406,12 +406,12 @@ func (s *Server) Down() error {
 			return nil
 		}
 
-		return fmt.Errorf("failed to get process: %w", err)
+		return fmt.Errorf("getting process for PID %d: %w", pid, err)
 	}
 
 	// Terminate the process.
 	if err := proc.Terminate(); err != nil {
-		return fmt.Errorf("failed to terminate process: %w", err)
+		return fmt.Errorf("terminating process: %w", err)
 	}
 
 	return nil
@@ -422,13 +422,13 @@ func (s *Server) PostDown() error {
 	// Removes configuration file.
 	cfgFile := s.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {
-		return fmt.Errorf("failed to remove file: %w", err)
+		return fmt.Errorf("removing config file %q: %w", cfgFile, err)
 	}
 
 	// Remove PID file.
 	pidFile := s.pidFilePath()
 	if err := utils.RemoveFile(pidFile); err != nil {
-		return fmt.Errorf("failed to remove file: %w", err)
+		return fmt.Errorf("removing PID file %q: %w", pidFile, err)
 	}
 
 	return nil
@@ -439,10 +439,10 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to parse request: %w", err)
+		return "", nil, fmt.Errorf("parsing request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
-		return "", nil, fmt.Errorf("invalid request: %w", err)
+		return "", nil, fmt.Errorf("validating request: %w", err)
 	}
 
 	// Retrieve the identity from the request.
@@ -468,16 +468,16 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 
 		// Send the request to add a user to the handler.
 		if _, err := client.AlterInbound(ctx, in); err != nil {
-			return "", nil, fmt.Errorf("failed to alter inbound: %w", err)
+			return "", nil, fmt.Errorf("altering peer %q inbound: %w", id, err)
 		}
 	}
 
 	// Save the peer details in the local peers map.
+	now := time.Now()
 	s.peers.Set(id, Peer{
-		ID:        id,
-		Current:   &types.PeerStatistics{},
-		Previous:  &types.PeerStatistics{},
-		Timestamp: time.Now(),
+		ID:       id,
+		Current:  types.NewPeerStatistics(now),
+		Previous: types.NewPeerStatistics(now),
 	})
 
 	// Return nil for success (no additional data to return in response).
@@ -487,37 +487,12 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 }
 
 // HasPeer checks if a peer exists in the V2Ray server's peer list.
-func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
-	// Parse the request to PeerRequest type.
-	r, err := parsePeerRequest(req)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse request: %w", err)
-	}
-	if err := r.Validate(); err != nil {
-		return false, fmt.Errorf("invalid request: %w", err)
-	}
-
-	// Retrieve the identity from the request.
-	id := r.ID()
-	ok := s.peers.Exists(id)
-
-	return ok, nil
+func (s *Server) HasPeer(_ context.Context, id string) (bool, error) {
+	return s.peers.Exists(id), nil
 }
 
 // RemovePeer removes a peer from the V2Ray server.
-func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error) {
-	// Parse the request to PeerRequest type.
-	r, err := parsePeerRequest(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse request: %w", err)
-	}
-	if err := r.Validate(); err != nil {
-		return "", fmt.Errorf("invalid request: %w", err)
-	}
-
-	// Retrieve the identity from the request.
-	id := r.ID()
-
+func (s *Server) RemovePeer(ctx context.Context, id string) error {
 	conn, release := s.conn.Acquire()
 	defer release()
 
@@ -537,14 +512,14 @@ func (s *Server) RemovePeer(ctx context.Context, req interface{}) (string, error
 		if _, err := client.AlterInbound(ctx, in); err != nil {
 			// If the user is not found, continue without error.
 			if !strings.Contains(err.Error(), "not found") {
-				return "", fmt.Errorf("failed to alter inbound: %w", err)
+				return fmt.Errorf("altering peer %q inbound: %w", id, err)
 			}
 		}
 	}
 
 	// Remove the peer information from the local collection.
 	s.peers.Delete(id, nil)
-	return id, nil
+	return nil
 }
 
 // PeersLen returns the number of peers connected to the V2Ray server.
@@ -560,9 +535,10 @@ func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 	// Iterate over all peers and gather statistics.
 	s.peers.RangeGet(func(_ string, peer Peer) bool {
 		items[peer.ID] = &types.PeerStatistics{
-			Duration: peer.TotalDuration(),
-			RxBytes:  peer.TotalRxBytes(),
-			TxBytes:  peer.TotalTxBytes(),
+			RxBytes:   peer.TotalRxBytes(),
+			TxBytes:   peer.TotalTxBytes(),
+			CreatedAt: peer.CreatedAt(),
+			UpdatedAt: peer.UpdatedAt(),
 		}
 
 		return false
@@ -595,7 +571,7 @@ func (s *Server) syncPeers(ctx context.Context) error {
 		// Send the request to get uplink traffic stats.
 		res, err := client.GetStats(ctx, in)
 		if err != nil && !strings.Contains(err.Error(), "not found") {
-			return fmt.Errorf("failed to get uplink stats: %w", err)
+			return fmt.Errorf("getting peer %q uplink stats: %w", id, err)
 		}
 
 		// Extract uplink traffic stats or use an empty stat if not found.
@@ -613,7 +589,7 @@ func (s *Server) syncPeers(ctx context.Context) error {
 		// Send the request to get downlink traffic stats.
 		res, err = client.GetStats(ctx, in)
 		if err != nil && !strings.Contains(err.Error(), "not found") {
-			return fmt.Errorf("failed to get downlink stats: %w", err)
+			return fmt.Errorf("getting peer %q downlink stats: %w", id, err)
 		}
 
 		// Extract downlink traffic stats or use an empty stat if not found.
@@ -622,16 +598,33 @@ func (s *Server) syncPeers(ctx context.Context) error {
 			txBytes = res.GetStat()
 		}
 
-		s.peers.Update(id, func(p Peer, ok bool) Peer {
+		createdAt := time.Time{}
+
+		// Update peer statistics in thread-safe map.
+		s.peers.Update(id, func(v Peer, ok bool) (Peer, bool) {
 			if !ok {
-				return p
+				return v, false
 			}
 
-			p.Current.Duration = time.Since(p.Timestamp)
-			p.Current.RxBytes = rxBytes.GetValue()
-			p.Current.TxBytes = txBytes.GetValue()
+			now := time.Now()
 
-			return p
+			if createdAt.After(v.Current.CreatedAt) {
+				v.Previous.RxBytes += v.Current.RxBytes
+				v.Previous.TxBytes += v.Current.TxBytes
+				v.Previous.UpdatedAt = now
+
+				v.Current = types.NewPeerStatistics(createdAt)
+			}
+
+			if rxBytes.GetValue() == v.Current.RxBytes {
+				return v, true
+			}
+
+			v.Current.RxBytes = rxBytes.GetValue()
+			v.Current.TxBytes = txBytes.GetValue()
+			v.Current.UpdatedAt = now
+
+			return v, true
 		})
 	}
 

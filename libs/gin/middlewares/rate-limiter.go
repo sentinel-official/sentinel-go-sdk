@@ -64,7 +64,7 @@ func RateLimiter(opts *RateLimiterOptions) gin.HandlerFunc {
 		timestamp := time.Now()
 
 		// Atomically create or update the client's limiter
-		v := m.Update(ip, func(v *Client, found bool) *Client {
+		v, _ := m.Update(ip, func(v *Client, found bool) (*Client, bool) {
 			if !found {
 				v = &Client{
 					limiter: rate.NewLimiter(rate.Limit(opts.Limit), opts.Burst),
@@ -72,7 +72,7 @@ func RateLimiter(opts *RateLimiterOptions) gin.HandlerFunc {
 			}
 
 			v.timestamp = timestamp
-			return v
+			return v, true
 		})
 
 		// Try to reserve 1 token at current time

@@ -33,31 +33,38 @@ func (m *Map[K, V]) Get(key K) (V, bool) {
 }
 
 // Update atomically reads, modifies, and writes a value.
-func (m *Map[K, V]) Update(key K, fn func(value V, found bool) V) V {
+func (m *Map[K, V]) Update(key K, fn func(value V, found bool) (newValue V, do bool)) (newValue V, done bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	value, found := m.m[key]
-	value = fn(value, found)
-	m.m[key] = value
 
-	return value
+	newValue, do := fn(value, found)
+	if do {
+		m.m[key] = newValue
+	}
+
+	return newValue, do
 }
 
 // Delete removes a key if fn allows, or unconditionally if fn is nil.
-func (m *Map[K, V]) Delete(key K, fn func(value V, found bool) bool) {
+func (m *Map[K, V]) Delete(key K, fn func(value V, found bool) (do bool)) (done bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if fn == nil {
 		delete(m.m, key)
-		return
+		return true
 	}
 
 	value, found := m.m[key]
-	if ok := fn(value, found); ok {
+
+	do := fn(value, found)
+	if do {
 		delete(m.m, key)
 	}
+
+	return do
 }
 
 // Exists returns true if the key exists (read lock).
@@ -91,13 +98,15 @@ func (m *Map[K, V]) RangeGet(fn func(key K, value V) bool) {
 }
 
 // RangeUpdate iterates and updates values (exclusive lock).
-func (m *Map[K, V]) RangeUpdate(fn func(key K, value V) (V, bool)) {
+func (m *Map[K, V]) RangeUpdate(fn func(key K, value V) (newValue V, do, stop bool)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	for key, value := range m.m {
-		value, stop := fn(key, value)
-		m.m[key] = value
+		newValue, do, stop := fn(key, value)
+		if do {
+			m.m[key] = newValue
+		}
 
 		if stop {
 			break
@@ -106,13 +115,13 @@ func (m *Map[K, V]) RangeUpdate(fn func(key K, value V) (V, bool)) {
 }
 
 // RangeDelete iterates and conditionally deletes keys (exclusive lock).
-func (m *Map[K, V]) RangeDelete(fn func(key K, value V) (bool, bool)) {
+func (m *Map[K, V]) RangeDelete(fn func(key K, value V) (do, stop bool)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	for key, value := range m.m {
-		ok, stop := fn(key, value)
-		if ok {
+		do, stop := fn(key, value)
+		if do {
 			delete(m.m, key)
 		}
 

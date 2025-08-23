@@ -45,9 +45,24 @@ func ServiceTypeFromString(s string) ServiceType {
 
 // PeerStatistics holds network usage metrics for a peer.
 type PeerStatistics struct {
-	Duration time.Duration `json:"duration,omitempty"` // Total time the peer has been active
-	RxBytes  int64         `json:"rx_bytes,omitempty"` // Total uplink bytes received in this snapshot
-	TxBytes  int64         `json:"tx_bytes,omitempty"` // Total downlink bytes transmitted in this snapshot
+	CreatedAt time.Time `json:"created_at,omitempty"` // When this stats record was first created
+	UpdatedAt time.Time `json:"updated_at,omitempty"` // When this stats record was last updated
+
+	RxBytes int64 `json:"rx_bytes,omitempty"` // Total uplink bytes received in this snapshot
+	TxBytes int64 `json:"tx_bytes,omitempty"` // Total downlink bytes transmitted in this snapshot
+}
+
+// NewPeerStatistics creates a new stats record with the given timestamp.
+func NewPeerStatistics(t time.Time) *PeerStatistics {
+	return &PeerStatistics{
+		CreatedAt: t,
+		UpdatedAt: t,
+	}
+}
+
+// Duration returns the elapsed time between creation and last update.
+func (s *PeerStatistics) Duration() time.Duration {
+	return s.UpdatedAt.Sub(s.CreatedAt)
 }
 
 // ClientService defines the interface for client-side service operations.
@@ -87,9 +102,9 @@ type ServerService interface {
 	Down() error     // Down brings down the server service.
 	PostDown() error // PostDown performs operations after the service is brought down.
 
-	AddPeer(ctx context.Context, req interface{}) (string, interface{}, error) // AddPeer adds a peer and returns its ID, the peer object, and an error if any.
-	HasPeer(ctx context.Context, req interface{}) (bool, error)                // HasPeer checks if a peer exists in the server service.
-	RemovePeer(ctx context.Context, req interface{}) (string, error)           // RemovePeer removes a peer and returns its ID and error if any.
-	PeersLen() int                                                             // PeersLen returns the number of peers.
-	PeerStatistics() (map[string]*PeerStatistics, error)                       // PeerStatistics returns the statistics for all peers.
+	AddPeer(ctx context.Context, req interface{}) (id string, res interface{}, err error) // AddPeer adds a peer and returns its ID, the peer object, and an error if any.
+	HasPeer(ctx context.Context, id string) (bool, error)                                 // HasPeer checks if a peer exists in the server service.
+	RemovePeer(ctx context.Context, id string) error                                      // RemovePeer removes a peer and returns its ID and error if any.
+	PeersLen() int                                                                        // PeersLen returns the number of peers.
+	PeerStatistics() (map[string]*PeerStatistics, error)                                  // PeerStatistics returns the statistics for all peers.
 }

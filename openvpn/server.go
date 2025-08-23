@@ -85,7 +85,7 @@ func (s *Server) readPIDFromFile() (int32, error) {
 	// Check if the PID file exists
 	exists, err := utils.IsFileExists(pidFile)
 	if err != nil {
-		return 0, fmt.Errorf("failed to check existence of pid file: %w", err)
+		return 0, fmt.Errorf("checking if PID file %q exists: %w", pidFile, err)
 	}
 	if !exists {
 		return 0, nil
@@ -93,15 +93,15 @@ func (s *Server) readPIDFromFile() (int32, error) {
 
 	data, err := os.ReadFile(pidFile)
 	if err != nil {
-		return 0, fmt.Errorf("failed to read file: %w", err)
+		return 0, fmt.Errorf("reading PID file %q: %w", pidFile, err)
 	}
 
 	pid, err := strconv.ParseInt(string(data), 10, 32)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse pid: %w", err)
+		return 0, fmt.Errorf("parsing PID: %w", err)
 	}
 	if pid <= 0 {
-		return 0, fmt.Errorf("invalid pid %d", pid)
+		return 0, fmt.Errorf("invalid PID %d", pid)
 	}
 
 	return int32(pid), nil
@@ -109,9 +109,13 @@ func (s *Server) readPIDFromFile() (int32, error) {
 
 // writePIDToFile saves the given PID to a file for later reference.
 func (s *Server) writePIDToFile(pid int) error {
+	// Convert PID to byte slice.
 	data := []byte(strconv.Itoa(pid))
-	if err := os.WriteFile(s.pidFilePath(), data, 0644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+
+	// Write PID to file with appropriate permissions.
+	pidFile := s.pidFilePath()
+	if err := os.WriteFile(pidFile, data, 0644); err != nil {
+		return fmt.Errorf("writing PID file %q: %w", pidFile, err)
 	}
 
 	return nil
@@ -119,16 +123,17 @@ func (s *Server) writePIDToFile(pid int) error {
 
 // mgmtConn creates a TCP connection to the OpenVPN management interface.
 func (s *Server) mgmtConn() (net.Conn, error) {
+	target := "127.0.0.1:2323"
 	timeout := 5 * time.Second
 
-	conn, err := net.DialTimeout("tcp", "127.0.0.1:2323", timeout)
+	conn, err := net.DialTimeout("tcp", target, timeout)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to management server: %w", err)
+		return nil, fmt.Errorf("creating TCP connection to target %q: %w", target, err)
 	}
 
 	deadline := time.Now().Add(timeout)
 	if err := conn.SetDeadline(deadline); err != nil {
-		return nil, fmt.Errorf("failed to set connection deadline: %w", err)
+		return nil, fmt.Errorf("setting connection deadline %q: %w", deadline, err)
 	}
 
 	return conn, nil
@@ -143,7 +148,7 @@ func (s *Server) Type() types.ServiceType {
 func (s *Server) Init(force bool) error {
 	// Create the home directory if it doesn't exist
 	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
-		return fmt.Errorf("failed to create home directory: %w", err)
+		return fmt.Errorf("creating home directory %q: %w", s.homeDir, err)
 	}
 
 	// Construct the full path to the config file
@@ -152,14 +157,14 @@ func (s *Server) Init(force bool) error {
 	// Check if the config file exists at the specified path
 	cfgFileExists, err := utils.IsFileExists(cfgFile)
 	if err != nil {
-		return fmt.Errorf("failed to check if config file exists: %w", err)
+		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
 	// Write default config only if file doesn't exist or force flag is enabled
 	if !cfgFileExists || force {
 		cfg := DefaultServerConfig()
 		if err := cfg.WriteAppConfig(cfgFile); err != nil {
-			return fmt.Errorf("failed to write config file: %w", err)
+			return fmt.Errorf("writing config file %q: %w", cfgFile, err)
 		}
 	}
 
@@ -170,7 +175,7 @@ func (s *Server) Init(force bool) error {
 func (s *Server) IsUp() (bool, error) {
 	pid, err := s.readPIDFromFile()
 	if err != nil {
-		return false, fmt.Errorf("failed to read pid from file: %w", err)
+		return false, fmt.Errorf("reading PID from file: %w", err)
 	}
 	if pid == 0 {
 		return false, nil
@@ -182,12 +187,12 @@ func (s *Server) IsUp() (bool, error) {
 			return false, nil
 		}
 
-		return false, fmt.Errorf("failed to get process: %w", err)
+		return false, fmt.Errorf("geting process for PID %d: %w", pid, err)
 	}
 
 	ok, err := proc.IsRunning()
 	if err != nil {
-		return false, fmt.Errorf("failed to check running process: %w", err)
+		return false, fmt.Errorf("checking process status: %w", err)
 	}
 	if !ok {
 		return false, nil
@@ -195,7 +200,7 @@ func (s *Server) IsUp() (bool, error) {
 
 	name, err := proc.Name()
 	if err != nil {
-		return false, fmt.Errorf("failed to get process name: %w", err)
+		return false, fmt.Errorf("getting process name: %w", err)
 	}
 	if name != openVPN {
 		return false, nil
@@ -227,20 +232,20 @@ func (s *Server) PreUp(req interface{}) error {
 	// Check if the config file exists at the specified path
 	cfgFileExists, err := utils.IsFileExists(cfgFile)
 	if err != nil {
-		return fmt.Errorf("failed to check if config file exists: %w", err)
+		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
 	// If the config file exists, proceed to read its contents
 	if cfgFileExists {
 		v.SetConfigFile(cfgFile)
 		if err := v.ReadInConfig(); err != nil {
-			return fmt.Errorf("failed to read config file: %w", err)
+			return fmt.Errorf("reading config file %q: %w", cfgFile, err)
 		}
 	}
 
 	// Unmarshal configuration into the config object
 	if err := v.Unmarshal(cfg); err != nil {
-		return fmt.Errorf("failed to unmarshal config file: %w", err)
+		return fmt.Errorf("unmarshaling config file %q: %w", cfgFile, err)
 	}
 
 	cfg.PKIDir = filepath.Join(s.homeDir, "pki")
@@ -248,27 +253,27 @@ func (s *Server) PreUp(req interface{}) error {
 
 	// Validate the unmarshalled config
 	if err := cfg.Validate(); err != nil {
-		return fmt.Errorf("failed to validate config file: %w", err)
+		return fmt.Errorf("validating config: %w", err)
 	}
 
 	// Initialize PKI and issue a server certificate
 	s.pki = crypto.NewPKI(cfg.PKIDir)
 	if err := s.pki.Init(); err != nil {
-		return fmt.Errorf("failed to init PKI: %w", err)
+		return fmt.Errorf("initializing PKI: %w", err)
 	}
 	if _, _, err := s.pki.Issue("server"); err != nil {
-		return fmt.Errorf("failed to issue certificate: %w", err)
+		return fmt.Errorf("issuing server certificate and key: %w", err)
 	}
 
 	// Generate a TLS static key
 	tlsBuf := make([]byte, 256)
 	if _, err := rand.Read(tlsBuf); err != nil {
-		return fmt.Errorf("failed to generate TLS static key: %w", err)
+		return fmt.Errorf("generating TLS static key: %w", err)
 	}
 
-	tlsPath := filepath.Join(cfg.PKIDir, "tls.key")
-	if err := pem.WriteFile(tlsPath, pem.FormatHex, pem.BlockTypeOpenVPNStaticKeyV1, tlsBuf); err != nil {
-		return fmt.Errorf("failed to write TLS static key: %w", err)
+	tlsFile := filepath.Join(cfg.PKIDir, "tls.key")
+	if err := pem.WriteFile(tlsFile, pem.FormatHex, pem.BlockTypeOpenVPNStaticKeyV1, tlsBuf); err != nil {
+		return fmt.Errorf("writing TLS static key file %q: %w", tlsFile, err)
 	}
 
 	// Save server metadata for later use
@@ -284,7 +289,7 @@ func (s *Server) PreUp(req interface{}) error {
 	// Write OpenVPN configuration to file
 	cfgFile = s.serviceConfigFilePath()
 	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
-		return fmt.Errorf("failed to write config to file: %w", err)
+		return fmt.Errorf("writing config file %q: %w", cfgFile, err)
 	}
 
 	return nil
@@ -305,13 +310,13 @@ func (s *Server) Up(ctx context.Context) error {
 
 	// Starts the OpenVPN server process.
 	if err := s.cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start command: %w", err)
+		return fmt.Errorf("starting command: %w", err)
 	}
 
 	// Waits for the process to complete in a separate goroutine.
 	s.eg.Go(func() (err error) {
 		if err = s.cmd.Wait(); err == nil {
-			err = errors.New("exited unexpectedly")
+			err = errors.New("command exited unexpectedly")
 		}
 
 		// If context is canceled, we return nil immediately.
@@ -319,7 +324,7 @@ func (s *Server) Up(ctx context.Context) error {
 			return nil
 		}
 
-		return fmt.Errorf("failed to wait for command: %w", err)
+		return fmt.Errorf("waiting command: %w", err)
 	})
 
 	return nil
@@ -332,7 +337,7 @@ func (s *Server) PostUp(ctx context.Context) error {
 
 	// Write PID to file.
 	if err := s.writePIDToFile(s.cmd.Process.Pid); err != nil {
-		return fmt.Errorf("failed to write pid to file: %w", err)
+		return fmt.Errorf("writing PID to file: %w", err)
 	}
 
 	// Start background goroutine for periodic peer statistics updates.
@@ -346,7 +351,7 @@ func (s *Server) PostUp(ctx context.Context) error {
 				// Check if server is up before syncing peers.
 				ok, err := s.IsUp()
 				if err != nil {
-					return fmt.Errorf("failed to check status: %w", err)
+					return fmt.Errorf("checking service status: %w", err)
 				}
 				if !ok {
 					continue
@@ -354,7 +359,7 @@ func (s *Server) PostUp(ctx context.Context) error {
 
 				// Sync peer statistics from WireGuard.
 				if err := s.syncPeers(ctx); err != nil {
-					return fmt.Errorf("failed to sync peer statistics: %w", err)
+					return fmt.Errorf("syncing peer statistics: %w", err)
 				}
 			}
 		}
@@ -384,7 +389,7 @@ func (s *Server) PreDown() error {
 func (s *Server) Down() error {
 	pid, err := s.readPIDFromFile()
 	if err != nil {
-		return fmt.Errorf("failed to read pid from file: %w", err)
+		return fmt.Errorf("reading PID from file: %w", err)
 	}
 	if pid == 0 {
 		return nil
@@ -396,11 +401,11 @@ func (s *Server) Down() error {
 			return nil
 		}
 
-		return fmt.Errorf("failed to get process: %w", err)
+		return fmt.Errorf("getting process: %w", err)
 	}
 
 	if err := proc.Terminate(); err != nil {
-		return fmt.Errorf("failed to terminate process: %w", err)
+		return fmt.Errorf("terminating process: %w", err)
 	}
 
 	return nil
@@ -411,12 +416,12 @@ func (s *Server) PostDown() error {
 	// Removes configuration file.
 	cfgFile := s.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {
-		return fmt.Errorf("failed to remove file: %w", err)
+		return fmt.Errorf("removing config file %q: %w", cfgFile, err)
 	}
 
 	pidFile := s.pidFilePath()
 	if err := utils.RemoveFile(pidFile); err != nil {
-		return fmt.Errorf("failed to remove file: %w", err)
+		return fmt.Errorf("removing PID file %q: %w", pidFile, err)
 	}
 
 	return nil
@@ -427,24 +432,24 @@ func (s *Server) AddPeer(_ context.Context, req interface{}) (string, interface{
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to parse request: %w", err)
+		return "", nil, fmt.Errorf("parsing request: %w", err)
 	}
 	if err := r.Validate(); err != nil {
-		return "", nil, fmt.Errorf("invalid request: %w", err)
+		return "", nil, fmt.Errorf("validating request: %w", err)
 	}
 
 	id := r.ID()
 
 	keyDER, certDER, err := s.pki.Issue(id)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to issue certificate: %w", err)
+		return "", nil, fmt.Errorf("issuing %q certificate and key: %w", id, err)
 	}
 
+	now := time.Now()
 	s.peers.Set(id, Peer{
-		ID:        id,
-		Current:   &types.PeerStatistics{},
-		Previous:  &types.PeerStatistics{},
-		Timestamp: time.Now(),
+		ID:       id,
+		Current:  types.NewPeerStatistics(now),
+		Previous: types.NewPeerStatistics(now),
 	})
 
 	return id, &AddPeerResponse{
@@ -455,37 +460,15 @@ func (s *Server) AddPeer(_ context.Context, req interface{}) (string, interface{
 }
 
 // HasPeer checks if a peer is currently connected and tracked.
-func (s *Server) HasPeer(_ context.Context, req interface{}) (bool, error) {
-	// Parse the request to PeerRequest type.
-	r, err := parsePeerRequest(req)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse request: %w", err)
-	}
-	if err := r.Validate(); err != nil {
-		return false, fmt.Errorf("invalid request: %w", err)
-	}
-
-	// Retrieve the identity from the request.
-	id := r.ID()
-	ok := s.peers.Exists(id)
-
-	return ok, nil
+func (s *Server) HasPeer(_ context.Context, id string) (bool, error) {
+	return s.peers.Exists(id), nil
 }
 
 // RemovePeer disconnects a VPN client and revokes its certificate.
-func (s *Server) RemovePeer(_ context.Context, req interface{}) (string, error) {
-	// Parse the request to PeerRequest type.
-	r, err := parsePeerRequest(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse request: %w", err)
-	}
-	if err := r.Validate(); err != nil {
-		return "", fmt.Errorf("invalid request: %w", err)
-	}
-
+func (s *Server) RemovePeer(_ context.Context, id string) error {
 	conn, err := s.mgmtConn()
 	if err != nil {
-		return "", fmt.Errorf("failed to get management connection: %w", err)
+		return fmt.Errorf("getting management connection: %w", err)
 	}
 
 	defer func() {
@@ -498,7 +481,7 @@ func (s *Server) RemovePeer(_ context.Context, req interface{}) (string, error) 
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return "", fmt.Errorf("failed to read line: %w", err)
+			return fmt.Errorf("reading line: %w", err)
 		}
 		if strings.Contains(line, "OpenVPN Management Interface") {
 			break
@@ -506,16 +489,15 @@ func (s *Server) RemovePeer(_ context.Context, req interface{}) (string, error) 
 	}
 
 	// Issue kill command for the client
-	id := r.ID()
 	if _, err := fmt.Fprintf(conn, "kill %s\n", id); err != nil {
-		return "", fmt.Errorf("failed to write command: %w", err)
+		return fmt.Errorf("writing peer %q kill command: %w", id, err)
 	}
 
 	// Await confirmation
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return "", fmt.Errorf("failed to read line: %w", err)
+			return fmt.Errorf("reading line: %w", err)
 		}
 
 		line = strings.TrimSpace(line)
@@ -523,17 +505,17 @@ func (s *Server) RemovePeer(_ context.Context, req interface{}) (string, error) 
 			break
 		}
 		if strings.HasPrefix(line, "ERROR") {
-			return "", fmt.Errorf("failed to kill client: %s", line)
+			return fmt.Errorf("killing peer %q client: %s", id, line)
 		}
 	}
 
 	// Revoke the certificate
 	if err := s.pki.Revoke(id); err != nil {
-		return "", fmt.Errorf("failed to revoke certificate: %w", err)
+		return fmt.Errorf("revoking %q certificate: %w", id, err)
 	}
 
 	s.peers.Delete(id, nil)
-	return id, nil
+	return nil
 }
 
 // PeersLen returns the number of active peers.
@@ -549,9 +531,10 @@ func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 	// Iterate over all peers and gather statistics.
 	s.peers.RangeGet(func(_ string, peer Peer) bool {
 		items[peer.ID] = &types.PeerStatistics{
-			Duration: peer.TotalDuration(),
-			RxBytes:  peer.TotalRxBytes(),
-			TxBytes:  peer.TotalTxBytes(),
+			RxBytes:   peer.TotalRxBytes(),
+			TxBytes:   peer.TotalTxBytes(),
+			CreatedAt: peer.CreatedAt(),
+			UpdatedAt: peer.UpdatedAt(),
 		}
 
 		return false
@@ -563,7 +546,7 @@ func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 func (s *Server) syncPeers(_ context.Context) error {
 	conn, err := s.mgmtConn()
 	if err != nil {
-		return fmt.Errorf("failed to get management connection: %w", err)
+		return fmt.Errorf("getting management connection: %w", err)
 	}
 
 	defer func() {
@@ -576,7 +559,7 @@ func (s *Server) syncPeers(_ context.Context) error {
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return fmt.Errorf("failed to read line: %w", err)
+			return fmt.Errorf("reading line: %w", err)
 		}
 		if strings.Contains(line, "OpenVPN Management Interface") {
 			break
@@ -585,14 +568,14 @@ func (s *Server) syncPeers(_ context.Context) error {
 
 	// Request status output
 	if _, err := fmt.Fprintf(conn, "status 2\n"); err != nil {
-		return fmt.Errorf("failed to write command: %w", err)
+		return fmt.Errorf("writing status command: %w", err)
 	}
 
 	// Parse client statistics
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return fmt.Errorf("failed to read line: %w", err)
+			return fmt.Errorf("reading line: %w", err)
 		}
 
 		line = strings.TrimSpace(line)
@@ -616,38 +599,44 @@ func (s *Server) syncPeers(_ context.Context) error {
 
 		rxBytes, err := strconv.ParseInt(fields[5], 10, 64)
 		if err != nil {
-			return fmt.Errorf("failed to parse uplink bytes: %w", err)
+			return fmt.Errorf("parsing peer %q uplink bytes %q: %w", id, fields[5], err)
 		}
 
 		txBytes, err := strconv.ParseInt(fields[6], 10, 64)
 		if err != nil {
-			return fmt.Errorf("failed to parse downlink bytes: %w", err)
+			return fmt.Errorf("parsing peer %q downlink bytes %q: %w", id, fields[6], err)
 		}
 
-		timestamp, err := time.Parse(time.DateTime, fields[7])
+		createdAt, err := time.Parse(time.DateTime, fields[7])
 		if err != nil {
-			return fmt.Errorf("failed to parse timestamp: %w", err)
+			return fmt.Errorf("parsing peer %q created at %q: %w", id, fields[7], err)
 		}
 
 		// Update peer statistics in thread-safe map.
-		s.peers.Update(id, func(p Peer, ok bool) Peer {
-			if !ok {
-				return p
+		s.peers.Update(id, func(v Peer, found bool) (Peer, bool) {
+			if !found {
+				return v, false
 			}
 
-			if timestamp.After(p.Timestamp) {
-				p.Previous.Duration += p.Current.Duration
-				p.Previous.RxBytes += p.Current.RxBytes
-				p.Previous.TxBytes += p.Current.TxBytes
+			now := time.Now()
 
-				p.Timestamp = timestamp
+			if createdAt.After(v.Current.CreatedAt) {
+				v.Previous.RxBytes += v.Current.RxBytes
+				v.Previous.TxBytes += v.Current.TxBytes
+				v.Previous.UpdatedAt = now
+
+				v.Current = types.NewPeerStatistics(createdAt)
 			}
 
-			p.Current.Duration = time.Since(p.Timestamp)
-			p.Current.RxBytes = rxBytes
-			p.Current.TxBytes = txBytes
+			if rxBytes == v.Current.RxBytes {
+				return v, true
+			}
 
-			return p
+			v.Current.RxBytes = rxBytes
+			v.Current.TxBytes = txBytes
+			v.Current.UpdatedAt = now
+
+			return v, true
 		})
 	}
 
