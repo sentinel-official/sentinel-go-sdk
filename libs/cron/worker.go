@@ -112,7 +112,10 @@ func (w *BasicWorker) Name() string {
 
 // OnError processes errors encountered during worker execution.
 func (w *BasicWorker) OnError(err error) bool {
-	log.Debug("Executing OnError callback", "worker", w.name)
+	log.Warn("Executing scheduler worker OnError callback",
+		"cause", err.Error(),
+		"name", w.Name(),
+	)
 	if w.onError != nil {
 		return w.onError(err)
 	}
@@ -122,7 +125,7 @@ func (w *BasicWorker) OnError(err error) bool {
 
 // OnExit calls the onExit function if it is set.
 func (w *BasicWorker) OnExit() {
-	log.Debug("Executing OnExit callback", "worker", w.name)
+	log.Debug("Executing scheduler worker OnExit callback", "name", w.Name())
 	if w.onExit != nil {
 		w.onExit()
 	}
@@ -130,7 +133,11 @@ func (w *BasicWorker) OnExit() {
 
 // OnRetry processes retry attempts for the worker.
 func (w *BasicWorker) OnRetry(attempt uint, err error) {
-	log.Debug("Executing OnRetry callback", "worker", w.name)
+	log.Debug("Executing scheduler worker OnRetry callback",
+		"attempt", attempt,
+		"cause", err.Error(),
+		"name", w.Name(),
+	)
 	if w.onRetry != nil {
 		w.onRetry(attempt, err)
 	}
@@ -148,7 +155,7 @@ func (w *BasicWorker) RetryDelay() time.Duration {
 
 // Run executes the worker's handler function and returns any error encountered.
 func (w *BasicWorker) Run(ctx context.Context) error {
-	log.Debug("Executing handler", "worker", w.name)
+	log.Debug("Executing scheduler worker handler", "name", w.Name())
 	if w.handler != nil {
 		return w.handler(ctx)
 	}

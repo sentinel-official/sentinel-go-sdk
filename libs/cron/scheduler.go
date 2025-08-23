@@ -113,7 +113,7 @@ func (s *Scheduler) runWorker(ctx context.Context, w Worker) error {
 			retry.OnRetry(w.OnRetry),
 			retry.LastErrorOnly(true),
 		); err != nil {
-			if w.OnError(err) {
+			if exit := w.OnError(err); exit {
 				return err
 			}
 		}
