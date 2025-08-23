@@ -467,7 +467,7 @@ func (s *Server) syncPeers(ctx context.Context) error {
 			v.Current.TxBytes = txBytes
 			v.Current.UpdatedAt = now
 
-			return v, false
+			return v, true
 		})
 	}
 
