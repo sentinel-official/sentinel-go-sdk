@@ -107,6 +107,7 @@ func (s *Scheduler) runWorker(ctx context.Context, w Worker) error {
 		// Attempt the worker's run function with retries
 		if err := retry.Do(
 			func() error { return w.Run(ctx) },
+			retry.Context(ctx),
 			retry.Attempts(w.RetryAttempts()),
 			retry.Delay(w.RetryDelay()),
 			retry.DelayType(retry.FixedDelay),

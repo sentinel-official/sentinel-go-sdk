@@ -269,6 +269,7 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	// Retry broadcasting the transaction with defined attempts and delay.
 	if err := retry.Do(
 		retryFunc,
+		retry.Context(ctx),
 		retry.Attempts(c.txBroadcastRetryAttempts),
 		retry.Delay(c.txBroadcastRetryDelay),
 		retry.DelayType(retry.FixedDelay),
@@ -321,6 +322,7 @@ func (c *Client) Tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, e
 	// Retry fetching the transaction.
 	if err := retry.Do(
 		retryFunc,
+		retry.Context(ctx),
 		retry.Attempts(c.txQueryRetryAttempts),
 		retry.Delay(c.txQueryRetryDelay),
 		retry.DelayType(retry.FixedDelay),

@@ -50,6 +50,7 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 	// Retry the query using the configured maximum retries and delay.
 	if err := retry.Do(
 		retryFunc,
+		retry.Context(ctx),
 		retry.Attempts(c.queryRetryAttempts),
 		retry.Delay(c.queryRetryDelay),
 		retry.DelayType(retry.FixedDelay),
