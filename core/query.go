@@ -107,7 +107,7 @@ func (c *Client) QueryGRPC(ctx context.Context, method string, req, resp codec.P
 	// Marshal the request into bytes.
 	data, err := c.ProtoCodec().Marshal(req)
 	if err != nil {
-		return fmt.Errorf("marshalling gRPC request: %w", err)
+		return fmt.Errorf("marshaling gRPC request: %w", err)
 	}
 
 	// Perform the query using ABCIQueryWithOptions.

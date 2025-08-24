@@ -33,7 +33,7 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 	if reqBody != nil {
 		buf, err := json.Marshal(reqBody)
 		if err != nil {
-			return fmt.Errorf("marshalling request body: %w", err)
+			return fmt.Errorf("marshaling request body: %w", err)
 		}
 
 		body = bytes.NewReader(buf)
@@ -73,7 +73,7 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 	if result != nil {
 		buf, err := json.Marshal(respBody.Result)
 		if err != nil {
-			return fmt.Errorf("marshalling response body result: %w", err)
+			return fmt.Errorf("marshaling response body result: %w", err)
 		}
 		if err := json.Unmarshal(buf, result); err != nil {
 			return fmt.Errorf("unmarshaling response body result: %w", err)

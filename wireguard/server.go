@@ -442,14 +442,13 @@ func (s *Server) syncPeers(ctx context.Context) error {
 		}
 
 		createdAt := time.Time{}
+		now := time.Now()
 
 		// Update peer statistics in thread-safe map.
 		s.peers.Update(columns[0], func(v Peer, found bool) (Peer, bool) {
 			if !found {
 				return v, false
 			}
-
-			now := time.Now()
 
 			if createdAt.After(v.Current.CreatedAt) {
 				v.Previous.RxBytes += v.Current.RxBytes
@@ -459,8 +458,8 @@ func (s *Server) syncPeers(ctx context.Context) error {
 				v.Current = types.NewPeerStatistics(createdAt)
 			}
 
-			if rxBytes == v.Current.RxBytes {
-				return v, true
+			if v.Current.RxBytes > 0 && rxBytes == v.Current.RxBytes {
+				return v, false
 			}
 
 			v.Current.RxBytes = rxBytes

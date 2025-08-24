@@ -10,7 +10,7 @@ import (
 func writeJSON(w io.Writer, v interface{}) error {
 	buf, err := json.Marshal(v)
 	if err != nil {
-		return fmt.Errorf("marshalling to JSON: %w", err)
+		return fmt.Errorf("marshaling to JSON: %w", err)
 	}
 
 	_, _ = fmt.Fprintf(w, "%s", buf)

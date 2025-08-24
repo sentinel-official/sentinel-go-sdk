@@ -26,7 +26,7 @@ func YAMLFromJSON(i interface{}) ([]byte, error) {
 		// Marshal struct or other types to JSON
 		buf, err := json.Marshal(i)
 		if err != nil {
-			return nil, fmt.Errorf("marshalling input to JSON: %w", err)
+			return nil, fmt.Errorf("marshaling input to JSON: %w", err)
 		}
 
 		// Unmarshal the JSON into an interface to maintain its structure
@@ -38,7 +38,7 @@ func YAMLFromJSON(i interface{}) ([]byte, error) {
 	// Convert the intermediate structure to YAML format and return it
 	buf, err := yaml.Marshal(in)
 	if err != nil {
-		return nil, fmt.Errorf("marshalling to YAML: %w", err)
+		return nil, fmt.Errorf("marshaling to YAML: %w", err)
 	}
 
 	return buf, nil

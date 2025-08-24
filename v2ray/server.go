@@ -550,63 +550,77 @@ func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 // syncPeers retrieves the latest peer transfer statistics from the stats service
 // and updates the in-memory peer data accordingly.
 func (s *Server) syncPeers(ctx context.Context) error {
-	// Create a copy of the current peers to iterate over.
-	var items []string
-	s.peers.RangeGet(func(key string, _ Peer) bool {
-		items = append(items, key)
-		return false
-	})
+	// Prepare the response
+	resp := &statscommand.QueryStatsResponse{}
 
-	conn, release := s.conn.Acquire()
-	defer release()
+	// Perform the gRPC call to fetch traffic stats
+	fn := func() (err error) {
+		conn, release := s.conn.Acquire()
+		defer release()
 
-	client := statscommand.NewStatsServiceClient(conn)
-	for _, id := range items {
-		// Prepare gRPC request to get uplink traffic stats.
-		in := &statscommand.GetStatsRequest{
-			Reset_: false,
-			Name:   fmt.Sprintf("user>>>%s>>>traffic>>>uplink", id),
+		client := statscommand.NewStatsServiceClient(conn)
+
+		// Send the request to get traffic stats
+		resp, err = client.QueryStats(ctx, &statscommand.QueryStatsRequest{})
+		if err != nil {
+			return fmt.Errorf("querying peer stats: %w", err)
 		}
 
-		// Send the request to get uplink traffic stats.
-		res, err := client.GetStats(ctx, in)
-		if err != nil && !strings.Contains(err.Error(), "not found") {
-			return fmt.Errorf("getting peer %q uplink stats: %w", id, err)
+		return nil
+	}
+
+	// Execute stats query
+	if err := fn(); err != nil {
+		return err
+	}
+
+	// Temporary map to collect per-user traffic stats
+	stats := make(map[string]*types.PeerStatistics)
+
+	// Iterate over every stat entry
+	for _, stat := range resp.GetStat() {
+		name := stat.GetName()
+
+		// Split the name into 4 parts
+		parts := strings.SplitN(name, ">>>", 4)
+		if len(parts) != 4 || parts[0] != "user" || parts[2] != "traffic" {
+			continue
 		}
 
-		// Extract uplink traffic stats or use an empty stat if not found.
-		rxBytes := &statscommand.Stat{}
-		if res != nil && res.GetStat() != nil {
-			rxBytes = res.GetStat()
+		id := parts[1]
+
+		// Skip if the peer does not exist
+		if !s.peers.Exists(id) {
+			continue
 		}
 
-		// Prepare gRPC request to get downlink traffic stats.
-		in = &statscommand.GetStatsRequest{
-			Reset_: false,
-			Name:   fmt.Sprintf("user>>>%s>>>traffic>>>downlink", id),
+		// Get or create statistics entry
+		pt, exists := stats[id]
+		if !exists {
+			pt = &types.PeerStatistics{}
+			stats[id] = pt
 		}
 
-		// Send the request to get downlink traffic stats.
-		res, err = client.GetStats(ctx, in)
-		if err != nil && !strings.Contains(err.Error(), "not found") {
-			return fmt.Errorf("getting peer %q downlink stats: %w", id, err)
+		// Assign Rx/Tx values based on direction
+		switch parts[3] {
+		case "uplink":
+			pt.RxBytes = stat.GetValue()
+		case "downlink":
+			pt.TxBytes = stat.GetValue()
+		default:
+			continue
 		}
+	}
 
-		// Extract downlink traffic stats or use an empty stat if not found.
-		txBytes := &statscommand.Stat{}
-		if res != nil && res.GetStat() != nil {
-			txBytes = res.GetStat()
-		}
+	createdAt := time.Time{}
+	now := time.Now()
 
-		createdAt := time.Time{}
-
-		// Update peer statistics in thread-safe map.
+	// Apply collected stats to the thread-safe map
+	for id, stat := range stats {
 		s.peers.Update(id, func(v Peer, ok bool) (Peer, bool) {
 			if !ok {
 				return v, false
 			}
-
-			now := time.Now()
 
 			if createdAt.After(v.Current.CreatedAt) {
 				v.Previous.RxBytes += v.Current.RxBytes
@@ -616,12 +630,12 @@ func (s *Server) syncPeers(ctx context.Context) error {
 				v.Current = types.NewPeerStatistics(createdAt)
 			}
 
-			if rxBytes.GetValue() == v.Current.RxBytes {
-				return v, true
+			if v.Current.RxBytes > 0 && stat.RxBytes == v.Current.RxBytes {
+				return v, false
 			}
 
-			v.Current.RxBytes = rxBytes.GetValue()
-			v.Current.TxBytes = txBytes.GetValue()
+			v.Current.RxBytes = stat.RxBytes
+			v.Current.TxBytes = stat.TxBytes
 			v.Current.UpdatedAt = now
 
 			return v, true

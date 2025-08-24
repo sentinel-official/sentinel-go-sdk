@@ -70,7 +70,7 @@ func (p *PKI) Init(opts ...CertOption) (err error) {
 	// Marshal the private key to PKCS#8 format
 	keyDER, err := x509.MarshalPKCS8PrivateKey(p.Signer)
 	if err != nil {
-		return fmt.Errorf("marshalling CA private key: %w", err)
+		return fmt.Errorf("marshaling CA private key: %w", err)
 	}
 
 	// Define the root certificate template
@@ -148,7 +148,7 @@ func (p *PKI) Issue(name string, opts ...CertOption) (keyDER []byte, certDER []b
 	// Marshal the private key
 	keyDER, err = x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
-		return nil, nil, fmt.Errorf("marshalling private key for %q: %w", name, err)
+		return nil, nil, fmt.Errorf("marshaling private key for %q: %w", name, err)
 	}
 
 	// Certificate template for the subject

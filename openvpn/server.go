@@ -612,13 +612,13 @@ func (s *Server) syncPeers(_ context.Context) error {
 			return fmt.Errorf("parsing peer %q created at %q: %w", id, fields[7], err)
 		}
 
+		now := time.Now()
+
 		// Update peer statistics in thread-safe map.
 		s.peers.Update(id, func(v Peer, found bool) (Peer, bool) {
 			if !found {
 				return v, false
 			}
-
-			now := time.Now()
 
 			if createdAt.After(v.Current.CreatedAt) {
 				v.Previous.RxBytes += v.Current.RxBytes
@@ -628,8 +628,8 @@ func (s *Server) syncPeers(_ context.Context) error {
 				v.Current = types.NewPeerStatistics(createdAt)
 			}
 
-			if rxBytes == v.Current.RxBytes {
-				return v, true
+			if v.Current.RxBytes > 0 && rxBytes == v.Current.RxBytes {
+				return v, false
 			}
 
 			v.Current.RxBytes = rxBytes
