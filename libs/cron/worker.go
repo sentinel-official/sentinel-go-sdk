@@ -112,9 +112,8 @@ func (w *BasicWorker) Name() string {
 
 // OnError processes errors encountered during worker execution.
 func (w *BasicWorker) OnError(err error) bool {
-	log.Warn("Executing scheduler worker OnError callback",
-		"cause", err.Error(),
-		"name", w.Name(),
+	log.Debug("Executing scheduler worker OnError callback",
+		"cause", err.Error(), "name", w.Name(),
 	)
 	if w.onError != nil {
 		return w.onError(err)
@@ -134,9 +133,7 @@ func (w *BasicWorker) OnExit() {
 // OnRetry processes retry attempts for the worker.
 func (w *BasicWorker) OnRetry(attempt uint, err error) {
 	log.Debug("Executing scheduler worker OnRetry callback",
-		"attempt", attempt,
-		"cause", err.Error(),
-		"name", w.Name(),
+		"attempt", attempt, "cause", err, "name", w.Name(),
 	)
 	if w.onRetry != nil {
 		w.onRetry(attempt, err)

@@ -11,6 +11,7 @@ import (
 	"github.com/avast/retry-go/v4"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/log"
+	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // Scheduler manages the scheduling and execution of workers.
@@ -51,7 +52,9 @@ func (s *Scheduler) Start() error {
 
 			// Run the worker and log error if any
 			if err := s.runWorker(s.ctx, worker); err != nil {
-				log.Error("Worker exited", "cause", err, "name", worker.Name())
+				if !utils.ErrorIs(err, context.Canceled) {
+					log.Error("Worker exited", "cause", err, "name", worker.Name())
+				}
 			}
 		}()
 	}

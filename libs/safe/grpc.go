@@ -57,7 +57,7 @@ func (c *GRPCConn) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.closed.Swap(true) {
+	if c.conn == nil || c.closed.Swap(true) {
 		return nil
 	}
 

@@ -14,6 +14,8 @@ import (
 
 	"github.com/soheilhy/cmux"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // Server is a multiprotocol HTTP server that supports both
@@ -45,11 +47,18 @@ func NewServer(addr, certFile, keyFile string, handler http.Handler) *Server {
 }
 
 // Start launches the server and begins handling both HTTP and HTTPS traffic.
-func (s *Server) Start() error {
+func (s *Server) Start() (err error) {
 	// Prevent starting the server more than once
 	if s.running.Swap(true) {
 		return fmt.Errorf("server already running")
 	}
+
+	defer func() {
+		// Revert running status in case of any error
+		if err != nil {
+			s.running.Store(false)
+		}
+	}()
 
 	// Load the TLS certificate and key from disk
 	cert, err := tls.LoadX509KeyPair(s.certFile, s.keyFile)
@@ -95,7 +104,9 @@ func (s *Server) Start() error {
 
 		// Start HTTPS server
 		if err := s.tlsServer.Serve(l); err != nil {
-			return fmt.Errorf("serving TLS server: %w", err)
+			if !utils.ErrorIs(err, cmux.ErrServerClosed, http.ErrServerClosed) {
+				return fmt.Errorf("serving TLS server: %w", err)
+			}
 		}
 
 		return nil
@@ -104,7 +115,9 @@ func (s *Server) Start() error {
 	// Start serving non-TLS HTTP traffic
 	s.eg.Go(func() error {
 		if err := s.anyServer.Serve(anyMux); err != nil {
-			return fmt.Errorf("serving any server: %w", err)
+			if !utils.ErrorIs(err, cmux.ErrServerClosed, http.ErrServerClosed) {
+				return fmt.Errorf("serving any server: %w", err)
+			}
 		}
 
 		return nil
@@ -113,7 +126,9 @@ func (s *Server) Start() error {
 	// Start the cmux multiplexer, which delegates connections to the correct server
 	s.eg.Go(func() error {
 		if err := s.mux.Serve(); err != nil {
-			return fmt.Errorf("serving multiplexer: %w", err)
+			if !utils.ErrorIs(err, net.ErrClosed) {
+				return fmt.Errorf("serving multiplexer: %w", err)
+			}
 		}
 
 		return nil

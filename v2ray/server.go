@@ -440,6 +440,10 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	id := r.ID()
 
 	conn, release := s.conn.Acquire()
+	if conn == nil {
+		return "", nil, errors.New("acquiring connection: nil conn")
+	}
+
 	defer release()
 
 	client := proxymancommand.NewHandlerServiceClient(conn)
@@ -485,6 +489,10 @@ func (s *Server) HasPeer(_ context.Context, id string) (bool, error) {
 // RemovePeer removes a peer from the V2Ray server.
 func (s *Server) RemovePeer(ctx context.Context, id string) error {
 	conn, release := s.conn.Acquire()
+	if conn == nil {
+		return errors.New("acquiring connection: nil conn")
+	}
+
 	defer release()
 
 	client := proxymancommand.NewHandlerServiceClient(conn)
@@ -547,6 +555,10 @@ func (s *Server) syncPeers(ctx context.Context) error {
 	// Perform the gRPC call to fetch traffic stats
 	fn := func() (err error) {
 		conn, release := s.conn.Acquire()
+		if conn == nil {
+			return errors.New("acquiring connection: nil conn")
+		}
+
 		defer release()
 
 		client := statscommand.NewStatsServiceClient(conn)
