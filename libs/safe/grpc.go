@@ -10,31 +10,30 @@ import (
 )
 
 type GRPCConn struct {
-	c      *grpc.ClientConn
 	closed atomic.Bool
+	conn   *grpc.ClientConn
 	mu     sync.Mutex
 	wg     sync.WaitGroup
 }
 
 // Dial connects to the given gRPC target if not already connected.
 // If a connection already exists, Dial is a no-op.
-func (c *GRPCConn) Dial(target string, opts ...grpc.DialOption) error {
+func (c *GRPCConn) Dial(target string, opts ...grpc.DialOption) (err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.closed.Load() {
 		return errors.New("gRPC connection already closed")
 	}
-	if c.c != nil {
+	if c.conn != nil {
 		return nil
 	}
 
-	conn, err := grpc.NewClient(target, opts...)
+	c.conn, err = grpc.NewClient(target, opts...)
 	if err != nil {
 		return fmt.Errorf("creating gRPC client for %q: %w", target, err)
 	}
 
-	c.c = conn
 	return nil
 }
 
@@ -44,12 +43,12 @@ func (c *GRPCConn) Acquire() (*grpc.ClientConn, func()) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.c == nil || c.closed.Load() {
+	if c.conn == nil || c.closed.Load() {
 		return nil, func() {}
 	}
 
 	c.wg.Add(1)
-	return c.c, func() { c.wg.Done() }
+	return c.conn, func() { c.wg.Done() }
 }
 
 // Close waits for all active users to finish, then closes the connection.
@@ -58,21 +57,17 @@ func (c *GRPCConn) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if !c.closed.CompareAndSwap(false, true) {
+	if c.closed.Swap(true) {
 		return nil
 	}
 
 	// Wait for all users to finish
 	c.wg.Wait()
 
-	if c.c == nil {
-		return nil
-	}
-
-	if err := c.c.Close(); err != nil {
+	if err := c.conn.Close(); err != nil {
 		return fmt.Errorf("closing gRPC connection: %w", err)
 	}
 
-	c.c = nil
+	c.conn = nil
 	return nil
 }

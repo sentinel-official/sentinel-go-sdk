@@ -74,7 +74,19 @@ func (s *Server) Type() types.ServiceType {
 }
 
 // Init sets up service configuration, creating directories and writing defaults unless config exists.
-func (s *Server) Init(force bool) error {
+func (s *Server) Init(req interface{}, force bool) error {
+	// Set default server configuration
+	cfg := DefaultServerConfig()
+
+	// If a request is provided, attempt to cast it to a ServerConfig type
+	if req != nil {
+		if v, ok := req.(*ServerConfig); ok {
+			cfg = v
+		} else {
+			return fmt.Errorf("invalid request type %T", req)
+		}
+	}
+
 	// Create the home directory if it doesn't exist
 	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
 		return fmt.Errorf("creating home directory %q: %w", s.homeDir, err)
@@ -84,14 +96,13 @@ func (s *Server) Init(force bool) error {
 	cfgFile := s.appConfigFilePath()
 
 	// Check if the config file exists at the specified path
-	cfgFileExists, err := utils.IsFileExists(cfgFile)
+	exists, err := utils.IsFileExists(cfgFile)
 	if err != nil {
 		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
 	// Write default config only if file doesn't exist or force flag is enabled
-	if !cfgFileExists || force {
-		cfg := DefaultServerConfig()
+	if !exists || force {
 		if err := cfg.WriteAppConfig(cfgFile); err != nil {
 			return fmt.Errorf("writing config file %q: %w", cfgFile, err)
 		}
@@ -112,8 +123,7 @@ func (s *Server) IsUp() (bool, error) {
 	}
 
 	// Executes the 'wg show' command to check the interface status.
-	cmd := exec.CommandContext(
-		context.Background(),
+	cmd := exec.Command(
 		s.execFile("wg"),
 		strings.Fields(fmt.Sprintf("show %s", device))...,
 	)
@@ -136,38 +146,29 @@ func (s *Server) IsUp() (bool, error) {
 }
 
 // PreUp performs initialization tasks before starting the WireGuard service.
-func (s *Server) PreUp(req interface{}) error {
-	// Set default server configuration
-	cfg := DefaultServerConfig()
+func (s *Server) PreUp() error {
+	// Construct the full path to the config file
+	cfgFile := s.appConfigFilePath()
 
-	// If a request is provided, attempt to cast it to a ServerConfig type
-	if req != nil {
-		if v, ok := req.(*ServerConfig); ok {
-			cfg = v
-		} else {
-			return fmt.Errorf("invalid request type %T", req)
-		}
+	// Check if the config file exists at the specified path
+	exists, err := utils.IsFileExists(cfgFile)
+	if err != nil {
+		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
 	// Initialize viper instance
 	v := viper.New()
 
-	// Construct the full path to the config file
-	cfgFile := s.appConfigFilePath()
-
-	// Check if the config file exists at the specified path
-	cfgFileExists, err := utils.IsFileExists(cfgFile)
-	if err != nil {
-		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
-	}
-
 	// If the config file exists, proceed to read its contents
-	if cfgFileExists {
+	if exists {
 		v.SetConfigFile(cfgFile)
 		if err := v.ReadInConfig(); err != nil {
 			return fmt.Errorf("reading config file %q: %w", cfgFile, err)
 		}
 	}
+
+	// Set default server configuration
+	cfg := DefaultServerConfig()
 
 	// Unmarshal configuration into the config object
 	if err := v.Unmarshal(cfg); err != nil {
@@ -203,17 +204,14 @@ func (s *Server) PreUp(req interface{}) error {
 }
 
 // PostUp starts background peer synchronization after the server is up.
-func (s *Server) PostUp(ctx context.Context) error {
-	// Create a context that cancels if either server or input context is done.
-	ctx, _ = utils.AnyDoneContext(s.ctx, ctx)
-
+func (s *Server) PostUp() error {
 	// Start background goroutine for periodic peer statistics updates.
 	s.eg.Go(func() error {
 		// Blocking loop that runs until stop signal is received
 		for {
 			select {
-			case <-ctx.Done():
-				return nil
+			case <-s.ctx.Done():
+				return s.ctx.Err()
 			case <-time.After(time.Second):
 				// Check if server is up before syncing peers.
 				ok, err := s.IsUp()
@@ -225,7 +223,7 @@ func (s *Server) PostUp(ctx context.Context) error {
 				}
 
 				// Sync peer statistics from WireGuard.
-				if err := s.syncPeers(ctx); err != nil {
+				if err := s.syncPeers(s.ctx); err != nil {
 					return fmt.Errorf("syncing peer statistics: %w", err)
 				}
 			}
@@ -385,12 +383,12 @@ func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 	items := make(map[string]*types.PeerStatistics)
 
 	// Iterate over all peers and gather statistics.
-	s.peers.RangeGet(func(_ string, peer Peer) bool {
-		items[peer.ID] = &types.PeerStatistics{
-			RxBytes:   peer.TotalRxBytes(),
-			TxBytes:   peer.TotalTxBytes(),
-			CreatedAt: peer.CreatedAt(),
-			UpdatedAt: peer.UpdatedAt(),
+	s.peers.RangeGet(func(_ string, v Peer) bool {
+		items[v.ID] = &types.PeerStatistics{
+			RxBytes:   v.TotalRxBytes(),
+			TxBytes:   v.TotalTxBytes(),
+			CreatedAt: v.CreatedAt(),
+			UpdatedAt: v.UpdatedAt(),
 		}
 
 		return false

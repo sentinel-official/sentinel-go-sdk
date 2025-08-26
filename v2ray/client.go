@@ -119,7 +119,19 @@ func (c *Client) Type() types.ServiceType {
 }
 
 // Init sets up service configuration, creating directories and writing defaults unless config exists.
-func (c *Client) Init(force bool) error {
+func (c *Client) Init(req interface{}, force bool) error {
+	// Set default client configuration
+	cfg := DefaultClientConfig()
+
+	// If a request is provided, attempt to cast it to a ClientConfig type
+	if req != nil {
+		if v, ok := req.(*ClientConfig); ok {
+			cfg = v
+		} else {
+			return fmt.Errorf("invalid request type %T", req)
+		}
+	}
+
 	// Create the home directory if it doesn't exist
 	if err := os.MkdirAll(c.homeDir, 0755); err != nil {
 		return fmt.Errorf("failed to create home directory: %w", err)
@@ -129,14 +141,13 @@ func (c *Client) Init(force bool) error {
 	cfgFile := c.appConfigFilePath()
 
 	// Check if the config file exists at the specified path
-	cfgFileExists, err := utils.IsFileExists(cfgFile)
+	exists, err := utils.IsFileExists(cfgFile)
 	if err != nil {
 		return fmt.Errorf("failed to check if config file exists: %w", err)
 	}
 
 	// Write default config only if file doesn't exist or force flag is enabled
-	if !cfgFileExists || force {
-		cfg := DefaultClientConfig()
+	if !exists || force {
 		if err := cfg.WriteAppConfig(cfgFile); err != nil {
 			return fmt.Errorf("failed to write config file: %w", err)
 		}
@@ -190,22 +201,7 @@ func (c *Client) IsUp() (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the client process.
-func (c *Client) PreUp(req interface{}) error {
-	// Set default client configuration
-	cfg := DefaultClientConfig()
-
-	// If a request is provided, attempt to cast it to a ClientConfig type
-	if req != nil {
-		if v, ok := req.(*ClientConfig); ok {
-			cfg = v
-		} else {
-			return fmt.Errorf("invalid request type %T", req)
-		}
-	}
-
-	// Initialize viper instance
-	v := viper.New()
-
+func (c *Client) PreUp() error {
 	// Construct the full path to the config file
 	cfgFile := c.appConfigFilePath()
 
@@ -215,6 +211,9 @@ func (c *Client) PreUp(req interface{}) error {
 		return fmt.Errorf("failed to check if config file exists: %w", err)
 	}
 
+	// Initialize viper instance
+	v := viper.New()
+
 	// If the config file exists, proceed to read its contents
 	if cfgFileExists {
 		v.SetConfigFile(cfgFile)
@@ -222,6 +221,9 @@ func (c *Client) PreUp(req interface{}) error {
 			return fmt.Errorf("failed to read config file: %w", err)
 		}
 	}
+
+	// Set default client configuration
+	cfg := DefaultClientConfig()
 
 	// Unmarshal configuration into the config object
 	if err := v.Unmarshal(cfg); err != nil {
@@ -243,14 +245,11 @@ func (c *Client) PreUp(req interface{}) error {
 }
 
 // Up starts the V2Ray client process.
-func (c *Client) Up(ctx context.Context) error {
-	// Create a context that cancels if either server or input context is done.
-	ctx, _ = utils.AnyDoneContext(c.ctx, ctx)
-
+func (c *Client) Up() error {
 	// Constructs the command to start the V2Ray client.
 	cfgFile := c.serviceConfigFilePath()
 	c.cmd = exec.CommandContext(
-		ctx,
+		c.ctx,
 		c.execFile(v2ray),
 		strings.Fields(fmt.Sprintf("run --config %s", cfgFile))...,
 	)
@@ -266,11 +265,6 @@ func (c *Client) Up(ctx context.Context) error {
 			err = errors.New("exited unexpectedly")
 		}
 
-		// If context is canceled, we return nil immediately.
-		if utils.ErrorIs(ctx.Err(), context.Canceled) {
-			return nil
-		}
-
 		return fmt.Errorf("failed to wait for command: %w", err)
 	})
 
@@ -278,7 +272,7 @@ func (c *Client) Up(ctx context.Context) error {
 }
 
 // PostUp performs operations after the client process is started.
-func (c *Client) PostUp(_ context.Context) error {
+func (c *Client) PostUp() error {
 	// Write PID to file.
 	if err := c.writePIDToFile(c.cmd.Process.Pid); err != nil {
 		return fmt.Errorf("failed to write pid to file: %w", err)
@@ -351,6 +345,6 @@ func (c *Client) PostDown() error {
 }
 
 // Statistics returns dummy statistics for now (to be implemented).
-func (c *Client) Statistics() (int64, int64, error) {
+func (c *Client) Statistics(_ context.Context) (int64, int64, error) {
 	return 0, 0, nil
 }

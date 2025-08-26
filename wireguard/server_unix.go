@@ -32,11 +32,11 @@ func (s *Server) Down() error {
 }
 
 // Up starts the WireGuard interface.
-func (s *Server) Up(ctx context.Context) error {
+func (s *Server) Up() error {
 	// Executes the 'wg-quick up' command to bring up the interface.
 	cfgFile := s.serviceConfigFilePath()
 	cmd := exec.CommandContext(
-		ctx,
+		s.ctx,
 		s.execFile("wg-quick"),
 		strings.Fields(fmt.Sprintf("up %s", cfgFile))...,
 	)

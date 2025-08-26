@@ -40,11 +40,11 @@ func (c *Client) Down() error {
 }
 
 // Up installs the WireGuard tunnel service.
-func (c *Client) Up(ctx context.Context) error {
+func (c *Client) Up() error {
 	// Executes the command to install the WireGuard tunnel service.
 	cfgFile := c.serviceConfigFilePath()
 	cmd := exec.CommandContext(
-		ctx,
+		c.ctx,
 		c.execFile("wireguard"),
 		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", cfgFile))...,
 	)

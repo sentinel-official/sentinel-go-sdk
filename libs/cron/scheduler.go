@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/avast/retry-go/v4"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/log"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // Scheduler manages the scheduling and execution of workers.
@@ -21,42 +20,40 @@ type Scheduler struct {
 
 	cancel context.CancelFunc // Cancels the shared context, stopping all workers.
 	ctx    context.Context    // Shared context used by all workers for cancellation and deadlines.
-	eg     *errgroup.Group    // Errgroup that manages and waits for all worker goroutines.
+	wg     *sync.WaitGroup    // WaitGroup that manages and waits for all worker goroutines.
 }
 
 // NewScheduler creates and initializes a new Scheduler instance.
 func NewScheduler() *Scheduler {
 	ctx, cancel := context.WithCancel(context.Background())
-	eg, ctx := errgroup.WithContext(ctx)
 
 	return &Scheduler{
 		workers: make(map[string]Worker),
 		cancel:  cancel,
 		ctx:     ctx,
-		eg:      eg,
+		wg:      &sync.WaitGroup{},
 	}
 }
 
-// Start begins executing all registered workers concurrently using errgroup.
-func (s *Scheduler) Start(ctx context.Context) error {
+// Start begins executing all registered workers concurrently.
+func (s *Scheduler) Start() error {
 	// Atomically check and set running
-	if !s.running.CompareAndSwap(false, true) {
+	if s.running.Swap(true) {
 		return errors.New("scheduler is already running")
 	}
 
-	// Combine the scheduler's context and the passed context
-	ctx, _ = utils.AnyDoneContext(s.ctx, ctx)
+	for _, val := range s.workers {
+		worker := val
 
-	for _, w := range s.workers {
-		worker := w
-		s.eg.Go(func() error {
-			// Run the worker and log errors without propagating them
-			if err := s.runWorker(ctx, worker); err != nil {
-				log.Error("Worker exited with error", "cause", err, "name", worker.Name())
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+
+			// Run the worker and log error if any
+			if err := s.runWorker(s.ctx, worker); err != nil {
+				log.Error("Worker exited", "cause", err, "name", worker.Name())
 			}
-
-			return nil
-		})
+		}()
 	}
 
 	return nil
@@ -67,9 +64,7 @@ func (s *Scheduler) Wait() error {
 	defer s.running.Store(false)
 
 	// Wait for all worker goroutines to finish
-	if err := s.eg.Wait(); err != nil {
-		return err
-	}
+	s.wg.Wait()
 
 	return nil
 }
@@ -122,7 +117,7 @@ func (s *Scheduler) runWorker(ctx context.Context, w Worker) error {
 		// Sleep for the interval—or stop early if the context is done
 		select {
 		case <-ctx.Done():
-			return nil
+			return ctx.Err()
 		case <-time.After(w.Interval()):
 		}
 	}

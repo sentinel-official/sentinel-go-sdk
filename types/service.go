@@ -67,14 +67,14 @@ func (s *PeerStatistics) Duration() time.Duration {
 
 // ClientService defines the interface for client-side service operations.
 type ClientService interface {
-	Type() ServiceType     // Type returns the type of the client service.
-	Init(force bool) error // Init initializes the service, optionally overwriting the config if force is true.
+	Type() ServiceType                      // Type returns the type of the client service.
+	Init(req interface{}, force bool) error // Init initializes the service, optionally overwriting the config if force is true.
 
 	IsUp() (bool, error) // IsUp checks if the client service is currently running.
 
-	PreUp(req interface{}) error      // PreUp performs operations before the service is brought up.
-	Up(ctx context.Context) error     // Up brings up the client service.
-	PostUp(ctx context.Context) error // PostUp performs operations after the service is brought up.
+	PreUp() error  // PreUp performs operations before the service is brought up.
+	Up() error     // Up brings up the client service.
+	PostUp() error // PostUp performs operations after the service is brought up.
 
 	Wait() error // Wait blocks until the client service finishes.
 
@@ -82,19 +82,19 @@ type ClientService interface {
 	Down() error     // Down brings down the client service.
 	PostDown() error // PostDown performs operations after the service is brought down.
 
-	Statistics() (int64, int64, error) // Statistics returns the download and upload statistics.
+	Statistics(ctx context.Context) (int64, int64, error) // Statistics returns the download and upload statistics.
 }
 
 // ServerService defines the interface for server-side service operations.
 type ServerService interface {
-	Type() ServiceType     // Type returns the type of the server service.
-	Init(force bool) error // Init initializes the service, optionally overwriting the config if force is true.
+	Type() ServiceType                      // Type returns the type of the server service.
+	Init(req interface{}, force bool) error // Init initializes the service, optionally overwriting the config if force is true.
 
 	IsUp() (bool, error) // IsUp checks if the server service is currently running.
 
-	PreUp(req interface{}) error      // PreUp performs operations before the service is brought up.
-	Up(ctx context.Context) error     // Up brings up the server service.
-	PostUp(ctx context.Context) error // PostUp performs operations after the service is brought up.
+	PreUp() error  // PreUp performs operations before the service is brought up.
+	Up() error     // Up brings up the server service.
+	PostUp() error // PostUp performs operations after the service is brought up.
 
 	Wait() error // Wait blocks until the server service finishes.
 

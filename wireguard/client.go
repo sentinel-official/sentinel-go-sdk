@@ -66,7 +66,19 @@ func (c *Client) Type() types.ServiceType {
 }
 
 // Init sets up service configuration, creating directories and writing defaults unless config exists.
-func (c *Client) Init(force bool) error {
+func (c *Client) Init(req interface{}, force bool) error {
+	// Set default client configuration
+	cfg := DefaultClientConfig()
+
+	// If a request is provided, attempt to cast it to a ClientConfig type
+	if req != nil {
+		if v, ok := req.(*ClientConfig); ok {
+			cfg = v
+		} else {
+			return fmt.Errorf("invalid request type %T", req)
+		}
+	}
+
 	// Create the home directory if it doesn't exist
 	if err := os.MkdirAll(c.homeDir, 0755); err != nil {
 		return fmt.Errorf("failed to create home directory: %w", err)
@@ -76,14 +88,13 @@ func (c *Client) Init(force bool) error {
 	cfgFile := c.appConfigFilePath()
 
 	// Check if the config file exists at the specified path
-	cfgFileExists, err := utils.IsFileExists(cfgFile)
+	exists, err := utils.IsFileExists(cfgFile)
 	if err != nil {
 		return fmt.Errorf("failed to check if config file exists: %w", err)
 	}
 
 	// Write default config only if file doesn't exist or force flag is enabled
-	if !cfgFileExists || force {
-		cfg := DefaultClientConfig()
+	if !exists || force {
 		if err := cfg.WriteAppConfig(cfgFile); err != nil {
 			return fmt.Errorf("failed to write config file: %w", err)
 		}
@@ -104,8 +115,7 @@ func (c *Client) IsUp() (bool, error) {
 	}
 
 	// Executes the 'wg show' command to check the interface status.
-	cmd := exec.CommandContext(
-		context.Background(),
+	cmd := exec.Command(
 		c.execFile("wg"),
 		strings.Fields(fmt.Sprintf("show %s", device))...,
 	)
@@ -128,38 +138,29 @@ func (c *Client) IsUp() (bool, error) {
 }
 
 // PreUp writes the configuration to the config file before starting the client process.
-func (c *Client) PreUp(req interface{}) error {
-	// Set default client configuration
-	cfg := DefaultClientConfig()
+func (c *Client) PreUp() error {
+	// Construct the full path to the config file
+	cfgFile := c.appConfigFilePath()
 
-	// If a request is provided, attempt to cast it to a ClientConfig type
-	if req != nil {
-		if v, ok := req.(*ClientConfig); ok {
-			cfg = v
-		} else {
-			return fmt.Errorf("invalid request type %T", req)
-		}
+	// Check if the config file exists at the specified path
+	exists, err := utils.IsFileExists(cfgFile)
+	if err != nil {
+		return fmt.Errorf("failed to check if config file exists: %w", err)
 	}
 
 	// Initialize viper instance
 	v := viper.New()
 
-	// Construct the full path to the config file
-	cfgFile := c.appConfigFilePath()
-
-	// Check if the config file exists at the specified path
-	cfgFileExists, err := utils.IsFileExists(cfgFile)
-	if err != nil {
-		return fmt.Errorf("failed to check if config file exists: %w", err)
-	}
-
 	// If the config file exists, proceed to read its contents
-	if cfgFileExists {
+	if exists {
 		v.SetConfigFile(cfgFile)
 		if err := v.ReadInConfig(); err != nil {
 			return fmt.Errorf("failed to read config file: %w", err)
 		}
 	}
+
+	// Set default client configuration
+	cfg := DefaultClientConfig()
 
 	// Unmarshal configuration into the config object
 	if err := v.Unmarshal(cfg); err != nil {
@@ -181,7 +182,7 @@ func (c *Client) PreUp(req interface{}) error {
 }
 
 // PostUp performs operations after the client process is started.
-func (c *Client) PostUp(_ context.Context) error {
+func (c *Client) PostUp() error {
 	return nil
 }
 
@@ -214,7 +215,7 @@ func (c *Client) PostDown() error {
 }
 
 // Statistics returns the download and upload statistics for the WireGuard interface.
-func (c *Client) Statistics() (int64, int64, error) {
+func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 	// Retrieves the device name.
 	device, err := c.deviceName()
 	if err != nil {
@@ -226,7 +227,7 @@ func (c *Client) Statistics() (int64, int64, error) {
 
 	// Executes the 'wg show' command to get transfer statistics.
 	output, err := exec.CommandContext(
-		context.Background(),
+		ctx,
 		c.execFile("wg"),
 		strings.Fields(fmt.Sprintf("show %s transfer", device))...,
 	).Output()
