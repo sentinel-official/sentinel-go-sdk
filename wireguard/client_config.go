@@ -6,8 +6,10 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"strings"
 
 	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
@@ -30,32 +32,32 @@ func (c *PeerClientConfig) Endpoint() string {
 func (c *PeerClientConfig) Validate() error {
 	// Ensure that Addr is not empty.
 	if c.Addr == "" {
-		return errors.New("addr cannot be empty")
+		return errors.New("addr is empty")
 	}
 
 	// Validate AllowAddrs (must be in CIDR notation)
 	for _, addr := range c.AllowAddrs {
 		if _, err := netip.ParsePrefix(addr); err != nil {
-			return fmt.Errorf("failed to parse addr: %w", err)
+			return fmt.Errorf("parsing addr prefix %q: %w", addr, err)
 		}
 	}
 
 	// Ensure PersistentKeepalive is set to a valid non-zero value.
 	if c.PersistentKeepalive == 0 {
-		return errors.New("persistent_keepalive cannot be empty")
+		return errors.New("persistent_keepalive is zero")
 	}
 
 	// Validate Port (must be a non-zero value).
 	if c.Port == 0 {
-		return errors.New("port cannot be empty")
+		return errors.New("port is zero")
 	}
 
 	// Validate PublicKey (must be non-empty and a valid WireGuard public key).
 	if c.PublicKey == "" {
-		return errors.New("public_key cannot be empty")
+		return errors.New("public_key is empty")
 	}
 	if _, err := NewKeyFromString(c.PublicKey); err != nil {
-		return fmt.Errorf("invalid public_key: %w", err)
+		return fmt.Errorf("parsing public_key %q: %w", c.PublicKey, err)
 	}
 
 	return nil
@@ -74,12 +76,14 @@ func DefaultPeerClientConfig() *PeerClientConfig {
 
 // ClientConfig represents the WireGuard client configuration.
 type ClientConfig struct {
+	viper *viper.Viper `mapstructure:"-"`
+
 	Addrs        []string          `mapstructure:"addrs"`         // Addrs contains the client’s IPv4 and/or IPv6 addresses in CIDR notation.
 	DNSAddrs     []string          `mapstructure:"dns_addrs"`     // DNSAddrs is a list of DNS servers to be used by the client.
 	ExcludeAddrs []string          `mapstructure:"exclude_addrs"` // ExcludeAddrs defines IP ranges that should not use the VPN tunnel.
 	MTU          uint16            `mapstructure:"mtu"`           // MTU sets the maximum transmission unit size.
 	Name         string            `mapstructure:"name"`          // Name is the name of the WireGuard interface.
-	Peer         *PeerClientConfig `mapstructure:"peers"`         // Peer is a peer configurations that the client can connect to.
+	Peer         *PeerClientConfig `mapstructure:"peer"`          // Peer is a peer configurations that the client can connect to.
 	Port         uint16            `mapstructure:"port"`          // Port specifies the WireGuard listening port for the client.
 	PrivateKey   string            `mapstructure:"private_key"`   // PrivateKey holds the WireGuard private key for this client.
 }
@@ -128,46 +132,46 @@ func (c *ClientConfig) GetPrivateKey() *Key {
 func (c *ClientConfig) Validate() error {
 	// Validate Addrs (at least one address must be provided).
 	if len(c.Addrs) == 0 {
-		return errors.New("addrs cannot be empty")
+		return errors.New("addrs are empty")
 	}
 
 	// Validate that each address in Addrs is a valid network prefix in CIDR notation.
 	for _, addr := range c.Addrs {
 		if _, err := netip.ParsePrefix(addr); err != nil {
-			return fmt.Errorf("invalid addr: %w", err)
+			return fmt.Errorf("parsing addr prefix %q: %w", addr, err)
 		}
 	}
 
 	// Validate DNSAddrs (must be valid IP addresses).
 	for _, addr := range c.DNSAddrs {
 		if net.ParseIP(addr) == nil {
-			return errors.New("invalid dns addr")
+			return fmt.Errorf("invalid DNS addr: parsing DNS addr %q", addr)
 		}
 	}
 
 	// Validate ExcludeAddrs (if provided, each address must be a valid CIDR range).
 	for _, addr := range c.ExcludeAddrs {
 		if _, err := netip.ParsePrefix(addr); err != nil {
-			return fmt.Errorf("failed to parse excluded addr: %w", err)
+			return fmt.Errorf("parsing excluded addr prefix %q: %w", addr, err)
 		}
 	}
 
 	// Validate MTU (must be a non-zero value).
 	if c.MTU == 0 {
-		return errors.New("mtu cannot be empty")
+		return errors.New("MTU is zero")
 	}
 
 	// Ensure Name is not empty.
 	if c.Name == "" {
-		return errors.New("name cannot be empty")
+		return errors.New("name is empty")
 	}
 
 	// Validate Peer (must be non-empty and a valid PeerClientConfig).
 	if c.Peer == nil {
-		return errors.New("peer cannot be empty")
+		return errors.New("peer is nil")
 	}
 	if err := c.Peer.Validate(); err != nil {
-		return fmt.Errorf("invalid peer config: %w", err)
+		return fmt.Errorf("validating peer config: %w", err)
 	}
 
 	// Validate Port (must be a non-zero value).
@@ -177,66 +181,105 @@ func (c *ClientConfig) Validate() error {
 
 	// Validate PrivateKey (must be non-empty and a valid WireGuard private key).
 	if c.PrivateKey == "" {
-		return errors.New("private_key cannot be empty")
+		return errors.New("private_key is empty")
 	}
 	if _, err := NewKeyFromString(c.PrivateKey); err != nil {
-		return fmt.Errorf("invalid private_key: %w", err)
+		return fmt.Errorf("parsing private_key %q: %w", c.PrivateKey, err)
 	}
 
 	return nil
 }
 
-// WriteServiceConfig generates the service-level configuration file using the service template.
-func (c *ClientConfig) WriteServiceConfig(filename string) error {
-	// Load the service template from the embedded or filesystem path.
-	text, err := fs.ReadFile("client.conf.tmpl")
-	if err != nil {
-		return fmt.Errorf("failed to read service template: %w", err)
+// ReadAppConfig reads the application configuration from the specified file.
+func (c *ClientConfig) ReadAppConfig(file string) error {
+	// Initialize Viper instance if it hasn't been already.
+	if c.viper == nil {
+		c.viper = viper.New()
 	}
 
-	// Render the template with ServerConfig data and write the result to the specified file.
-	if err := utils.ExecTemplateToFile(string(text), c, filename); err != nil {
-		return fmt.Errorf("failed to write rendered service config to file: %w", err)
+	// Set the path to the config file.
+	c.viper.SetConfigFile(file)
+
+	// Read the configuration file from disk.
+	if err := c.viper.ReadInConfig(); err != nil {
+		return fmt.Errorf("reading config file %q: %w", file, err)
 	}
 
-	// Restrict file permissions to owner read/write only.
-	if err := os.Chmod(filename, 0600); err != nil {
-		return fmt.Errorf("failed to set file permissions: %w", err)
+	// Unmarshal the config data into the ServerConfig struct.
+	if err := c.viper.Unmarshal(c); err != nil {
+		return fmt.Errorf("unmarshaling config: %w", err)
 	}
 
 	return nil
 }
 
 // WriteAppConfig generates the application-level configuration file using the main config template.
-func (c *ClientConfig) WriteAppConfig(filename string) error {
-	// Load the application config template from the embedded or filesystem path.
+func (c *ClientConfig) WriteAppConfig(file string) error {
+	// Load the application template from the embedded filesystem.
 	text, err := fs.ReadFile("client_config.toml.tmpl")
 	if err != nil {
-		return fmt.Errorf("failed to read application config template: %w", err)
+		return fmt.Errorf("reading config template: %w", err)
 	}
 
-	// Render the template with ServerConfig data and write the result to the specified file.
-	if err := utils.ExecTemplateToFile(string(text), c, filename); err != nil {
-		return fmt.Errorf("failed to write rendered application config to file: %w", err)
+	// Render the template with ClientConfig data and write the result to the specified file.
+	if err := utils.ExecTemplateToFile(string(text), c, file); err != nil {
+		return fmt.Errorf("writing rendered config file %q: %w", file, err)
 	}
 
 	// Restrict file permissions to owner read/write only.
-	if err := os.Chmod(filename, 0600); err != nil {
-		return fmt.Errorf("failed to set file permissions: %w", err)
+	if err := os.Chmod(file, 0600); err != nil {
+		return fmt.Errorf("setting file permissions: %w", err)
+	}
+
+	return nil
+}
+
+// WriteServiceConfig generates the service-level configuration file using the service template.
+func (c *ClientConfig) WriteServiceConfig(file string) error {
+	// Load the service template from the embedded filesystem.
+	text, err := fs.ReadFile("client.conf.tmpl")
+	if err != nil {
+		return fmt.Errorf("reading config template: %w", err)
+	}
+
+	// Render the template with ClientConfig data and write the result to the specified file.
+	if err := utils.ExecTemplateToFile(string(text), c, file); err != nil {
+		return fmt.Errorf("writing rendered config file %q: %w", file, err)
+	}
+
+	// Restrict file permissions to owner read/write only.
+	if err := os.Chmod(file, 0600); err != nil {
+		return fmt.Errorf("setting file permissions: %w", err)
 	}
 
 	return nil
 }
 
 // SetForFlags adds client configuration flags to the specified FlagSet.
-func (c *ClientConfig) SetForFlags(f *pflag.FlagSet) {
-	f.StringArrayVar(&c.DNSAddrs, "wg.dns-addrs", c.DNSAddrs, "dns servers to use while connected to the vpn")
-	f.StringArrayVar(&c.ExcludeAddrs, "wg.exclude-addrs", c.ExcludeAddrs, "exclude ip addresses/subnets from the wireguard tunnel")
-	f.Uint16Var(&c.MTU, "wg.mtu", c.MTU, "maximum transmission unit size for the wireguard interface")
-	f.StringVar(&c.Name, "wg.name", c.Name, "name of the wireguard network interface")
-	f.StringArrayVar(&c.Peer.AllowAddrs, "wg.peer.allow-addrs", c.Peer.AllowAddrs, "list of allowed ip addresses to route through wireguard peer")
-	f.UintVar(&c.Peer.PersistentKeepalive, "wg.peer.persistent-keepalive", c.Peer.PersistentKeepalive, "interval for keepalive packets to maintain connection")
-	f.Uint16Var(&c.Port, "wg.port", c.Port, "port number for the wireguard interface")
+func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
+	if prefix != "" {
+		prefix += "."
+	}
+
+	fs.StringArrayVar(&c.DNSAddrs, prefix+"dns-addrs", c.DNSAddrs, "dns servers to use while connected to the vpn")
+	fs.StringArrayVar(&c.ExcludeAddrs, prefix+"exclude-addrs", c.ExcludeAddrs, "exclude ip addresses/subnets from the wireguard tunnel")
+	fs.Uint16Var(&c.MTU, prefix+"mtu", c.MTU, "maximum transmission unit size for the wireguard interface")
+	fs.StringVar(&c.Name, prefix+"name", c.Name, "name of the wireguard network interface")
+	fs.StringArrayVar(&c.Peer.AllowAddrs, prefix+"peer.allow-addrs", c.Peer.AllowAddrs, "list of allowed ip addresses to route through wireguard peer")
+	fs.UintVar(&c.Peer.PersistentKeepalive, prefix+"peer.persistent-keepalive", c.Peer.PersistentKeepalive, "interval for keepalive packets to maintain connection")
+	fs.Uint16Var(&c.Port, prefix+"port", c.Port, "port number for the wireguard interface")
+
+	// Initialize Viper if it hasn't been already.
+	if c.viper == nil {
+		c.viper = viper.New()
+	}
+
+	// Bind all added flags.
+	fs.VisitAll(func(f *pflag.Flag) {
+		if strings.HasPrefix(f.Name, prefix) {
+			_ = c.viper.BindPFlag(strings.TrimPrefix(f.Name, prefix), f)
+		}
+	})
 }
 
 // DefaultClientConfig creates a default ClientConfig with default values.

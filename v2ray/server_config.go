@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
@@ -26,6 +27,9 @@ func (c *InboundServerConfig) GetPort() *netip.Port {
 	port, err := netip.NewPortFromString(c.Port)
 	if err != nil {
 		panic(err)
+	}
+	if port == nil {
+		panic(errors.New("nil port"))
 	}
 
 	return port
@@ -72,27 +76,27 @@ func (c *InboundServerConfig) Tag() string {
 func (c *InboundServerConfig) Validate() error {
 	// Ensure Port is not empty.
 	if c.Port == "" {
-		return errors.New("port cannot be empty")
+		return errors.New("port is empty")
 	}
 
 	// Validate the Port value.
 	if _, err := netip.NewPortFromString(c.Port); err != nil {
-		return fmt.Errorf("invalid port: %w", err)
+		return fmt.Errorf("parsing port %q: %w", c.Port, err)
 	}
 
 	// Validate the Proxy protocol.
 	if v := NewProxyProtocolFromString(c.ProxyProtocol); !v.IsValid() {
-		return fmt.Errorf("invalid proxy %s", v)
+		return fmt.Errorf("invalid proxy_protocol %q", v)
 	}
 
 	// Validate the Transport protocol.
 	if v := NewTransportProtocolFromString(c.TransportProtocol); !v.IsValid() {
-		return fmt.Errorf("invalid transport %s", v)
+		return fmt.Errorf("invalid transport_protocol %q", v)
 	}
 
 	// Validate the Transport security.
 	if v := NewTransportSecurityFromString(c.TransportSecurity); !v.IsValid() {
-		return fmt.Errorf("invalid security %s", v)
+		return fmt.Errorf("invalid transport_security %q", v)
 	}
 
 	return nil
@@ -100,6 +104,8 @@ func (c *InboundServerConfig) Validate() error {
 
 // ServerConfig represents the V2Ray server configuration options.
 type ServerConfig struct {
+	viper *viper.Viper `mapstructure:"-"`
+
 	Inbounds    []*InboundServerConfig `mapstructure:"inbounds"` // Inbounds is a list of inbound server configurations.
 	TLSCertFile string                 `mapstructure:"-"`        // TLSCertFile is the path to the TLS certificate file.
 	TLSKeyFile  string                 `mapstructure:"-"`        // TLSKeyFile is the path to the TLS private key file.
@@ -109,7 +115,7 @@ type ServerConfig struct {
 func (c *ServerConfig) Validate() error {
 	// Ensure Inbounds is not empty.
 	if len(c.Inbounds) == 0 {
-		return errors.New("inbounds cannot be empty")
+		return errors.New("inbounds are empty")
 	}
 
 	// Create sets to track unique inbound and outbound ports and tags.
@@ -120,7 +126,7 @@ func (c *ServerConfig) Validate() error {
 	// Validate each InboundServerConfig.
 	for _, inbound := range c.Inbounds {
 		if err := inbound.Validate(); err != nil {
-			return fmt.Errorf("invalid inbound: %w", err)
+			return fmt.Errorf("validating inbound: %w", err)
 		}
 
 		// Parse the port range and check for duplicates.
@@ -135,84 +141,110 @@ func (c *ServerConfig) Validate() error {
 		// Check inbound ports for duplicates.
 		for p := port.InFrom; p <= port.InTo; p++ {
 			if inPortSet[p] {
-				return fmt.Errorf("duplicate in port %d", p)
+				return fmt.Errorf("duplicate in_port %d", p)
 			}
+
 			inPortSet[p] = true
 		}
 
 		// Check outbound ports for duplicates.
 		for p := port.OutFrom; p <= port.OutTo; p++ {
 			if outPortSet[p] {
-				return fmt.Errorf("duplicate out port %d", p)
+				return fmt.Errorf("duplicate out_port %d", p)
 			}
+
 			outPortSet[p] = true
 		}
 
 		// Check tags for duplicates.
 		tag := inbound.Tag()
 		if tagSet[tag] {
-			return fmt.Errorf("duplicate tag %s", tag)
+			return fmt.Errorf("duplicate tag %q", tag)
 		}
+
 		tagSet[tag] = true
 	}
 
 	// Validate TLS certificate file is specified.
 	if c.TLSCertFile == "" {
-		return errors.New("tls_cert_file cannot be empty")
+		return errors.New("tls_cert_file is empty")
 	}
 
 	// Validate TLS key file is specified.
 	if c.TLSKeyFile == "" {
-		return errors.New("tls_key_file cannot be empty")
+		return errors.New("tls_key_file is empty")
 	}
 
 	return nil
 }
 
-// WriteServiceConfig generates the service-level configuration file using the service template.
-func (c *ServerConfig) WriteServiceConfig(filename string) error {
-	// Load the service template from the embedded or filesystem path.
-	text, err := fs.ReadFile("server.json.tmpl")
-	if err != nil {
-		return fmt.Errorf("failed to read service template: %w", err)
+// ReadAppConfig reads the application configuration from the specified file.
+func (c *ServerConfig) ReadAppConfig(file string) error {
+	// Initialize Viper instance if it hasn't been already.
+	if c.viper == nil {
+		c.viper = viper.New()
 	}
 
-	// Render the template with ServerConfig data and write the result to the specified file.
-	if err := utils.ExecTemplateToFile(string(text), c, filename); err != nil {
-		return fmt.Errorf("failed to write rendered service config to file: %w", err)
+	// Set the path to the config file.
+	c.viper.SetConfigFile(file)
+
+	// Read the configuration file from disk.
+	if err := c.viper.ReadInConfig(); err != nil {
+		return fmt.Errorf("reading config file %q: %w", file, err)
 	}
 
-	// Restrict file permissions to owner read/write only.
-	if err := os.Chmod(filename, 0600); err != nil {
-		return fmt.Errorf("failed to set file permissions: %w", err)
+	// Unmarshal the config data into the ServerConfig struct.
+	if err := c.viper.Unmarshal(c); err != nil {
+		return fmt.Errorf("unmarshaling config: %w", err)
 	}
 
 	return nil
 }
 
 // WriteAppConfig generates the application-level configuration file using the main config template.
-func (c *ServerConfig) WriteAppConfig(filename string) error {
-	// Load the application config template from the embedded or filesystem path.
+func (c *ServerConfig) WriteAppConfig(file string) error {
+	// Load the application template from the embedded filesystem.
 	text, err := fs.ReadFile("server_config.toml.tmpl")
 	if err != nil {
-		return fmt.Errorf("failed to read application config template: %w", err)
+		return fmt.Errorf("reading config template: %w", err)
 	}
 
 	// Render the template with ServerConfig data and write the result to the specified file.
-	if err := utils.ExecTemplateToFile(string(text), c, filename); err != nil {
-		return fmt.Errorf("failed to write rendered application config to file: %w", err)
+	if err := utils.ExecTemplateToFile(string(text), c, file); err != nil {
+		return fmt.Errorf("writing rendered config file %q: %w", file, err)
 	}
 
 	// Restrict file permissions to owner read/write only.
-	if err := os.Chmod(filename, 0600); err != nil {
-		return fmt.Errorf("failed to set file permissions: %w", err)
+	if err := os.Chmod(file, 0600); err != nil {
+		return fmt.Errorf("setting file permissions: %w", err)
+	}
+
+	return nil
+}
+
+// WriteServiceConfig generates the service-level configuration file using the service template.
+func (c *ServerConfig) WriteServiceConfig(file string) error {
+	// Load the service template from the embedded filesystem.
+	text, err := fs.ReadFile("server.json.tmpl")
+	if err != nil {
+		return fmt.Errorf("reading config template: %w", err)
+	}
+
+	// Render the template with ServerConfig data and write the result to the specified file.
+	if err := utils.ExecTemplateToFile(string(text), c, file); err != nil {
+		return fmt.Errorf("writing rendered config file %q: %w", file, err)
+	}
+
+	// Restrict file permissions to owner read/write only.
+	if err := os.Chmod(file, 0600); err != nil {
+		return fmt.Errorf("setting file permissions: %w", err)
 	}
 
 	return nil
 }
 
 // SetForFlags adds server configuration flags to the specified FlagSet.
-func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet) {}
+func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 
 // DefaultServerConfig creates a default ServerConfig with predefined values.
 func DefaultServerConfig() *ServerConfig {

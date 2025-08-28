@@ -1,7 +1,6 @@
 package wireguard
 
 import (
-	"context"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -22,18 +21,17 @@ func (s *Server) deviceName() (string, error) {
 func (s *Server) Down() error {
 	device, err := s.deviceName()
 	if err != nil {
-		return fmt.Errorf("failed to get device name: %w", err)
+		return fmt.Errorf("getting device name: %w", err)
 	}
 
 	// Executes the command to uninstall the WireGuard tunnel service.
-	cmd := exec.CommandContext(
-		context.Background(),
+	cmd := exec.Command(
 		s.execFile("wireguard"),
 		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", device))...,
 	)
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to run command: %w", err)
+		return fmt.Errorf("running command: %w", err)
 	}
 
 	return nil
@@ -50,7 +48,7 @@ func (s *Server) Up() error {
 	)
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to run command: %w", err)
+		return fmt.Errorf("running command: %w", err)
 	}
 
 	return nil

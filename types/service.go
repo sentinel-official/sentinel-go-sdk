@@ -3,6 +3,8 @@ package types
 import (
 	"context"
 	"time"
+
+	"github.com/spf13/pflag"
 )
 
 // ServiceType represents the type of service as a byte.
@@ -29,7 +31,8 @@ func (s ServiceType) String() string {
 	}
 }
 
-// ServiceTypeFromString converts a string to a ServiceType.
+// ServiceTypeFromString converts a string to a corresponding ServiceType.
+// Returns ServiceTypeUnspecified if the string does not match any known service.
 func ServiceTypeFromString(s string) ServiceType {
 	switch s {
 	case "wireguard":
@@ -43,32 +46,19 @@ func ServiceTypeFromString(s string) ServiceType {
 	}
 }
 
-// PeerStatistics holds network usage metrics for a peer.
-type PeerStatistics struct {
-	CreatedAt time.Time `json:"created_at,omitempty"` // When this stats record was first created
-	UpdatedAt time.Time `json:"updated_at,omitempty"` // When this stats record was last updated
-
-	RxBytes int64 `json:"rx_bytes,omitempty"` // Total uplink bytes received in this snapshot
-	TxBytes int64 `json:"tx_bytes,omitempty"` // Total downlink bytes transmitted in this snapshot
-}
-
-// NewPeerStatistics creates a new stats record with the given timestamp.
-func NewPeerStatistics(t time.Time) *PeerStatistics {
-	return &PeerStatistics{
-		CreatedAt: t,
-		UpdatedAt: t,
-	}
-}
-
-// Duration returns the elapsed time between creation and last update.
-func (s *PeerStatistics) Duration() time.Duration {
-	return s.UpdatedAt.Sub(s.CreatedAt)
+// ServiceConfig defines the interface for service configuration operations.
+type ServiceConfig interface {
+	Validate() error                              // Validate checks whether the configuration is valid.
+	SetForFlags(fs *pflag.FlagSet, prefix string) // SetForFlags binds configuration fields to CLI flags using a prefix.
+	ReadAppConfig(file string) error              // ReadAppConfig reads the application config from a file.
+	WriteAppConfig(file string) error             // WriteAppConfig writes the application config to a file.
+	WriteServiceConfig(file string) error         // WriteServiceConfig writes the service-specific config to a file.
 }
 
 // ClientService defines the interface for client-side service operations.
 type ClientService interface {
-	Type() ServiceType                      // Type returns the type of the client service.
-	Init(req interface{}, force bool) error // Init initializes the service, optionally overwriting the config if force is true.
+	Type() ServiceType     // Type returns the type of the client service.
+	Init(force bool) error // Init initializes the service, optionally overwriting the config if force is true.
 
 	IsUp() (bool, error) // IsUp checks if the client service is currently running.
 
@@ -87,8 +77,8 @@ type ClientService interface {
 
 // ServerService defines the interface for server-side service operations.
 type ServerService interface {
-	Type() ServiceType                      // Type returns the type of the server service.
-	Init(req interface{}, force bool) error // Init initializes the service, optionally overwriting the config if force is true.
+	Type() ServiceType     // Type returns the type of the server service.
+	Init(force bool) error // Init initializes the service, optionally overwriting the config if force is true.
 
 	IsUp() (bool, error) // IsUp checks if the server service is currently running.
 
@@ -104,7 +94,29 @@ type ServerService interface {
 
 	AddPeer(ctx context.Context, req interface{}) (id string, res interface{}, err error) // AddPeer adds a peer and returns its ID, the peer object, and an error if any.
 	HasPeer(ctx context.Context, id string) (bool, error)                                 // HasPeer checks if a peer exists in the server service.
-	RemovePeer(ctx context.Context, id string) error                                      // RemovePeer removes a peer and returns its ID and error if any.
-	PeersLen() int                                                                        // PeersLen returns the number of peers.
+	RemovePeer(ctx context.Context, id string) error                                      // RemovePeer removes a peer by ID and returns an error if any.
+	PeersLen() int                                                                        // PeersLen returns the number of peers currently configured.
 	PeerStatistics() (map[string]*PeerStatistics, error)                                  // PeerStatistics returns the statistics for all peers.
+}
+
+// PeerStatistics holds network usage metrics for a peer.
+type PeerStatistics struct {
+	CreatedAt time.Time `json:"created_at,omitempty"` // When this stats record was first created.
+	UpdatedAt time.Time `json:"updated_at,omitempty"` // When this stats record was last updated.
+
+	RxBytes int64 `json:"rx_bytes,omitempty"` // Total uplink bytes received in this snapshot.
+	TxBytes int64 `json:"tx_bytes,omitempty"` // Total downlink bytes transmitted in this snapshot.
+}
+
+// NewPeerStatistics creates a new PeerStatistics instance with a given timestamp.
+func NewPeerStatistics(t time.Time) *PeerStatistics {
+	return &PeerStatistics{
+		CreatedAt: t,
+		UpdatedAt: t,
+	}
+}
+
+// Duration returns the elapsed time between creation and last update of the statistics.
+func (s *PeerStatistics) Duration() time.Duration {
+	return s.UpdatedAt.Sub(s.CreatedAt)
 }

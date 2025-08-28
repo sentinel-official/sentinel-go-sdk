@@ -5,7 +5,6 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"golang.org/x/crypto/curve25519"
@@ -31,6 +30,7 @@ func (k *Key) IsZero() bool {
 func (k *Key) Public() *Key {
 	var pub [KeyLength]byte
 	curve25519.ScalarBaseMult(&pub, (*[KeyLength]byte)(k))
+
 	return (*Key)(&pub)
 }
 
@@ -43,12 +43,12 @@ func (k *Key) MarshalJSON() ([]byte, error) {
 func (k *Key) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
-		return fmt.Errorf("failed to unmarshal key: %w", err)
+		return fmt.Errorf("unmarshaling key: %w", err)
 	}
 
 	key, err := NewKeyFromString(s)
 	if err != nil {
-		return fmt.Errorf("failed to decode key: %w", err)
+		return fmt.Errorf("creating key: %w", err)
 	}
 
 	*k = *key
@@ -59,8 +59,9 @@ func (k *Key) UnmarshalJSON(data []byte) error {
 func NewPresharedKey() (*Key, error) {
 	var k Key
 	if _, err := rand.Read(k[:]); err != nil {
-		return nil, fmt.Errorf("failed to generate preshared key: %w", err)
+		return nil, fmt.Errorf("generating random key: %w", err)
 	}
+
 	return &k, nil
 }
 
@@ -72,6 +73,7 @@ func NewPrivateKey() (*Key, error) {
 	}
 	k[0] &= 248
 	k[31] = (k[31] & 127) | 64
+
 	return k, nil
 }
 
@@ -79,13 +81,14 @@ func NewPrivateKey() (*Key, error) {
 func NewKeyFromString(s string) (*Key, error) {
 	v, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
-		return nil, fmt.Errorf("invalid base64 encoding: %w", err)
+		return nil, fmt.Errorf("parsing Base64 key: %w", err)
 	}
 	if len(v) != KeyLength {
-		return nil, errors.New("decoded key must be 32 bytes")
+		return nil, fmt.Errorf("key length is not %d bytes", KeyLength)
 	}
 
 	var key Key
 	copy(key[:], v)
+
 	return &key, nil
 }

@@ -31,7 +31,7 @@ func parsePeerRequest(input interface{}) (*PeerRequest, error) {
 	case []byte:
 		var req PeerRequest
 		if err := json.Unmarshal(v, &req); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal input: %w", err)
+			return nil, fmt.Errorf("unmarshaling input: %w", err)
 		}
 
 		return &req, nil

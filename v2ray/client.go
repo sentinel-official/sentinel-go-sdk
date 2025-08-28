@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/shirou/gopsutil/v4/process"
-	"github.com/spf13/viper"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/sentinel-official/sentinel-go-sdk/types"
@@ -23,21 +22,23 @@ var _ types.ClientService = (*Client)(nil)
 
 // Client represents a V2Ray client with associated command, home directory, and name.
 type Client struct {
-	cmd     *exec.Cmd // Command for running the V2Ray client.
-	homeDir string    // Home directory for client files.
-	name    string    // Name of the interface.
+	cfg     *ClientConfig // Configuration settings for the V2Ray client.
+	cmd     *exec.Cmd     // Command for running the V2Ray client.
+	homeDir string        // Home directory for client files.
+	name    string        // Name of the interface.
 
 	cancel context.CancelFunc // Context cancel function to stop background tasks.
-	ctx    context.Context    // Context for server lifecycle management.
+	ctx    context.Context    // Context for client lifecycle management.
 	eg     *errgroup.Group    // Error group for managing background goroutines.
 }
 
 // NewClient creates a new Client instance.
-func NewClient(appDir string) *Client {
+func NewClient(appDir string, cfg *ClientConfig) *Client {
 	ctx, cancel := context.WithCancel(context.Background())
 	eg, ctx := errgroup.WithContext(ctx)
 
 	return &Client{
+		cfg:     cfg,
 		homeDir: filepath.Join(appDir, "v2ray"),
 		name:    "client",
 		cancel:  cancel,
@@ -75,7 +76,7 @@ func (c *Client) readPIDFromFile() (int32, error) {
 	// Check if the PID file exists
 	exists, err := utils.IsFileExists(pidFile)
 	if err != nil {
-		return 0, fmt.Errorf("failed to check existence of pid file: %w", err)
+		return 0, fmt.Errorf("checking if PID file %q exists: %w", pidFile, err)
 	}
 	if !exists {
 		return 0, nil
@@ -84,16 +85,16 @@ func (c *Client) readPIDFromFile() (int32, error) {
 	// Read PID from the PID file.
 	data, err := os.ReadFile(pidFile)
 	if err != nil {
-		return 0, fmt.Errorf("failed to read file: %w", err)
+		return 0, fmt.Errorf("reading PID file %q: %w", pidFile, err)
 	}
 
 	// Convert PID data to integer.
 	pid, err := strconv.ParseInt(string(data), 10, 32)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse pid: %w", err)
+		return 0, fmt.Errorf("parsing PID: %w", err)
 	}
 	if pid <= 0 {
-		return 0, fmt.Errorf("invalid pid %d", pid)
+		return 0, fmt.Errorf("invalid PID %d", pid)
 	}
 
 	return int32(pid), nil
@@ -107,7 +108,7 @@ func (c *Client) writePIDToFile(pid int) error {
 	// Write PID to file with appropriate permissions.
 	pidFile := c.pidFilePath()
 	if err := os.WriteFile(pidFile, data, 0644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+		return fmt.Errorf("writing PID file %q: %w", pidFile, err)
 	}
 
 	return nil
@@ -119,22 +120,10 @@ func (c *Client) Type() types.ServiceType {
 }
 
 // Init sets up service configuration, creating directories and writing defaults unless config exists.
-func (c *Client) Init(req interface{}, force bool) error {
-	// Set default client configuration
-	cfg := DefaultClientConfig()
-
-	// If a request is provided, attempt to cast it to a ClientConfig type
-	if req != nil {
-		if v, ok := req.(*ClientConfig); ok {
-			cfg = v
-		} else {
-			return fmt.Errorf("invalid request type %T", req)
-		}
-	}
-
+func (c *Client) Init(force bool) error {
 	// Create the home directory if it doesn't exist
 	if err := os.MkdirAll(c.homeDir, 0755); err != nil {
-		return fmt.Errorf("failed to create home directory: %w", err)
+		return fmt.Errorf("creating home directory %q: %w", c.homeDir, err)
 	}
 
 	// Construct the full path to the config file
@@ -143,13 +132,13 @@ func (c *Client) Init(req interface{}, force bool) error {
 	// Check if the config file exists at the specified path
 	exists, err := utils.IsFileExists(cfgFile)
 	if err != nil {
-		return fmt.Errorf("failed to check if config file exists: %w", err)
+		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
-	// Write default config only if file doesn't exist or force flag is enabled
+	// Write config only if file doesn't exist or force flag is enabled
 	if !exists || force {
-		if err := cfg.WriteAppConfig(cfgFile); err != nil {
-			return fmt.Errorf("failed to write config file: %w", err)
+		if err := c.cfg.WriteAppConfig(cfgFile); err != nil {
+			return fmt.Errorf("writing app config file %q: %w", cfgFile, err)
 		}
 	}
 
@@ -161,7 +150,7 @@ func (c *Client) IsUp() (bool, error) {
 	// Read PID from file.
 	pid, err := c.readPIDFromFile()
 	if err != nil {
-		return false, fmt.Errorf("failed to read pid from file: %w", err)
+		return false, fmt.Errorf("reading PID from file: %w", err)
 	}
 	if pid == 0 {
 		return false, nil
@@ -174,13 +163,13 @@ func (c *Client) IsUp() (bool, error) {
 			return false, nil
 		}
 
-		return false, fmt.Errorf("failed to get process: %w", err)
+		return false, fmt.Errorf("getting process for PID %d: %w", pid, err)
 	}
 
 	// Check if the process is running.
 	ok, err := proc.IsRunning()
 	if err != nil {
-		return false, fmt.Errorf("failed to check running process: %w", err)
+		return false, fmt.Errorf("checking process status: %w", err)
 	}
 	if !ok {
 		return false, nil
@@ -189,7 +178,7 @@ func (c *Client) IsUp() (bool, error) {
 	// Retrieve the name of the process.
 	name, err := proc.Name()
 	if err != nil {
-		return false, fmt.Errorf("failed to get process name: %w", err)
+		return false, fmt.Errorf("getting process name: %w", err)
 	}
 
 	// Check if the process name matches constant v2ray.
@@ -206,39 +195,27 @@ func (c *Client) PreUp() error {
 	cfgFile := c.appConfigFilePath()
 
 	// Check if the config file exists at the specified path
-	cfgFileExists, err := utils.IsFileExists(cfgFile)
+	exists, err := utils.IsFileExists(cfgFile)
 	if err != nil {
-		return fmt.Errorf("failed to check if config file exists: %w", err)
+		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
-	// Initialize viper instance
-	v := viper.New()
-
 	// If the config file exists, proceed to read its contents
-	if cfgFileExists {
-		v.SetConfigFile(cfgFile)
-		if err := v.ReadInConfig(); err != nil {
-			return fmt.Errorf("failed to read config file: %w", err)
+	if exists {
+		if err := c.cfg.ReadAppConfig(cfgFile); err != nil {
+			return fmt.Errorf("reading app config file %q: %w", cfgFile, err)
 		}
 	}
 
-	// Set default client configuration
-	cfg := DefaultClientConfig()
-
-	// Unmarshal configuration into the config object
-	if err := v.Unmarshal(cfg); err != nil {
-		return fmt.Errorf("failed to unmarshal config file: %w", err)
-	}
-
-	// Validate the unmarshalled config
-	if err := cfg.Validate(); err != nil {
-		return fmt.Errorf("failed to validate config file: %w", err)
+	// Validate the config
+	if err := c.cfg.Validate(); err != nil {
+		return fmt.Errorf("validating config: %w", err)
 	}
 
 	// Write configuration to file.
 	cfgFile = c.serviceConfigFilePath()
-	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
-		return fmt.Errorf("failed to write config to file: %w", err)
+	if err := c.cfg.WriteServiceConfig(cfgFile); err != nil {
+		return fmt.Errorf("writing service config file %q: %w", cfgFile, err)
 	}
 
 	return nil
@@ -256,16 +233,16 @@ func (c *Client) Up() error {
 
 	// Starts the V2Ray client process.
 	if err := c.cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start command: %w", err)
+		return fmt.Errorf("starting command: %w", err)
 	}
 
 	// Wait for the V2Ray process to finish in a separate goroutine.
 	c.eg.Go(func() (err error) {
 		if err = c.cmd.Wait(); err == nil {
-			err = errors.New("exited unexpectedly")
+			err = errors.New("command exited unexpectedly")
 		}
 
-		return fmt.Errorf("failed to wait for command: %w", err)
+		return fmt.Errorf("waiting command: %w", err)
 	})
 
 	return nil
@@ -275,7 +252,7 @@ func (c *Client) Up() error {
 func (c *Client) PostUp() error {
 	// Write PID to file.
 	if err := c.writePIDToFile(c.cmd.Process.Pid); err != nil {
-		return fmt.Errorf("failed to write pid to file: %w", err)
+		return fmt.Errorf("writing PID to file: %w", err)
 	}
 
 	return nil
@@ -303,7 +280,7 @@ func (c *Client) Down() error {
 	// Read PID from file.
 	pid, err := c.readPIDFromFile()
 	if err != nil {
-		return fmt.Errorf("failed to read pid from file: %w", err)
+		return fmt.Errorf("reading PID from file: %w", err)
 	}
 	if pid == 0 {
 		return nil
@@ -316,12 +293,12 @@ func (c *Client) Down() error {
 			return nil
 		}
 
-		return fmt.Errorf("failed to get process: %w", err)
+		return fmt.Errorf("getting process for PID %d: %w", pid, err)
 	}
 
 	// Terminate the process.
 	if err := proc.Terminate(); err != nil {
-		return fmt.Errorf("failed to terminate process: %w", err)
+		return fmt.Errorf("terminating process: %w", err)
 	}
 
 	return nil
@@ -332,13 +309,13 @@ func (c *Client) PostDown() error {
 	// Removes configuration file.
 	cfgFile := c.serviceConfigFilePath()
 	if err := utils.RemoveFile(cfgFile); err != nil {
-		return fmt.Errorf("failed to remove file: %w", err)
+		return fmt.Errorf("removing config file %q: %w", cfgFile, err)
 	}
 
-	// Removes PID file.
+	// Remove PID file.
 	pidFile := c.pidFilePath()
 	if err := utils.RemoveFile(pidFile); err != nil {
-		return fmt.Errorf("failed to remove file: %w", err)
+		return fmt.Errorf("removing PID file %q: %w", pidFile, err)
 	}
 
 	return nil
@@ -346,5 +323,5 @@ func (c *Client) PostDown() error {
 
 // Statistics returns dummy statistics for now (to be implemented).
 func (c *Client) Statistics(_ context.Context) (int64, int64, error) {
-	return 0, 0, nil
+	return 0, 0, errors.New("not implemented")
 }

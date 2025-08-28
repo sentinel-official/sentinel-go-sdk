@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/shirou/gopsutil/v4/process"
-	"github.com/spf13/viper"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/crypto"
@@ -29,6 +28,7 @@ var _ types.ServerService = (*Server)(nil)
 
 // Server represents an OpenVPN server instance.
 type Server struct {
+	cfg      *ServerConfig           // Configuration settings for the OpenVPN server.
 	cmd      *exec.Cmd               // OpenVPN process command
 	homeDir  string                  // Home directory where config and PID files are stored
 	metadata []*ServerMetadata       // Server metadata such as port and certificates
@@ -42,11 +42,12 @@ type Server struct {
 }
 
 // NewServer creates a new Server instance.
-func NewServer(appDir string) *Server {
+func NewServer(appDir string, cfg *ServerConfig) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	eg, ctx := errgroup.WithContext(ctx)
 
 	return &Server{
+		cfg:     cfg,
 		homeDir: filepath.Join(appDir, "openvpn"),
 		name:    "server",
 		peers:   safe.NewMap[string, Peer](),
@@ -91,11 +92,13 @@ func (s *Server) readPIDFromFile() (int32, error) {
 		return 0, nil
 	}
 
+	// Read PID from the PID file.
 	data, err := os.ReadFile(pidFile)
 	if err != nil {
 		return 0, fmt.Errorf("reading PID file %q: %w", pidFile, err)
 	}
 
+	// Convert PID data to integer.
 	pid, err := strconv.ParseInt(string(data), 10, 32)
 	if err != nil {
 		return 0, fmt.Errorf("parsing PID: %w", err)
@@ -145,19 +148,7 @@ func (s *Server) Type() types.ServiceType {
 }
 
 // Init sets up service configuration, creating directories and writing defaults unless config exists.
-func (s *Server) Init(req interface{}, force bool) error {
-	// Set default server configuration
-	cfg := DefaultServerConfig()
-
-	// If a request is provided, attempt to cast it to a ServerConfig type
-	if req != nil {
-		if v, ok := req.(*ServerConfig); ok {
-			cfg = v
-		} else {
-			return fmt.Errorf("invalid request type %T", req)
-		}
-	}
-
+func (s *Server) Init(force bool) error {
 	// Create the home directory if it doesn't exist
 	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
 		return fmt.Errorf("creating home directory %q: %w", s.homeDir, err)
@@ -172,10 +163,10 @@ func (s *Server) Init(req interface{}, force bool) error {
 		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
-	// Write default config only if file doesn't exist or force flag is enabled
+	// Write config only if file doesn't exist or force flag is enabled
 	if !exists || force {
-		if err := cfg.WriteAppConfig(cfgFile); err != nil {
-			return fmt.Errorf("writing config file %q: %w", cfgFile, err)
+		if err := s.cfg.WriteAppConfig(cfgFile); err != nil {
+			return fmt.Errorf("writing app config file %q: %w", cfgFile, err)
 		}
 	}
 
@@ -184,6 +175,7 @@ func (s *Server) Init(req interface{}, force bool) error {
 
 // IsUp checks whether the OpenVPN server is running by verifying its PID and process name.
 func (s *Server) IsUp() (bool, error) {
+	// Read PID from file.
 	pid, err := s.readPIDFromFile()
 	if err != nil {
 		return false, fmt.Errorf("reading PID from file: %w", err)
@@ -192,15 +184,17 @@ func (s *Server) IsUp() (bool, error) {
 		return false, nil
 	}
 
+	// Retrieve process with the given PID.
 	proc, err := process.NewProcess(pid)
 	if err != nil {
 		if utils.ErrorIs(err, process.ErrorProcessNotRunning) {
 			return false, nil
 		}
 
-		return false, fmt.Errorf("geting process for PID %d: %w", pid, err)
+		return false, fmt.Errorf("getting process for PID %d: %w", pid, err)
 	}
 
+	// Check if the process is running.
 	ok, err := proc.IsRunning()
 	if err != nil {
 		return false, fmt.Errorf("checking process status: %w", err)
@@ -209,10 +203,13 @@ func (s *Server) IsUp() (bool, error) {
 		return false, nil
 	}
 
+	// Retrieve the name of the process.
 	name, err := proc.Name()
 	if err != nil {
 		return false, fmt.Errorf("getting process name: %w", err)
 	}
+
+	// Check if the process name matches constant openVPN.
 	if name != openVPN {
 		return false, nil
 	}
@@ -231,35 +228,23 @@ func (s *Server) PreUp() error {
 		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
-	// Initialize viper instance
-	v := viper.New()
-
 	// If the config file exists, proceed to read its contents
 	if exists {
-		v.SetConfigFile(cfgFile)
-		if err := v.ReadInConfig(); err != nil {
-			return fmt.Errorf("reading config file %q: %w", cfgFile, err)
+		if err := s.cfg.ReadAppConfig(cfgFile); err != nil {
+			return fmt.Errorf("reading app config file %q: %w", cfgFile, err)
 		}
 	}
 
-	// Set default server configuration
-	cfg := DefaultServerConfig()
+	s.cfg.PKIDir = filepath.Join(s.homeDir, "pki")
+	s.cfg.StatusFile = filepath.Join(s.homeDir, "server.log")
 
-	// Unmarshal configuration into the config object
-	if err := v.Unmarshal(cfg); err != nil {
-		return fmt.Errorf("unmarshaling config file %q: %w", cfgFile, err)
-	}
-
-	cfg.PKIDir = filepath.Join(s.homeDir, "pki")
-	cfg.StatusFile = filepath.Join(s.homeDir, "server.log")
-
-	// Validate the unmarshalled config
-	if err := cfg.Validate(); err != nil {
+	// Validate the config
+	if err := s.cfg.Validate(); err != nil {
 		return fmt.Errorf("validating config: %w", err)
 	}
 
 	// Initialize PKI and issue a server certificate
-	s.pki = crypto.NewPKI(cfg.PKIDir)
+	s.pki = crypto.NewPKI(s.cfg.PKIDir)
 	if err := s.pki.Init(); err != nil {
 		return fmt.Errorf("initializing PKI: %w", err)
 	}
@@ -273,7 +258,7 @@ func (s *Server) PreUp() error {
 		return fmt.Errorf("generating TLS static key: %w", err)
 	}
 
-	tlsFile := filepath.Join(cfg.PKIDir, "tls.key")
+	tlsFile := filepath.Join(s.cfg.PKIDir, "tls.key")
 	if err := pem.WriteFile(tlsFile, pem.FormatHex, pem.BlockTypeOpenVPNStaticKeyV1, tlsBuf); err != nil {
 		return fmt.Errorf("writing TLS static key file %q: %w", tlsFile, err)
 	}
@@ -281,17 +266,17 @@ func (s *Server) PreUp() error {
 	// Save server metadata for later use
 	s.metadata = []*ServerMetadata{
 		{
-			Port:     cfg.OutPort(),
-			Protocol: cfg.Protocol,
+			Port:     s.cfg.OutPort(),
+			Protocol: s.cfg.Protocol,
 			CA:       s.pki.Certificate.Raw,
 			TLS:      tlsBuf,
 		},
 	}
 
-	// Write OpenVPN configuration to file
+	// Write configuration to file.
 	cfgFile = s.serviceConfigFilePath()
-	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
-		return fmt.Errorf("writing config file %q: %w", cfgFile, err)
+	if err := s.cfg.WriteServiceConfig(cfgFile); err != nil {
+		return fmt.Errorf("writing service config file %q: %w", cfgFile, err)
 	}
 
 	return nil
@@ -348,7 +333,7 @@ func (s *Server) PostUp() error {
 					continue
 				}
 
-				// Sync peer statistics from WireGuard.
+				// Sync peer statistics from OpenVPN.
 				if err := s.syncPeers(s.ctx); err != nil {
 					return fmt.Errorf("syncing peer statistics: %w", err)
 				}

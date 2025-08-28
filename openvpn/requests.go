@@ -7,7 +7,7 @@ import (
 	"github.com/v2fly/v2ray-core/v5/common/uuid"
 )
 
-// PeerRequest represents a V2Ray peer request.
+// PeerRequest represents a OpenVPN peer request.
 type PeerRequest struct {
 	UUID uuid.UUID `json:"uuid"`
 }
@@ -31,7 +31,7 @@ func parsePeerRequest(input interface{}) (*PeerRequest, error) {
 	case []byte:
 		var req PeerRequest
 		if err := json.Unmarshal(v, &req); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal input: %w", err)
+			return nil, fmt.Errorf("unmarshaling input: %w", err)
 		}
 
 		return &req, nil

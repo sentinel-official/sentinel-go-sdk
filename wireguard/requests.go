@@ -23,10 +23,10 @@ func (r *PeerRequest) ID() string {
 // Validate checks if the PeerRequest is valid.
 func (r *PeerRequest) Validate() error {
 	if r.PublicKey == nil {
-		return errors.New("public_key cannot be nil")
+		return errors.New("public_key is nil")
 	}
 	if r.PublicKey.IsZero() {
-		return errors.New("public_key cannot be zero")
+		return errors.New("public_key is zero")
 	}
 
 	return nil
@@ -41,7 +41,7 @@ func parsePeerRequest(input interface{}) (*PeerRequest, error) {
 	case []byte:
 		var req PeerRequest
 		if err := json.Unmarshal(v, &req); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal input: %w", err)
+			return nil, fmt.Errorf("unmarshaling input: %w", err)
 		}
 
 		return &req, nil

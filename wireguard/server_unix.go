@@ -3,7 +3,6 @@
 package wireguard
 
 import (
-	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -18,14 +17,13 @@ func (s *Server) execFile(name string) string {
 func (s *Server) Down() error {
 	// Executes the 'wg-quick down' command to bring down the interface.
 	cfgFile := s.serviceConfigFilePath()
-	cmd := exec.CommandContext(
-		context.Background(),
+	cmd := exec.Command(
 		s.execFile("wg-quick"),
 		strings.Fields(fmt.Sprintf("down %s", cfgFile))...,
 	)
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to run command: %w", err)
+		return fmt.Errorf("running command: %w", err)
 	}
 
 	return nil
@@ -42,7 +40,7 @@ func (s *Server) Up() error {
 	)
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to run command: %w", err)
+		return fmt.Errorf("running command: %w", err)
 	}
 
 	return nil

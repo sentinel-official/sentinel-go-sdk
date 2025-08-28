@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/shirou/gopsutil/v4/process"
-	"github.com/spf13/viper"
 	proxymancommand "github.com/v2fly/v2ray-core/v5/app/proxyman/command"
 	statscommand "github.com/v2fly/v2ray-core/v5/app/stats/command"
 	"github.com/v2fly/v2ray-core/v5/common/protocol"
@@ -32,6 +31,7 @@ var _ types.ServerService = (*Server)(nil)
 
 // Server represents the V2Ray server instance.
 type Server struct {
+	cfg      *ServerConfig            // Configuration settings for the V2Ray server.
 	cmd      *exec.Cmd                // Command to run the V2Ray server.
 	conn     *safe.GRPCConn           // gRPC client connection to the service.
 	homeDir  string                   // Home directory of the V2Ray server.
@@ -46,11 +46,12 @@ type Server struct {
 }
 
 // NewServer creates a new Server instance.
-func NewServer(appDir string) *Server {
+func NewServer(appDir string, cfg *ServerConfig) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	eg, ctx := errgroup.WithContext(ctx)
 
 	return &Server{
+		cfg:     cfg,
 		conn:    &safe.GRPCConn{},
 		homeDir: filepath.Join(appDir, "v2ray"),
 		name:    "server",
@@ -135,19 +136,7 @@ func (s *Server) Type() types.ServiceType {
 }
 
 // Init sets up service configuration, creating directories and writing defaults unless config exists.
-func (s *Server) Init(req interface{}, force bool) error {
-	// Set default server configuration
-	cfg := DefaultServerConfig()
-
-	// If a request is provided, attempt to cast it to a ServerConfig type
-	if req != nil {
-		if v, ok := req.(*ServerConfig); ok {
-			cfg = v
-		} else {
-			return fmt.Errorf("invalid request type %T", req)
-		}
-	}
-
+func (s *Server) Init(force bool) error {
 	// Create the home directory if it doesn't exist
 	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
 		return fmt.Errorf("creating home directory %q: %w", s.homeDir, err)
@@ -162,10 +151,10 @@ func (s *Server) Init(req interface{}, force bool) error {
 		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
-	// Write default config only if file doesn't exist or force flag is enabled
+	// Write config only if file doesn't exist or force flag is enabled
 	if !exists || force {
-		if err := cfg.WriteAppConfig(cfgFile); err != nil {
-			return fmt.Errorf("writing config file %q: %w", cfgFile, err)
+		if err := s.cfg.WriteAppConfig(cfgFile); err != nil {
+			return fmt.Errorf("writing app config file %q: %w", cfgFile, err)
 		}
 	}
 
@@ -227,30 +216,18 @@ func (s *Server) PreUp() error {
 		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
-	// Initialize viper instance
-	v := viper.New()
-
 	// If the config file exists, proceed to read its contents
 	if exists {
-		v.SetConfigFile(cfgFile)
-		if err := v.ReadInConfig(); err != nil {
-			return fmt.Errorf("reading config file %q: %w", cfgFile, err)
+		if err := s.cfg.ReadAppConfig(cfgFile); err != nil {
+			return fmt.Errorf("reading app config file %q: %w", cfgFile, err)
 		}
 	}
 
-	// Set default server configuration
-	cfg := DefaultServerConfig()
+	s.cfg.TLSCertFile = filepath.Join(s.homeDir, "tls.crt")
+	s.cfg.TLSKeyFile = filepath.Join(s.homeDir, "tls.key")
 
-	// Unmarshal configuration into the config object
-	if err := v.Unmarshal(cfg); err != nil {
-		return fmt.Errorf("unmarshaling config file %q: %w", cfgFile, err)
-	}
-
-	cfg.TLSCertFile = filepath.Join(s.homeDir, "tls.crt")
-	cfg.TLSKeyFile = filepath.Join(s.homeDir, "tls.key")
-
-	// Validate the unmarshalled config
-	if err := cfg.Validate(); err != nil {
+	// Validate the config
+	if err := s.cfg.Validate(); err != nil {
 		return fmt.Errorf("validating config: %w", err)
 	}
 
@@ -263,7 +240,7 @@ func (s *Server) PreUp() error {
 		return fmt.Errorf("issuing TLS certificate and key: %w", err)
 	}
 
-	for _, inbound := range cfg.Inbounds {
+	for _, inbound := range s.cfg.Inbounds {
 		metadata := &ServerMetadata{
 			Port:              inbound.OutPort(),
 			ProxyProtocol:     inbound.GetProxyProtocol(),
@@ -277,8 +254,8 @@ func (s *Server) PreUp() error {
 
 	// Write configuration to file.
 	cfgFile = s.serviceConfigFilePath()
-	if err := cfg.WriteServiceConfig(cfgFile); err != nil {
-		return fmt.Errorf("writing config file %q: %w", cfgFile, err)
+	if err := s.cfg.WriteServiceConfig(cfgFile); err != nil {
+		return fmt.Errorf("writing service config file %q: %w", cfgFile, err)
 	}
 
 	return nil
@@ -345,7 +322,7 @@ func (s *Server) PostUp() (err error) {
 					continue
 				}
 
-				// Sync peer statistics from WireGuard.
+				// Sync peer statistics from V2Ray.
 				if err := s.syncPeers(s.ctx); err != nil {
 					return fmt.Errorf("syncing peer statistics: %w", err)
 				}
