@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 // Ensure IPAPIClient implements the Client interface.
@@ -25,7 +26,10 @@ func NewIPAPIClient() *IPAPIClient {
 // Get retrieves location data for the specified IP address using the ip-api.com service.
 func (c *IPAPIClient) Get(ctx context.Context, ip string) (*Location, error) {
 	// Construct the URL for the API request using the provided IP address.
-	apiURL := fmt.Sprintf("http://ip-api.com/json/%s", ip)
+	apiURL, err := url.JoinPath("http://ip-api.com/json", ip)
+	if err != nil {
+		return nil, fmt.Errorf("constructing URL path: %w", err)
+	}
 
 	// Create the HTTP GET request to the ip-api.com service.
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
@@ -36,7 +40,7 @@ func (c *IPAPIClient) Get(ctx context.Context, ip string) (*Location, error) {
 	// Make the request.
 	resp, err := c.c.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("requesting geolocation data for %q: %w", ip, err)
+		return nil, fmt.Errorf("requesting data for IP %q: %w", ip, err)
 	}
 
 	defer func() {
@@ -45,7 +49,7 @@ func (c *IPAPIClient) Get(ctx context.Context, ip string) (*Location, error) {
 
 	// Check if the response status code indicates success.
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("geolocation request for %q failed with status %s", ip, resp.Status)
+		return nil, fmt.Errorf("request for IP %q failed with status %s", ip, resp.Status)
 	}
 
 	// Parse the JSON response into a temporary structure.
@@ -59,7 +63,7 @@ func (c *IPAPIClient) Get(ctx context.Context, ip string) (*Location, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decoding geolocation response body: %w", err)
+		return nil, fmt.Errorf("decoding response body: %w", err)
 	}
 
 	// Return the location information as a Location struct.
