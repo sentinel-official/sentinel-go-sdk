@@ -64,10 +64,16 @@ func NewLogger(w io.Writer, format, level string) (log.Logger, error) {
 		"debug": true,
 		"error": true,
 		"info":  true,
+		"none":  true,
 		"warn":  true,
 	}
 	if !validLevels[level] {
-		return nil, fmt.Errorf("unsupported log level %q (allowed: debug, error, info, warn)", format)
+		return nil, fmt.Errorf("unsupported log level %q (allowed: debug, error, info, none, warn)", level)
+	}
+
+	// Return a no-op logger if logging is disabled.
+	if level == "none" {
+		return log.NewNopLogger(), nil
 	}
 
 	// Parse the log level from the string
