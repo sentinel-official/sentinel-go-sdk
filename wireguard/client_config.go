@@ -275,9 +275,10 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 	}
 
 	// Bind all added flags.
+	r := strings.NewReplacer("-", "_")
 	fs.VisitAll(func(f *pflag.Flag) {
 		if strings.HasPrefix(f.Name, prefix) {
-			_ = c.viper.BindPFlag(strings.TrimPrefix(f.Name, prefix), f)
+			_ = c.viper.BindPFlag(strings.TrimPrefix(r.Replace(f.Name), prefix), f)
 		}
 	})
 }
