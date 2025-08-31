@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/sentinel-official/sentinel-go-sdk/libs/log"
 )
 
 // SignalContext returns a context that is canceled when the process receives
@@ -20,6 +22,8 @@ func SignalContext(ctx context.Context) (context.Context, context.CancelCauseFun
 		// Block until the first signal is received, then cancel the context
 		// with a SignalError containing the received signal.
 		sig := <-signalChan
+
+		log.Debug("Received signal", "name", sig)
 		cancel(&SignalError{Signal: sig})
 	}()
 

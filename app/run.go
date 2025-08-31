@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"syscall"
 
 	"github.com/spf13/cobra"
 )
@@ -33,16 +34,30 @@ func Run(buildRootCmd func(userDir string) *cobra.Command) {
 
 	// Execute the root command.
 	if err := cmd.ExecuteContext(ctx); err != nil {
-		// If context was canceled by a signal
-		if errors.As(context.Cause(ctx), new(*SignalError)) {
-			// StartError or WaitError during signal shutdown, treat as clean exit
-			if errors.As(err, new(*StartError)) || errors.As(err, new(*WaitError)) {
-				os.Exit(0)
+		// If not already a RunError or ShutdownError, wrap as RunError.
+		if !errors.As(err, new(*RunError)) && !errors.As(err, new(*ShutdownError)) {
+			err = NewRunError(err)
+		}
+
+		// Extract signal error once.
+		sigErr := new(SignalError)
+		isSigErr := errors.As(context.Cause(ctx), &sigErr)
+		isShutdownErr := errors.As(err, new(*ShutdownError))
+
+		// Print error if:
+		// - it wasn't a signal error (normal failure), OR
+		// - it was a shutdown error triggered by signal.
+		if !isSigErr || isShutdownErr {
+			_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		}
+
+		// Decide exit code inline.
+		if isSigErr {
+			if n, ok := sigErr.Signal.(syscall.Signal); ok {
+				os.Exit(128 + int(n))
 			}
 		}
 
-		// Otherwise, print the error and exit with non-zero code.
-		_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }

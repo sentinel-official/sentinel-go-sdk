@@ -5,29 +5,37 @@ import (
 	"os"
 )
 
-// StartError wraps errors that occur during Start() operations.
-type StartError struct {
+// RunError wraps errors that occur during start or runtime operations.
+type RunError struct {
 	Err error
 }
 
-func (e *StartError) Error() string { return fmt.Sprintf("starting: %v", e.Err) }
-func (e *StartError) Unwrap() error { return e.Err }
+func (e *RunError) Error() string { return fmt.Sprintf("run error: %v", e.Err) }
+func (e *RunError) Unwrap() error { return e.Err }
 
-// StopError wraps errors that occur during Stop() operations.
-type StopError struct {
+func NewRunError(err error) *RunError {
+	if err == nil {
+		return nil
+	}
+
+	return &RunError{Err: err}
+}
+
+// ShutdownError wraps errors that occur during shutdown operations.
+type ShutdownError struct {
 	Err error
 }
 
-func (e *StopError) Error() string { return fmt.Sprintf("stopping: %v", e.Err) }
-func (e *StopError) Unwrap() error { return e.Err }
+func (e *ShutdownError) Error() string { return fmt.Sprintf("shutdown error: %v", e.Err) }
+func (e *ShutdownError) Unwrap() error { return e.Err }
 
-// WaitError wraps errors that occur during Wait() operations.
-type WaitError struct {
-	Err error
+func NewShutdownError(err error) *ShutdownError {
+	if err == nil {
+		return nil
+	}
+
+	return &ShutdownError{Err: err}
 }
-
-func (e *WaitError) Error() string { return fmt.Sprintf("waiting: %v", e.Err) }
-func (e *WaitError) Unwrap() error { return e.Err }
 
 // SignalError is returned when execution is interrupted
 // by an incoming OS signal (SIGINT or SIGTERM).
