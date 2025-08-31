@@ -213,7 +213,9 @@ func (s *Server) PostUp() error {
 // Wait waits for all background goroutines to complete.
 func (s *Server) Wait() error {
 	if err := s.eg.Wait(); err != nil {
-		return errors.Join(s.ctx.Err(), err)
+		if !utils.ErrorIs(context.Cause(s.ctx), context.Canceled) {
+			return err
+		}
 	}
 
 	return nil

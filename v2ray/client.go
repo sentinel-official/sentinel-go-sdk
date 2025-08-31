@@ -261,7 +261,9 @@ func (c *Client) PostUp() error {
 // Wait blocks until all goroutines in the error group finish or one returns an error.
 func (c *Client) Wait() error {
 	if err := c.eg.Wait(); err != nil {
-		return errors.Join(c.ctx.Err(), err)
+		if !utils.ErrorIs(context.Cause(c.ctx), context.Canceled) {
+			return err
+		}
 	}
 
 	return nil

@@ -336,7 +336,9 @@ func (s *Server) PostUp() (err error) {
 // Wait blocks until all goroutines in the error group finish or one returns an error.
 func (s *Server) Wait() error {
 	if err := s.eg.Wait(); err != nil {
-		return errors.Join(s.ctx.Err(), err)
+		if !utils.ErrorIs(context.Cause(s.ctx), context.Canceled) {
+			return err
+		}
 	}
 
 	return nil

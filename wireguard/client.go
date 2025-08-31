@@ -3,7 +3,6 @@ package wireguard
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -167,7 +166,9 @@ func (c *Client) PostUp() error {
 // Wait waits for all background goroutines to complete.
 func (c *Client) Wait() error {
 	if err := c.eg.Wait(); err != nil {
-		return errors.Join(c.ctx.Err(), err)
+		if !utils.ErrorIs(context.Cause(c.ctx), context.Canceled) {
+			return err
+		}
 	}
 
 	return nil
