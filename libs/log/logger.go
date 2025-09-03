@@ -9,6 +9,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type Logger = log.Logger // An alias for the log.Logger type
+
 var logger = log.NewNopLogger() // Default to a no-op logger
 
 // Info logs an informational message.
@@ -32,7 +34,7 @@ func Debug(msg string, keyVals ...any) {
 }
 
 // With returns a logger with additional context.
-func With(keyVals ...any) log.Logger {
+func With(keyVals ...any) Logger {
 	return logger.With(keyVals...)
 }
 
@@ -42,14 +44,14 @@ func Impl() any {
 }
 
 // SetLogger sets the global logger instance.
-func SetLogger(l log.Logger) {
+func SetLogger(l Logger) {
 	if l != nil {
 		logger = l
 	}
 }
 
 // NewLogger creates a new logger instance with the specified output writer, format, and log level.
-func NewLogger(w io.Writer, format, level string) (log.Logger, error) {
+func NewLogger(w io.Writer, format, level string) (Logger, error) {
 	// Check if the format is valid.
 	validFormats := map[string]bool{
 		"json": true,
