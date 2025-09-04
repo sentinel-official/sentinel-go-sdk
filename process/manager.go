@@ -3,7 +3,7 @@ package process
 import (
 	"context"
 	"errors"
-	"fmt"
+	"sync"
 
 	"golang.org/x/sync/errgroup"
 
@@ -22,6 +22,8 @@ type Manager struct {
 	cancel context.CancelFunc // Cancel function for the process context.
 	ctx    context.Context    // Derived context tied to this manager.
 	eg     *errgroup.Group    // Errgroup to manage goroutines under this manager.
+
+	mu sync.Mutex // Protects state and context fields from concurrent access
 }
 
 // NewManager initializes a new Manager with a given parent context, and name.
@@ -47,27 +49,33 @@ func (m *Manager) Name() string { return m.name }
 func (m *Manager) IsRunning() bool { return m.state.Load() == internal.StateCodeStarted }
 
 // Go starts a goroutine tied to the lifecycle of the manager.
-// Panics if the state is not Started.
+//
+// CONTRACT:
+//   - MUST only be called synchronously inside the function passed to Start().
+//   - MUST NOT be called externally.
 func (m *Manager) Go(fn func(ctx context.Context) error) {
-	if m.state.Load() != internal.StateCodeStarted || m.eg == nil {
-		panic(fmt.Errorf("cannot call Go: %w", NewErrNotStarted(m.name)))
-	}
-
 	m.eg.Go(func() error {
+		// Check if context was already canceled.
 		select {
 		case <-m.ctx.Done():
-			// If context is canceled, return its error.
 			return m.ctx.Err()
 		default:
-			// Otherwise, run the provided function.
-			return fn(m.ctx)
 		}
+
+		return fn(m.ctx)
 	})
 }
 
-// Start transitions the manager from "unspecified" to "started" state,
+// Start transitions the manager from "unspecified" to "started" state
 // and initializes a new context + errgroup for managing goroutines.
+//
+// CONTRACT:
+//   - The fn must not block; long-running work must be placed in Go().
+//   - The fn must not return an error if Go() is called inside it.
 func (m *Manager) Start(fn func(ctx context.Context) error) (err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if !m.state.CompareAndSwap(internal.StateCodeUnspecified, internal.StateCodeStarted) {
 		return NewErrInvalidState(m.name)
 	}
@@ -90,12 +98,10 @@ func (m *Manager) Start(fn func(ctx context.Context) error) (err error) {
 	m.eg = eg
 
 	// Check if context was already canceled.
-	if m.ctx != nil {
-		select {
-		case <-m.ctx.Done():
-			return m.ctx.Err()
-		default:
-		}
+	select {
+	case <-m.ctx.Done():
+		return m.ctx.Err()
+	default:
 	}
 
 	// Run provided start function if given.
@@ -106,9 +112,11 @@ func (m *Manager) Start(fn func(ctx context.Context) error) (err error) {
 	return nil
 }
 
-// Stop transitions the manager to the "stopped" state and cancels the context.
-// Optional cleanup logic can be provided via fn.
+// Stop cancels the process context and marks the manager as stopped.
 func (m *Manager) Stop(fn func() error) (err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	// If already stopped or not started, return nil.
 	if !m.state.CompareAndSwap(internal.StateCodeStarted, internal.StateCodeStopped) {
 		return nil
@@ -120,6 +128,7 @@ func (m *Manager) Stop(fn func() error) (err error) {
 		m.cancel()
 	}
 
+	// Run provided stop function if given.
 	if fn != nil {
 		return fn()
 	}
@@ -127,8 +136,11 @@ func (m *Manager) Stop(fn func() error) (err error) {
 	return nil
 }
 
-// Wait blocks until all goroutines under the manager have finished.
+// Wait blocks until all goroutines started with Go() have finished.
 // If an error occurs, it propagates unless the manager was stopped and context canceled.
+//
+// CONTRACT:
+//   - MUST be called only after Start() succeeds.
 func (m *Manager) Wait(fn func() error) (err error) {
 	if m.state.Load() == internal.StateCodeUnspecified {
 		return NewErrInvalidState(m.name)
@@ -148,7 +160,7 @@ func (m *Manager) Wait(fn func() error) (err error) {
 		}
 	}
 
-	// Run optional callback after wait.
+	// Run provided wait function if given.
 	if fn != nil {
 		return fn()
 	}
@@ -159,26 +171,23 @@ func (m *Manager) Wait(fn func() error) (err error) {
 // Cleanup releases resources and prepares the manager for reuse.
 //
 // CONTRACT:
-//   - MUST only be called after Stop() has transitioned the manager to the "stopped" state.
-//   - Calling Cleanup earlier will return ErrNotStopped.
-//   - MUST NOT be called concurrently with Start, Go, Wait, or Stop.
-//     (because Cleanup nils eg, ctx, and cancel — racing with other
-//     methods that use them would cause panics or data races).
-//
-// Effects:
-//   - Clears eg, ctx, and cancel references.
-//   - Runs the optional cleanup function fn.
-//   - Transitions state from "stopped" back to "unspecified" via Reset(),
-//     allowing the manager to be started again.
+//   - MUST only be called after Stop() and Wait() have both completed.
+//   - MUST NOT be called concurrently with any other lifecycle method.
 func (m *Manager) Cleanup(fn func() error) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if m.state.Load() != internal.StateCodeStopped {
 		return NewErrNotStopped(m.name)
 	}
+
+	m.log.Info("Cleaning up process")
 
 	m.eg = nil
 	m.ctx = nil
 	m.cancel = nil
 
+	// Run provided cleanup function if given.
 	if fn != nil {
 		if err := fn(); err != nil {
 			return err
