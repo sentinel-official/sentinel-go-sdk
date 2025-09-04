@@ -14,8 +14,7 @@ import (
 // Manager controls the lifecycle of a process, including start, stop, and cleanup.
 // It ensures correct state transitions and provides concurrency-safe process management.
 type Manager struct {
-	log    log.Logger      // Logger for structured logging.
-	name   string          // Process name (used in error messages).
+	name   string          // Process name.
 	parent context.Context // Parent context provided at creation.
 	state  internal.State  // Current state of the process.
 
@@ -33,7 +32,6 @@ func NewManager(ctx context.Context, name string) *Manager {
 	}
 
 	m := &Manager{
-		log:    log.With("name", name),
 		name:   name,
 		parent: ctx,
 	}
@@ -87,7 +85,7 @@ func (m *Manager) Start(fn func(ctx context.Context) error) (err error) {
 		}
 	}()
 
-	m.log.Info("Starting process")
+	log.Info("Starting process", "name", m.name)
 
 	// Create a fresh context tied to this manager, with cancellation support.
 	ctx, cancel := context.WithCancel(m.parent)
@@ -122,8 +120,7 @@ func (m *Manager) Stop(fn func() error) (err error) {
 		return nil
 	}
 
-	m.log.Info("Stopping process")
-
+	log.Info("Stopping process", "name", m.name)
 	if m.cancel != nil {
 		m.cancel()
 	}
@@ -181,7 +178,7 @@ func (m *Manager) Cleanup(fn func() error) error {
 		return NewErrNotStopped(m.name)
 	}
 
-	m.log.Info("Cleaning up process")
+	log.Info("Cleaning up process", "name", m.name)
 
 	m.eg = nil
 	m.ctx = nil
