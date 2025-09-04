@@ -19,7 +19,7 @@ require (
 	github.com/showwin/speedtest-go v1.7.10
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cobra v1.10.1
-	github.com/spf13/pflag v1.0.9
+	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.20.1
 	github.com/v2fly/v2ray-core/v5 v5.38.0
 	golang.org/x/crypto v0.41.0
