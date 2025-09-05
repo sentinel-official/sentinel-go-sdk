@@ -2,13 +2,13 @@ package process
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/log"
 	"github.com/sentinel-official/sentinel-go-sdk/process/internal"
+	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // Manager controls the lifecycle of a process, including start, stop, and cleanup.
@@ -151,7 +151,7 @@ func (m *Manager) Wait(fn func() error) (err error) {
 			}
 
 			// If stopped, ignore context.Canceled errors.
-			if !errors.Is(context.Cause(m.ctx), context.Canceled) {
+			if !utils.ErrorIs(context.Cause(m.ctx), context.Canceled) {
 				return err
 			}
 		}

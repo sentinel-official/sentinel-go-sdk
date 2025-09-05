@@ -57,7 +57,7 @@ func (p *PKI) Init(opts ...CertOption) (err error) {
 	timestamp := time.Now()
 
 	// Create the pki directory if it doesn't exist
-	if err := os.MkdirAll(p.Dir, 0755); err != nil {
+	if err := os.MkdirAll(p.Dir, 0700); err != nil {
 		return fmt.Errorf("creating PKI directory %q: %w", p.Dir, err)
 	}
 

@@ -2,7 +2,7 @@
 
 package openvpn
 
-// execFile returns the name of the executable file for the OpenVPN server.
+// execFile returns the executable name.
 func (s *Server) execFile(name string) string {
 	return name
 }

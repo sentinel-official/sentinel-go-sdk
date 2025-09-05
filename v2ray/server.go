@@ -205,6 +205,12 @@ func (s *Server) Start() error {
 			return fmt.Errorf("validating config: %w", err)
 		}
 
+		// Write configuration to file.
+		cfgFile = s.serviceConfigFile()
+		if err := s.cfg.WriteServiceConfig(cfgFile); err != nil {
+			return fmt.Errorf("writing service config file %q: %w", cfgFile, err)
+		}
+
 		// Initialize PKI and issue a tls certificate
 		pki := crypto.NewPKI(s.homeDir)
 		if err := pki.Init(); err != nil {
@@ -214,6 +220,7 @@ func (s *Server) Start() error {
 			return fmt.Errorf("issuing TLS certificate and key: %w", err)
 		}
 
+		// Set the server metadata.
 		for _, inbound := range s.cfg.Inbounds {
 			metadata := &ServerMetadata{
 				Port:              inbound.OutPort(),
@@ -224,12 +231,6 @@ func (s *Server) Start() error {
 
 			s.metadata = append(s.metadata, metadata)
 			s.proxies[inbound.Tag()] = inbound.GetProxyProtocol()
-		}
-
-		// Write configuration to file.
-		cfgFile = s.serviceConfigFile()
-		if err := s.cfg.WriteServiceConfig(cfgFile); err != nil {
-			return fmt.Errorf("writing service config file %q: %w", cfgFile, err)
 		}
 
 		// Constructs the command to start the V2Ray server.
@@ -268,6 +269,7 @@ func (s *Server) Start() error {
 			return fmt.Errorf("waiting command: %w", err)
 		})
 
+		// Start background goroutine for periodic peer statistics updates.
 		s.Go(func(ctx context.Context) error {
 			for {
 				select {

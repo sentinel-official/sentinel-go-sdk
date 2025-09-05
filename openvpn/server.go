@@ -14,74 +14,50 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shirou/gopsutil/v4/process"
-	"golang.org/x/sync/errgroup"
+	procutils "github.com/shirou/gopsutil/v4/process"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/crypto"
 	"github.com/sentinel-official/sentinel-go-sdk/libs/encoding/pem"
 	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
+	"github.com/sentinel-official/sentinel-go-sdk/process"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
+// Ensure Server implements types.ServerService interface.
 var _ types.ServerService = (*Server)(nil)
 
 // Server represents an OpenVPN server instance.
 type Server struct {
-	cfg      *ServerConfig           // Configuration settings for the OpenVPN server.
-	cmd      *exec.Cmd               // OpenVPN process command
-	homeDir  string                  // Home directory where config and PID files are stored
-	metadata []*ServerMetadata       // Server metadata such as port and certificates
-	name     string                  // Name of the server instance.
-	peers    *safe.Map[string, Peer] // Peer manager for handling peer information.
-	pki      *crypto.PKI             // Public Key Infrastructure for managing certs
+	*process.Manager // Embedded process manager for handling lifecycle.
 
-	cancel context.CancelFunc // Context cancel function to stop background tasks.
-	ctx    context.Context    // Context for server lifecycle management.
-	eg     *errgroup.Group    // Error group for managing background goroutines.
+	cfg     *ServerConfig // Configuration settings for the service.
+	homeDir string        // Home directory of the service.
+
+	cmd      *exec.Cmd               // Command to run the OpenVPN server.
+	metadata []*ServerMetadata       // Metadata containing server-specific details.
+	peers    *safe.Map[string, Peer] // Thread-safe map to manage peers connected to the server.
+	pki      *crypto.PKI             // Public Key Infrastructure for managing certs
 }
 
 // NewServer creates a new Server instance.
-func NewServer(appDir string, cfg *ServerConfig) *Server {
-	ctx, cancel := context.WithCancel(context.Background())
-	eg, ctx := errgroup.WithContext(ctx)
-
+func NewServer(ctx context.Context, name, appDir string, cfg *ServerConfig) *Server {
 	return &Server{
+		Manager: process.NewManager(ctx, name),
 		cfg:     cfg,
 		homeDir: filepath.Join(appDir, "openvpn"),
-		name:    "server",
 		peers:   safe.NewMap[string, Peer](),
-		cancel:  cancel,
-		ctx:     ctx,
-		eg:      eg,
 	}
 }
 
-// WithName sets the name for the server and returns the updated Server instance.
-func (s *Server) WithName(name string) *Server {
-	s.name = name
-	return s
-}
+func (s *Server) appConfigFile() string     { return filepath.Join(s.homeDir, "config.toml") }
+func (s *Server) pidFile() string           { return filepath.Join(s.homeDir, "server.pid") }
+func (s *Server) serviceConfigFile() string { return filepath.Join(s.homeDir, "server.conf") }
 
-// appConfigFilePath returns the full path to the application's configuration file.
-func (s *Server) appConfigFilePath() string {
-	return filepath.Join(s.homeDir, "config.toml")
-}
-
-// pidFilePath returns the full path to the PID file for OpenVPN process.
-func (s *Server) pidFilePath() string {
-	return filepath.Join(s.homeDir, fmt.Sprintf("%s.pid", s.name))
-}
-
-// serviceConfigFilePath returns the full path to the service-specific configuration file.
-func (s *Server) serviceConfigFilePath() string {
-	return filepath.Join(s.homeDir, fmt.Sprintf("%s.conf", s.name))
-}
-
-// readPIDFromFile reads the PID of the running OpenVPN process from a file.
-func (s *Server) readPIDFromFile() (int32, error) {
+// readPID reads the PID from the server's PID file.
+func (s *Server) readPID() (int32, error) {
 	// Get the full path to the PID file
-	pidFile := s.pidFilePath()
+	pidFile := s.pidFile()
 
 	// Check if the PID file exists
 	exists, err := utils.IsFileExists(pidFile)
@@ -110,14 +86,14 @@ func (s *Server) readPIDFromFile() (int32, error) {
 	return int32(pid), nil
 }
 
-// writePIDToFile saves the given PID to a file for later reference.
-func (s *Server) writePIDToFile(pid int) error {
+// writePID writes the given PID to the server's PID file.
+func (s *Server) writePID(pid int) error {
 	// Convert PID to byte slice.
 	data := []byte(strconv.Itoa(pid))
 
 	// Write PID to file with appropriate permissions.
-	pidFile := s.pidFilePath()
-	if err := os.WriteFile(pidFile, data, 0644); err != nil {
+	pidFile := s.pidFile()
+	if err := os.WriteFile(pidFile, data, 0600); err != nil {
 		return fmt.Errorf("writing PID file %q: %w", pidFile, err)
 	}
 
@@ -131,7 +107,7 @@ func (s *Server) mgmtConn() (net.Conn, error) {
 
 	conn, err := net.DialTimeout("tcp", target, timeout)
 	if err != nil {
-		return nil, fmt.Errorf("creating TCP connection to target %q: %w", target, err)
+		return nil, fmt.Errorf("creating TCP connection for target %q: %w", target, err)
 	}
 
 	deadline := time.Now().Add(timeout)
@@ -142,52 +118,26 @@ func (s *Server) mgmtConn() (net.Conn, error) {
 	return conn, nil
 }
 
-// Type returns the service type (OpenVPN).
+// Type returns the service type of the server.
 func (s *Server) Type() types.ServiceType {
 	return types.ServiceTypeOpenVPN
 }
 
-// Init sets up service configuration, creating directories and writing defaults unless config exists.
-func (s *Server) Init(force bool) error {
-	// Create the home directory if it doesn't exist
-	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
-		return fmt.Errorf("creating home directory %q: %w", s.homeDir, err)
-	}
-
-	// Construct the full path to the config file
-	cfgFile := s.appConfigFilePath()
-
-	// Check if the config file exists at the specified path
-	exists, err := utils.IsFileExists(cfgFile)
-	if err != nil {
-		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
-	}
-
-	// Write config only if file doesn't exist or force flag is enabled
-	if !exists || force {
-		if err := s.cfg.WriteAppConfig(cfgFile); err != nil {
-			return fmt.Errorf("writing app config file %q: %w", cfgFile, err)
-		}
-	}
-
-	return nil
-}
-
-// IsUp checks whether the OpenVPN server is running by verifying its PID and process name.
-func (s *Server) IsUp() (bool, error) {
+// IsRunning checks if the OpenVPN server process is running.
+func (s *Server) IsRunning() (bool, error) {
 	// Read PID from file.
-	pid, err := s.readPIDFromFile()
+	pid, err := s.readPID()
 	if err != nil {
-		return false, fmt.Errorf("reading PID from file: %w", err)
+		return false, fmt.Errorf("reading PID: %w", err)
 	}
 	if pid == 0 {
 		return false, nil
 	}
 
 	// Retrieve process with the given PID.
-	proc, err := process.NewProcess(pid)
+	proc, err := procutils.NewProcess(pid)
 	if err != nil {
-		if utils.ErrorIs(err, process.ErrorProcessNotRunning) {
+		if utils.ErrorIs(err, procutils.ErrorProcessNotRunning) {
 			return false, nil
 		}
 
@@ -208,8 +158,6 @@ func (s *Server) IsUp() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("getting process name: %w", err)
 	}
-
-	// Check if the process name matches constant openVPN.
 	if name != openVPN {
 		return false, nil
 	}
@@ -217,10 +165,15 @@ func (s *Server) IsUp() (bool, error) {
 	return true, nil
 }
 
-// PreUp prepares the server before it is started by initializing PKI and generating config files.
-func (s *Server) PreUp() error {
+// Init sets up service configuration, creating directories and writing defaults unless config exists.
+func (s *Server) Init(force bool) error {
+	// Create the home directory if it doesn't exist
+	if err := os.MkdirAll(s.homeDir, 0700); err != nil {
+		return fmt.Errorf("creating home directory %q: %w", s.homeDir, err)
+	}
+
 	// Construct the full path to the config file
-	cfgFile := s.appConfigFilePath()
+	cfgFile := s.appConfigFile()
 
 	// Check if the config file exists at the specified path
 	exists, err := utils.IsFileExists(cfgFile)
@@ -228,181 +181,186 @@ func (s *Server) PreUp() error {
 		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
-	// If the config file exists, proceed to read its contents
-	if exists {
-		if err := s.cfg.ReadAppConfig(cfgFile); err != nil {
-			return fmt.Errorf("reading app config file %q: %w", cfgFile, err)
+	// Write config only if file doesn't exist or force flag is enabled
+	if !exists || force {
+		if err := s.cfg.WriteAppConfig(cfgFile); err != nil {
+			return fmt.Errorf("writing app config file %q: %w", cfgFile, err)
 		}
-	}
-
-	s.cfg.PKIDir = filepath.Join(s.homeDir, "pki")
-	s.cfg.StatusFile = filepath.Join(s.homeDir, "server.log")
-
-	// Validate the config
-	if err := s.cfg.Validate(); err != nil {
-		return fmt.Errorf("validating config: %w", err)
-	}
-
-	// Initialize PKI and issue a server certificate
-	s.pki = crypto.NewPKI(s.cfg.PKIDir)
-	if err := s.pki.Init(); err != nil {
-		return fmt.Errorf("initializing PKI: %w", err)
-	}
-	if _, _, err := s.pki.Issue("server"); err != nil {
-		return fmt.Errorf("issuing server certificate and key: %w", err)
-	}
-
-	// Generate a TLS static key
-	tlsBuf := make([]byte, 256)
-	if _, err := rand.Read(tlsBuf); err != nil {
-		return fmt.Errorf("generating TLS static key: %w", err)
-	}
-
-	tlsFile := filepath.Join(s.cfg.PKIDir, "tls.key")
-	if err := pem.WriteFile(tlsFile, pem.FormatHex, pem.BlockTypeOpenVPNStaticKeyV1, tlsBuf); err != nil {
-		return fmt.Errorf("writing TLS static key file %q: %w", tlsFile, err)
-	}
-
-	// Save server metadata for later use
-	s.metadata = []*ServerMetadata{
-		{
-			Port:     s.cfg.OutPort(),
-			Protocol: s.cfg.Protocol,
-			CA:       s.pki.Certificate.Raw,
-			TLS:      tlsBuf,
-		},
-	}
-
-	// Write configuration to file.
-	cfgFile = s.serviceConfigFilePath()
-	if err := s.cfg.WriteServiceConfig(cfgFile); err != nil {
-		return fmt.Errorf("writing service config file %q: %w", cfgFile, err)
 	}
 
 	return nil
 }
 
-// Up launches the OpenVPN server using the generated config file.
-func (s *Server) Up() error {
-	// Constructs the command to start the OpenVPN server.
-	cfgFile := s.serviceConfigFilePath()
-	s.cmd = exec.CommandContext(
-		s.ctx,
-		s.execFile(openVPN),
-		strings.Fields(fmt.Sprintf("--config %s", cfgFile))...,
-	)
+// Start starts the OpenVPN server service.
+func (s *Server) Start() error {
+	return s.Manager.Start(func(ctx context.Context) error {
+		// Construct the full path to the config file
+		cfgFile := s.appConfigFile()
 
-	// Starts the OpenVPN server process.
-	if err := s.cmd.Start(); err != nil {
-		return fmt.Errorf("starting command: %w", err)
-	}
-
-	// Waits for the process to complete in a separate goroutine.
-	s.eg.Go(func() (err error) {
-		if err = s.cmd.Wait(); err == nil {
-			err = errors.New("command exited unexpectedly")
+		// Check if the config file exists at the specified path
+		exists, err := utils.IsFileExists(cfgFile)
+		if err != nil {
+			return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 		}
 
-		return fmt.Errorf("waiting command: %w", err)
-	})
-
-	return nil
-}
-
-// PostUp stores the PID of the running process and waits for process completion.
-func (s *Server) PostUp() error {
-	// Write PID to file.
-	if err := s.writePIDToFile(s.cmd.Process.Pid); err != nil {
-		return fmt.Errorf("writing PID to file: %w", err)
-	}
-
-	// Start background goroutine for periodic peer statistics updates.
-	s.eg.Go(func() error {
-		// Blocking loop that runs until stop signal is received
-		for {
-			select {
-			case <-s.ctx.Done():
-				return s.ctx.Err()
-			case <-time.After(time.Second):
-				// Check if server is up before syncing peers.
-				ok, err := s.IsUp()
-				if err != nil {
-					return fmt.Errorf("checking service status: %w", err)
-				}
-				if !ok {
-					continue
-				}
-
-				// Sync peer statistics from OpenVPN.
-				if err := s.syncPeers(s.ctx); err != nil {
-					return fmt.Errorf("syncing peer statistics: %w", err)
-				}
+		// If the config file exists, proceed to read its contents
+		if exists {
+			if err := s.cfg.ReadAppConfig(cfgFile); err != nil {
+				return fmt.Errorf("reading app config file %q: %w", cfgFile, err)
 			}
 		}
-	})
 
-	return nil
-}
+		s.cfg.PKIDir = filepath.Join(s.homeDir, "pki")
+		s.cfg.StatusFile = filepath.Join(s.homeDir, "server.log")
 
-// Wait blocks until all goroutines in the error group finish or one returns an error.
-func (s *Server) Wait() error {
-	if err := s.eg.Wait(); err != nil {
-		if !utils.ErrorIs(context.Cause(s.ctx), context.Canceled) {
-			return err
+		// Validate the config
+		if err := s.cfg.Validate(); err != nil {
+			return fmt.Errorf("validating config: %w", err)
 		}
-	}
 
-	return nil
-}
+		// Write configuration to file.
+		cfgFile = s.serviceConfigFile()
+		if err := s.cfg.WriteServiceConfig(cfgFile); err != nil {
+			return fmt.Errorf("writing service config file %q: %w", cfgFile, err)
+		}
 
-// PreDown is a no-op for now but can be used for pre-shutdown tasks.
-func (s *Server) PreDown() error {
-	// Cancel background tasks if any.
-	s.cancel()
+		// Initialize PKI and issue a server certificate
+		s.pki = crypto.NewPKI(s.cfg.PKIDir)
+		if err := s.pki.Init(); err != nil {
+			return fmt.Errorf("initializing PKI: %w", err)
+		}
+		if _, _, err := s.pki.Issue("server"); err != nil {
+			return fmt.Errorf("issuing server certificate and key: %w", err)
+		}
 
-	return nil
-}
+		// Generate a TLS static key
+		tlsBuf := make([]byte, 256)
+		if _, err := rand.Read(tlsBuf); err != nil {
+			return fmt.Errorf("generating TLS static key: %w", err)
+		}
 
-// Down gracefully stops the OpenVPN process using its PID.
-func (s *Server) Down() error {
-	pid, err := s.readPIDFromFile()
-	if err != nil {
-		return fmt.Errorf("reading PID from file: %w", err)
-	}
-	if pid == 0 {
+		tlsFile := filepath.Join(s.cfg.PKIDir, "tls.key")
+		if err := pem.WriteFile(tlsFile, pem.FormatHex, pem.BlockTypeOpenVPNStaticKeyV1, tlsBuf); err != nil {
+			return fmt.Errorf("writing TLS static key file %q: %w", tlsFile, err)
+		}
+
+		// Set the server metadata.
+		s.metadata = []*ServerMetadata{
+			{
+				Port:     s.cfg.OutPort(),
+				Protocol: s.cfg.Protocol,
+				CA:       s.pki.Certificate.Raw,
+				TLS:      tlsBuf,
+			},
+		}
+
+		// Constructs the command to start the OpenVPN server.
+		s.cmd = exec.CommandContext(
+			ctx,
+			s.execFile(openVPN),
+			strings.Fields(fmt.Sprintf("--config %s", cfgFile))...,
+		)
+
+		// Starts the OpenVPN server process.
+		if err := s.cmd.Start(); err != nil {
+			return fmt.Errorf("starting command: %w", err)
+		}
+
+		// Write PID to file.
+		if err := s.writePID(s.cmd.Process.Pid); err != nil {
+			return fmt.Errorf("writing PID: %w", err)
+		}
+
+		// Wait for the OpenVPN process to finish in a separate goroutine.
+		s.Go(func(ctx context.Context) (err error) {
+			if err = s.cmd.Wait(); err == nil {
+				err = errors.New("exited unexpectedly")
+			}
+
+			return fmt.Errorf("waiting command: %w", err)
+		})
+
+		// Start background goroutine for periodic peer statistics updates.
+		s.Go(func(ctx context.Context) error {
+			for {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(time.Second):
+					// Check if server is up before syncing peers.
+					ok, err := s.IsRunning()
+					if err != nil {
+						return fmt.Errorf("checking serivce status: %w", err)
+					}
+					if !ok {
+						continue
+					}
+
+					// Sync peer statistics from OpenVPN.
+					if err := s.syncPeers(ctx); err != nil {
+						return fmt.Errorf("syncing peer statistics: %w", err)
+					}
+				}
+			}
+		})
+
 		return nil
-	}
+	})
+}
 
-	proc, err := process.NewProcess(pid)
-	if err != nil {
-		if utils.ErrorIs(err, process.ErrorProcessNotRunning) {
+// Stop stops the OpenVPN server service.
+func (s *Server) Stop() error {
+	return s.Manager.Stop(func() error {
+		// Read PID from file.
+		pid, err := s.readPID()
+		if err != nil {
+			return fmt.Errorf("reading PID: %w", err)
+		}
+		if pid == 0 {
 			return nil
 		}
 
-		return fmt.Errorf("getting process: %w", err)
-	}
+		// Retrieve process with the given PID.
+		proc, err := procutils.NewProcess(pid)
+		if err != nil {
+			if utils.ErrorIs(err, procutils.ErrorProcessNotRunning) {
+				return nil
+			}
 
-	if err := proc.Terminate(); err != nil {
-		return fmt.Errorf("terminating process: %w", err)
-	}
+			return fmt.Errorf("getting process for PID %d: %w", pid, err)
+		}
 
-	return nil
+		// Terminate the process.
+		if err := proc.Terminate(); err != nil {
+			return fmt.Errorf("terminating process: %w", err)
+		}
+
+		return nil
+	})
 }
 
-// PostDown removes PID file after the process has stopped.
-func (s *Server) PostDown() error {
-	// Removes configuration file.
-	cfgFile := s.serviceConfigFilePath()
-	if err := utils.RemoveFile(cfgFile); err != nil {
-		return fmt.Errorf("removing config file %q: %w", cfgFile, err)
-	}
+// Wait waits for all background goroutines to complete.
+func (s *Server) Wait() error {
+	return s.Manager.Wait(nil)
+}
 
-	pidFile := s.pidFilePath()
-	if err := utils.RemoveFile(pidFile); err != nil {
-		return fmt.Errorf("removing PID file %q: %w", pidFile, err)
-	}
+// Cleanup removes service configuration files.
+func (s *Server) Cleanup() error {
+	return s.Manager.Cleanup(func() error {
+		// Removes configuration file.
+		cfgFile := s.serviceConfigFile()
+		if err := utils.RemoveFile(cfgFile); err != nil {
+			return fmt.Errorf("removing config file %q: %w", cfgFile, err)
+		}
 
-	return nil
+		// Remove PID file.
+		pidFile := s.pidFile()
+		if err := utils.RemoveFile(pidFile); err != nil {
+			return fmt.Errorf("removing PID file %q: %w", pidFile, err)
+		}
+
+		return nil
+	})
 }
 
 // AddPeer creates and registers a new VPN peer by issuing a new certificate.

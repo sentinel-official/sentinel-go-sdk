@@ -30,7 +30,7 @@ func ExecTemplateToFile(text string, data interface{}, filename string) error {
 	}
 
 	// Write the generated content to the specified file
-	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(filename, buf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("writing to file %q: %w", filename, err)
 	}
 
