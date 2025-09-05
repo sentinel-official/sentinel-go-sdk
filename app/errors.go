@@ -1,46 +1,48 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"syscall"
 )
 
-// RunError wraps errors that occur during start or runtime operations.
-type RunError struct {
-	Err error
-}
+var (
+	// ErrRun indicates a run-time failure.
+	ErrRun = errors.New("run")
 
-func (e *RunError) Error() string { return fmt.Sprintf("run error: %v", e.Err) }
-func (e *RunError) Unwrap() error { return e.Err }
+	// ErrShutdown indicates a shutdown failure.
+	ErrShutdown = errors.New("shutdown")
+)
 
-func NewRunError(err error) *RunError {
-	if err == nil {
-		return nil
-	}
-
-	return &RunError{Err: err}
-}
-
-// ShutdownError wraps errors that occur during shutdown operations.
-type ShutdownError struct {
-	Err error
-}
-
-func (e *ShutdownError) Error() string { return fmt.Sprintf("shutdown error: %v", e.Err) }
-func (e *ShutdownError) Unwrap() error { return e.Err }
-
-func NewShutdownError(err error) *ShutdownError {
-	if err == nil {
-		return nil
-	}
-
-	return &ShutdownError{Err: err}
-}
-
-// SignalError is returned when execution is interrupted
-// by an incoming OS signal (SIGINT or SIGTERM).
+// SignalError is returned when execution is interrupted by an OS signal.
 type SignalError struct {
 	Signal os.Signal
 }
 
-func (e *SignalError) Error() string { return fmt.Sprintf("signal %v received", e.Signal) }
+func (e *SignalError) Error() string {
+	return fmt.Sprintf("signal %v received", e.Signal)
+}
+
+func (e *SignalError) ExitCode() int {
+	if n, ok := e.Signal.(syscall.Signal); ok {
+		return 128 + int(n)
+	}
+
+	return 1
+}
+
+// NewErrRun wraps a run-time error.
+func NewErrRun(err error) error {
+	return fmt.Errorf("%w: %v", ErrRun, err)
+}
+
+// NewErrShutdown wraps a shutdown error.
+func NewErrShutdown(err error) error {
+	return fmt.Errorf("%w: %v", ErrShutdown, err)
+}
+
+// NewErrSignal creates a new SignalError.
+func NewErrSignal(sig os.Signal) error {
+	return &SignalError{Signal: sig}
+}

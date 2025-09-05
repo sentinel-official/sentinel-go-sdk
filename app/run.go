@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"syscall"
 
 	"github.com/spf13/cobra"
+
+	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // Run initializes the root Cobra command, sets up signal handling,
@@ -34,15 +35,17 @@ func Run(buildRootCmd func(userDir string) *cobra.Command) {
 
 	// Execute the root command.
 	if err := cmd.ExecuteContext(ctx); err != nil {
+		isRunErr := utils.ErrorIs(err, ErrRun)
+		isShutdownErr := utils.ErrorIs(err, ErrShutdown)
+
 		// If not already a RunError or ShutdownError, wrap as RunError.
-		if !errors.As(err, new(*RunError)) && !errors.As(err, new(*ShutdownError)) {
-			err = NewRunError(err)
+		if !isRunErr && !isShutdownErr {
+			err = NewErrRun(err)
 		}
 
 		// Extract signal error once.
 		sigErr := new(SignalError)
 		isSigErr := errors.As(context.Cause(ctx), &sigErr)
-		isShutdownErr := errors.As(err, new(*ShutdownError))
 
 		// Print error if:
 		// - it wasn't a signal error (normal failure), OR
@@ -51,13 +54,6 @@ func Run(buildRootCmd func(userDir string) *cobra.Command) {
 			_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
 
-		// Decide exit code inline.
-		if isSigErr {
-			if n, ok := sigErr.Signal.(syscall.Signal); ok {
-				os.Exit(128 + int(n))
-			}
-		}
-
-		os.Exit(1)
+		os.Exit(sigErr.ExitCode())
 	}
 }
