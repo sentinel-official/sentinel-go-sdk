@@ -1,55 +1,39 @@
 package wireguard
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
-// execFile returns the name of the executable file.
+// execFile returns the executable name.
 func (c *Client) execFile(name string) string {
 	return ".\\" + filepath.Join("WireGuard", name+".exe")
 }
 
-// deviceName returns the name of the WireGuard interface.
-func (c *Client) deviceName() (string, error) {
-	return c.name, nil
-}
-
-// Down uninstalls the WireGuard tunnel service.
-func (c *Client) Down() error {
-	device, err := c.deviceName()
-	if err != nil {
-		return fmt.Errorf("getting device name: %w", err)
-	}
-
-	// Executes the command to uninstall the WireGuard tunnel service.
-	cmd := exec.Command(
+// startCmd returns the command to bring up the WireGuard interface.
+func (c *Client) startCmd(ctx context.Context) (*exec.Cmd, error) {
+	// Build the command to uninstall the WireGuard tunnel service.
+	cmd := exec.CommandContext(
+		ctx,
 		c.execFile("wireguard"),
-		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", device))...,
+		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", c.device))...,
 	)
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("running command: %w", err)
-	}
-
-	return nil
+	return cmd, nil
 }
 
-// Up installs the WireGuard tunnel service.
-func (c *Client) Up() error {
-	// Executes the command to install the WireGuard tunnel service.
-	cfgFile := c.serviceConfigFilePath()
+// stopCmd returns the command to bring down the WireGuard interface.
+func (c *Client) stopCmd() (*exec.Cmd, error) {
+	// Build the command to install the WireGuard tunnel service.
+	cfgFile := c.serviceConfigFile()
 	cmd := exec.CommandContext(
-		c.ctx,
+		context.Background(),
 		c.execFile("wireguard"),
 		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", cfgFile))...,
 	)
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("running command: %w", err)
-	}
-
-	return nil
+	return cmd, nil
 }

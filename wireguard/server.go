@@ -3,7 +3,6 @@ package wireguard
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,10 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
 	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
+	"github.com/sentinel-official/sentinel-go-sdk/process"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
@@ -23,98 +21,51 @@ import (
 // Ensure Server implements types.ServerService interface.
 var _ types.ServerService = (*Server)(nil)
 
-// Server represents the WireGuard server instance.
+// Server represents the WireGuard server service instance.
 type Server struct {
-	cfg      *ServerConfig           // Configuration settings for the WireGuard server.
-	homeDir  string                  // Home directory of the WireGuard server.
-	metadata []*ServerMetadata       // Metadata containing server-specific details.
-	name     string                  // Name of the server instance.
-	peers    *safe.Map[string, Peer] // Thread-safe map to manage peers connected to the server.
-	pools    *netip.AddrPoolSet      // Address pool set for allocating IP addresses to peers.
+	*process.Manager // Embedded process manager for handling lifecycle
 
-	cancel context.CancelFunc // Context cancel function to stop background tasks.
-	ctx    context.Context    // Context for server lifecycle management.
-	eg     *errgroup.Group    // Error group for managing background goroutines.
+	cfg     *ServerConfig           // Configuration settings for the service.
+	device  string                  // Name of the WireGuard network interface.
+	homeDir string                  // Home directory for storing WireGuard configs.
+	peers   *safe.Map[string, Peer] // Thread-safe map to manage peers connected to the server.
+
+	metadata []*ServerMetadata  // Metadata containing server-specific details.
+	pools    *netip.AddrPoolSet // Address pool set for allocating IP addresses to peers.
 }
 
 // NewServer creates a new Server instance.
-func NewServer(appDir string, cfg *ServerConfig) *Server {
-	ctx, cancel := context.WithCancel(context.Background())
-	eg, ctx := errgroup.WithContext(ctx)
-
+func NewServer(ctx context.Context, name, appDir string, cfg *ServerConfig) *Server {
 	return &Server{
+		Manager: process.NewManager(ctx, name),
 		cfg:     cfg,
+		device:  "wg0",
 		homeDir: filepath.Join(appDir, "wireguard"),
-		name:    "wg0",
 		peers:   safe.NewMap[string, Peer](),
-		cancel:  cancel,
-		ctx:     ctx,
-		eg:      eg,
 	}
 }
 
-// WithName sets the name for the server and returns the updated Server instance.
-func (s *Server) WithName(name string) *Server {
-	s.name = name
+// WithDevice sets the WireGuard network interface name and returns the updated Server instance.
+func (s *Server) WithDevice(device string) *Server {
+	s.device = device
 	return s
 }
 
-// appConfigFilePath returns the full path to the application's configuration file.
-func (s *Server) appConfigFilePath() string {
-	return filepath.Join(s.homeDir, "config.toml")
-}
-
-// serviceConfigFilePath returns the full path to the service-specific configuration file.
-func (s *Server) serviceConfigFilePath() string {
-	return filepath.Join(s.homeDir, fmt.Sprintf("%s.conf", s.name))
-}
+func (s *Server) appConfigFile() string     { return filepath.Join(s.homeDir, "config.toml") }
+func (s *Server) serviceConfigFile() string { return filepath.Join(s.homeDir, s.device+".conf") }
 
 // Type returns the service type of the server.
 func (s *Server) Type() types.ServiceType {
 	return types.ServiceTypeWireGuard
 }
 
-// Init sets up service configuration, creating directories and writing defaults unless config exists.
-func (s *Server) Init(force bool) error {
-	// Create the home directory if it doesn't exist
-	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
-		return fmt.Errorf("creating home directory %q: %w", s.homeDir, err)
-	}
-
-	// Construct the full path to the config file
-	cfgFile := s.appConfigFilePath()
-
-	// Check if the config file exists at the specified path
-	exists, err := utils.IsFileExists(cfgFile)
-	if err != nil {
-		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
-	}
-
-	// Write config only if file doesn't exist or force flag is enabled
-	if !exists || force {
-		if err := s.cfg.WriteAppConfig(cfgFile); err != nil {
-			return fmt.Errorf("writing app config file %q: %w", cfgFile, err)
-		}
-	}
-
-	return nil
-}
-
-// IsUp checks if the WireGuard server process is running.
-func (s *Server) IsUp() (bool, error) {
-	// Retrieves the device name.
-	device, err := s.deviceName()
-	if err != nil {
-		return false, fmt.Errorf("getting device name: %w", err)
-	}
-	if device == "" {
-		return false, nil
-	}
-
+// IsRunning checks if the WireGuard interface is up and active.
+func (s *Server) IsRunning() (bool, error) {
 	// Executes the 'wg show' command to check the interface status.
-	cmd := exec.Command(
+	cmd := exec.CommandContext(
+		context.Background(),
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf("show %s", device))...,
+		strings.Fields(fmt.Sprintf("show %s", s.device))...,
 	)
 
 	// Capture stderr output.
@@ -134,10 +85,15 @@ func (s *Server) IsUp() (bool, error) {
 	return true, nil
 }
 
-// PreUp performs initialization tasks before starting the WireGuard service.
-func (s *Server) PreUp() (err error) {
+// Init sets up the server configuration, creating directories and writing defaults unless config exists.
+func (s *Server) Init(force bool) error {
+	// Create the home directory if it doesn't exist
+	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
+		return fmt.Errorf("creating home directory %q: %w", s.homeDir, err)
+	}
+
 	// Construct the full path to the config file
-	cfgFile := s.appConfigFilePath()
+	cfgFile := s.appConfigFile()
 
 	// Check if the config file exists at the specified path
 	exists, err := utils.IsFileExists(cfgFile)
@@ -145,99 +101,130 @@ func (s *Server) PreUp() (err error) {
 		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
-	// If the config file exists, proceed to read its contents
-	if exists {
-		if err := s.cfg.ReadAppConfig(cfgFile); err != nil {
-			return fmt.Errorf("reading app config file %q: %w", cfgFile, err)
+	// Write config only if file doesn't exist or force flag is enabled
+	if !exists || force {
+		if err := s.cfg.WriteAppConfig(cfgFile); err != nil {
+			return fmt.Errorf("writing app config file %q: %w", cfgFile, err)
 		}
-	}
-
-	// Validate the config
-	if err := s.cfg.Validate(); err != nil {
-		return fmt.Errorf("validating config: %w", err)
-	}
-
-	// Initialize the addr pool set from the configuration.
-	s.pools, err = s.cfg.AddrPoolSet()
-	if err != nil {
-		return fmt.Errorf("initializing addr pool set: %w", err)
-	}
-
-	// Set the server metadata.
-	s.metadata = []*ServerMetadata{
-		{
-			Port:      s.cfg.OutPort(),
-			PublicKey: s.cfg.PublicKey(),
-		},
-	}
-
-	// Write configuration to file.
-	cfgFile = s.serviceConfigFilePath()
-	if err := s.cfg.WriteServiceConfig(cfgFile); err != nil {
-		return fmt.Errorf("writing servie config file %q: %w", cfgFile, err)
 	}
 
 	return nil
 }
 
-// PostUp starts background peer synchronization after the server is up.
-func (s *Server) PostUp() error {
-	// Start background goroutine for periodic peer statistics updates.
-	s.eg.Go(func() error {
-		// Blocking loop that runs until stop signal is received
-		for {
-			select {
-			case <-s.ctx.Done():
-				return s.ctx.Err()
-			case <-time.After(time.Second):
-				// Check if server is up before syncing peers.
-				ok, err := s.IsUp()
-				if err != nil {
-					return fmt.Errorf("checking service status: %w", err)
-				}
-				if !ok {
-					continue
-				}
+// Start starts the WireGuard server service.
+func (s *Server) Start() error {
+	return s.Manager.Start(func(ctx context.Context) error {
+		// Construct the full path to the config file
+		cfgFile := s.appConfigFile()
 
-				// Sync peer statistics from WireGuard.
-				if err := s.syncPeers(s.ctx); err != nil {
-					return fmt.Errorf("syncing peer statistics: %w", err)
-				}
+		// Check if the config file exists at the specified path
+		exists, err := utils.IsFileExists(cfgFile)
+		if err != nil {
+			return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
+		}
+
+		// If the config file exists, proceed to read its contents
+		if exists {
+			if err := s.cfg.ReadAppConfig(cfgFile); err != nil {
+				return fmt.Errorf("reading app config file %q: %w", cfgFile, err)
 			}
 		}
-	})
 
-	return nil
+		// Validate the config
+		if err := s.cfg.Validate(); err != nil {
+			return fmt.Errorf("validating config: %w", err)
+		}
+
+		// Write configuration to file.
+		cfgFile = s.serviceConfigFile()
+		if err := s.cfg.WriteServiceConfig(cfgFile); err != nil {
+			return fmt.Errorf("writing service config file %q: %w", cfgFile, err)
+		}
+
+		// Initialize the addr pool set from the configuration.
+		s.pools, err = s.cfg.AddrPoolSet()
+		if err != nil {
+			return fmt.Errorf("initializing addr pool set: %w", err)
+		}
+
+		// Set the server metadata.
+		s.metadata = []*ServerMetadata{
+			{
+				Port:      s.cfg.OutPort(),
+				PublicKey: s.cfg.PublicKey(),
+			},
+		}
+
+		// Start the WireGuard process.
+		cmd, err := s.startCmd(ctx)
+		if err != nil {
+			return fmt.Errorf("preparing command: %w", err)
+		}
+
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("running command: %w", err)
+		}
+
+		// Periodically sync peer statistics.
+		s.Go(func(ctx context.Context) error {
+			for {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(time.Second):
+					// Check if service is up before syncing peers.
+					ok, err := s.IsRunning()
+					if err != nil {
+						return fmt.Errorf("checking service status: %w", err)
+					}
+					if !ok {
+						continue
+					}
+
+					// Sync peer statistics from WireGuard.
+					if err := s.syncPeers(ctx); err != nil {
+						return fmt.Errorf("syncing peer statistics: %w", err)
+					}
+				}
+			}
+		})
+
+		return nil
+	})
+}
+
+// Stop stops the WireGuard server service.
+func (s *Server) Stop() error {
+	return s.Manager.Stop(func() error {
+		cmd, err := s.stopCmd()
+		if err != nil {
+			return fmt.Errorf("preparing command: %w", err)
+		}
+
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("running command: %w", err)
+		}
+
+		return nil
+	})
 }
 
 // Wait waits for all background goroutines to complete.
 func (s *Server) Wait() error {
-	if err := s.eg.Wait(); err != nil {
-		if !utils.ErrorIs(context.Cause(s.ctx), context.Canceled) {
-			return err
+	return s.Manager.Wait(nil)
+}
+
+// Cleanup removes service configuration files.
+func (s *Server) Cleanup() error {
+	return s.Manager.Cleanup(func() error {
+		// Removes configuration file.
+		cfgFile := s.serviceConfigFile()
+		if err := utils.RemoveFile(cfgFile); err != nil {
+			return fmt.Errorf("removing service config file %q: %w", cfgFile, err)
 		}
-	}
 
-	return nil
-}
-
-// PreDown performs operations before the server process is terminated.
-func (s *Server) PreDown() error {
-	// Cancel background tasks if any.
-	s.cancel()
-
-	return nil
-}
-
-// PostDown cleans up configuration files after the server is stopped.
-func (s *Server) PostDown() error {
-	// Removes configuration file.
-	cfgFile := s.serviceConfigFilePath()
-	if err := utils.RemoveFile(cfgFile); err != nil {
-		return fmt.Errorf("removing service config file %q: %w", cfgFile, err)
-	}
-
-	return nil
+		return nil
+	})
 }
 
 // AddPeer adds a new peer to the WireGuard server.
@@ -293,7 +280,7 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf("set %s peer %s allowed-ips %s", s.name, id, strings.Join(allowedIPs, ",")))...,
+		strings.Fields(fmt.Sprintf("set %s peer %s allowed-ips %s", s.device, id, strings.Join(allowedIPs, ",")))...,
 	)
 
 	// Run the command and check for errors.
@@ -327,7 +314,7 @@ func (s *Server) RemovePeer(ctx context.Context, id string) error {
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf(`set %s peer %s remove`, s.name, id))...,
+		strings.Fields(fmt.Sprintf(`set %s peer %s remove`, s.device, id))...,
 	)
 
 	// Run the command and check for errors.
@@ -379,21 +366,14 @@ func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 // syncPeers retrieves the latest peer transfer statistics from WireGuard
 // and updates the in-memory peer data accordingly.
 func (s *Server) syncPeers(ctx context.Context) error {
-	// Retrieves the device name.
-	device, err := s.deviceName()
-	if err != nil {
-		return fmt.Errorf("getting device name: %w", err)
-	}
-	if device == "" {
-		return errors.New("device name is empty")
-	}
-
 	// Executes the 'wg show' command to get transfer statistics.
-	output, err := exec.CommandContext(
+	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf("show %s transfer", device))...,
-	).Output()
+		strings.Fields(fmt.Sprintf("show %s transfer", s.device))...,
+	)
+
+	output, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("running command: %w", err)
 	}
@@ -409,13 +389,13 @@ func (s *Server) syncPeers(ctx context.Context) error {
 		// Parse peer upload traffic stats.
 		rxBytes, err := strconv.ParseInt(columns[1], 10, 64)
 		if err != nil {
-			return fmt.Errorf("parsing peer %q uplink bytes %q: %w", columns[0], columns[1], err)
+			return fmt.Errorf("parsing peer %q rx bytes %q: %w", columns[0], columns[1], err)
 		}
 
 		// Parse peer download traffic stats.
 		txBytes, err := strconv.ParseInt(columns[2], 10, 64)
 		if err != nil {
-			return fmt.Errorf("parsing peer %q downlink bytes %q: %w", columns[0], columns[2], err)
+			return fmt.Errorf("parsing peer %q tx bytes %q: %w", columns[0], columns[2], err)
 		}
 
 		createdAt := time.Time{}

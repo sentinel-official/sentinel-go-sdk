@@ -57,40 +57,28 @@ type ServiceConfig interface {
 
 // ClientService defines the interface for client-side service operations.
 type ClientService interface {
-	Type() ServiceType     // Type returns the type of the client service.
+	Type() ServiceType        // Type returns the type of the client service.
+	IsRunning() (bool, error) // IsRunning checks if the client service is currently running.
+
 	Init(force bool) error // Init initializes the service, optionally overwriting the config if force is true.
-
-	IsUp() (bool, error) // IsUp checks if the client service is currently running.
-
-	PreUp() error  // PreUp performs operations before the service is brought up.
-	Up() error     // Up brings up the client service.
-	PostUp() error // PostUp performs operations after the service is brought up.
-
-	Wait() error // Wait blocks until the client service finishes.
-
-	PreDown() error  // PreDown performs operations before the service is brought down.
-	Down() error     // Down brings down the client service.
-	PostDown() error // PostDown performs operations after the service is brought down.
+	Start() error          // Start brings up the client service.
+	Stop() error           // Stop shuts down the client service.
+	Wait() error           // Wait blocks until the client service finishes.
+	Cleanup() error        // Cleanup performs cleanup operations after stopping the service.
 
 	Statistics(ctx context.Context) (int64, int64, error) // Statistics returns the download and upload statistics.
 }
 
 // ServerService defines the interface for server-side service operations.
 type ServerService interface {
-	Type() ServiceType     // Type returns the type of the server service.
+	Type() ServiceType        // Type returns the type of the server service.
+	IsRunning() (bool, error) // IsRunning checks if the server service is currently running.
+
 	Init(force bool) error // Init initializes the service, optionally overwriting the config if force is true.
-
-	IsUp() (bool, error) // IsUp checks if the server service is currently running.
-
-	PreUp() error  // PreUp performs operations before the service is brought up.
-	Up() error     // Up brings up the server service.
-	PostUp() error // PostUp performs operations after the service is brought up.
-
-	Wait() error // Wait blocks until the server service finishes.
-
-	PreDown() error  // PreDown performs operations before the service is brought down.
-	Down() error     // Down brings down the server service.
-	PostDown() error // PostDown performs operations after the service is brought down.
+	Start() error          // Start brings up the server service.
+	Stop() error           // Stop shuts down the server service.
+	Wait() error           // Wait blocks until the server service finishes.
+	Cleanup() error        // Cleanup performs cleanup operations after stopping the service.
 
 	AddPeer(ctx context.Context, req interface{}) (id string, res interface{}, err error) // AddPeer adds a peer and returns its ID, the peer object, and an error if any.
 	HasPeer(ctx context.Context, id string) (bool, error)                                 // HasPeer checks if a peer exists in the server service.
