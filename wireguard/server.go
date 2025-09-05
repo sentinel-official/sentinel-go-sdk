@@ -23,15 +23,15 @@ var _ types.ServerService = (*Server)(nil)
 
 // Server represents the WireGuard server service instance.
 type Server struct {
-	*process.Manager // Embedded process manager for handling lifecycle
+	*process.Manager // Embedded process manager for handling lifecycle.
 
-	cfg     *ServerConfig           // Configuration settings for the service.
-	device  string                  // Name of the WireGuard network interface.
-	homeDir string                  // Home directory for storing WireGuard configs.
-	peers   *safe.Map[string, Peer] // Thread-safe map to manage peers connected to the server.
+	cfg     *ServerConfig // Configuration settings for the service.
+	device  string        // Name of the WireGuard network interface.
+	homeDir string        // Home directory of the service.
 
-	metadata []*ServerMetadata  // Metadata containing server-specific details.
-	pools    *netip.AddrPoolSet // Address pool set for allocating IP addresses to peers.
+	metadata []*ServerMetadata       // Metadata containing server-specific details.
+	peers    *safe.Map[string, Peer] // Thread-safe map to manage peers connected to the server.
+	pools    *netip.AddrPoolSet      // Address pool set for allocating IP addresses to peers.
 }
 
 // NewServer creates a new Server instance.
@@ -88,7 +88,7 @@ func (s *Server) IsRunning() (bool, error) {
 // Init sets up the server configuration, creating directories and writing defaults unless config exists.
 func (s *Server) Init(force bool) error {
 	// Create the home directory if it doesn't exist
-	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
+	if err := os.MkdirAll(s.homeDir, 0700); err != nil {
 		return fmt.Errorf("creating home directory %q: %w", s.homeDir, err)
 	}
 

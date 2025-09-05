@@ -80,7 +80,7 @@ func (c *Client) IsRunning() (bool, error) {
 // Init sets up client configuration, creating directories and writing defaults unless config exists.
 func (c *Client) Init(force bool) error {
 	// Create the home directory if it doesn't exist.
-	if err := os.MkdirAll(c.homeDir, 0755); err != nil {
+	if err := os.MkdirAll(c.homeDir, 0700); err != nil {
 		return fmt.Errorf("creating home directory %q: %w", c.homeDir, err)
 	}
 

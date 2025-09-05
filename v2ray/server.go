@@ -11,17 +11,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shirou/gopsutil/v4/process"
+	procutils "github.com/shirou/gopsutil/v4/process"
 	proxymancommand "github.com/v2fly/v2ray-core/v5/app/proxyman/command"
 	statscommand "github.com/v2fly/v2ray-core/v5/app/stats/command"
 	"github.com/v2fly/v2ray-core/v5/common/protocol"
 	"github.com/v2fly/v2ray-core/v5/common/serial"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/crypto"
 	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
+	"github.com/sentinel-official/sentinel-go-sdk/process"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
@@ -31,63 +31,38 @@ var _ types.ServerService = (*Server)(nil)
 
 // Server represents the V2Ray server instance.
 type Server struct {
-	cfg      *ServerConfig            // Configuration settings for the V2Ray server.
+	*process.Manager // Embedded process manager for handling lifecycle.
+
+	cfg     *ServerConfig // Configuration settings for the service.
+	homeDir string        // Home directory of the service.
+
 	cmd      *exec.Cmd                // Command to run the V2Ray server.
 	conn     *safe.GRPCConn           // gRPC client connection to the service.
-	homeDir  string                   // Home directory of the V2Ray server.
-	metadata []*ServerMetadata        // Metadata for the server's inbound connections.
-	name     string                   // Name of the server instance.
-	peers    *safe.Map[string, Peer]  // Peer manager for handling peer information.
+	metadata []*ServerMetadata        // Metadata containing server-specific details.
+	peers    *safe.Map[string, Peer]  // Thread-safe map to manage peers connected to the server.
 	proxies  map[string]ProxyProtocol // Proxy protocols used by the server.
-
-	cancel context.CancelFunc // Context cancel function to stop background tasks.
-	ctx    context.Context    // Context for managing the server lifecycle.
-	eg     *errgroup.Group    // Error group for managing background goroutines.
 }
 
 // NewServer creates a new Server instance.
-func NewServer(appDir string, cfg *ServerConfig) *Server {
-	ctx, cancel := context.WithCancel(context.Background())
-	eg, ctx := errgroup.WithContext(ctx)
-
+func NewServer(ctx context.Context, name, appDir string, cfg *ServerConfig) *Server {
 	return &Server{
+		Manager: process.NewManager(ctx, name),
 		cfg:     cfg,
 		conn:    &safe.GRPCConn{},
 		homeDir: filepath.Join(appDir, "v2ray"),
-		name:    "server",
 		peers:   safe.NewMap[string, Peer](),
 		proxies: make(map[string]ProxyProtocol),
-		cancel:  cancel,
-		ctx:     ctx,
-		eg:      eg,
 	}
 }
 
-// WithName sets the name for the server and returns the updated Server instance.
-func (s *Server) WithName(name string) *Server {
-	s.name = name
-	return s
-}
+func (s *Server) appConfigFile() string     { return filepath.Join(s.homeDir, "config.toml") }
+func (s *Server) pidFile() string           { return filepath.Join(s.homeDir, "server.pid") }
+func (s *Server) serviceConfigFile() string { return filepath.Join(s.homeDir, "server.json") }
 
-// appConfigFilePath returns the full path to the application's configuration file.
-func (s *Server) appConfigFilePath() string {
-	return filepath.Join(s.homeDir, "config.toml")
-}
-
-// pidFilePath returns the file path of the server's PID file.
-func (s *Server) pidFilePath() string {
-	return filepath.Join(s.homeDir, fmt.Sprintf("%s.pid", s.name))
-}
-
-// serviceConfigFilePath returns the full path to the service-specific configuration file.
-func (s *Server) serviceConfigFilePath() string {
-	return filepath.Join(s.homeDir, fmt.Sprintf("%s.json", s.name))
-}
-
-// readPIDFromFile reads the PID from the server's PID file.
-func (s *Server) readPIDFromFile() (int32, error) {
+// readPID reads the PID from the server's PID file.
+func (s *Server) readPID() (int32, error) {
 	// Get the full path to the PID file
-	pidFile := s.pidFilePath()
+	pidFile := s.pidFile()
 
 	// Check if the PID file exists
 	exists, err := utils.IsFileExists(pidFile)
@@ -116,14 +91,14 @@ func (s *Server) readPIDFromFile() (int32, error) {
 	return int32(pid), nil
 }
 
-// writePIDToFile writes the given PID to the server's PID file.
-func (s *Server) writePIDToFile(pid int) error {
+// writePID writes the given PID to the server's PID file.
+func (s *Server) writePID(pid int) error {
 	// Convert PID to byte slice.
 	data := []byte(strconv.Itoa(pid))
 
 	// Write PID to file with appropriate permissions.
-	pidFile := s.pidFilePath()
-	if err := os.WriteFile(pidFile, data, 0644); err != nil {
+	pidFile := s.pidFile()
+	if err := os.WriteFile(pidFile, data, 0600); err != nil {
 		return fmt.Errorf("writing PID file %q: %w", pidFile, err)
 	}
 
@@ -135,47 +110,21 @@ func (s *Server) Type() types.ServiceType {
 	return types.ServiceTypeV2Ray
 }
 
-// Init sets up service configuration, creating directories and writing defaults unless config exists.
-func (s *Server) Init(force bool) error {
-	// Create the home directory if it doesn't exist
-	if err := os.MkdirAll(s.homeDir, 0755); err != nil {
-		return fmt.Errorf("creating home directory %q: %w", s.homeDir, err)
-	}
-
-	// Construct the full path to the config file
-	cfgFile := s.appConfigFilePath()
-
-	// Check if the config file exists at the specified path
-	exists, err := utils.IsFileExists(cfgFile)
-	if err != nil {
-		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
-	}
-
-	// Write config only if file doesn't exist or force flag is enabled
-	if !exists || force {
-		if err := s.cfg.WriteAppConfig(cfgFile); err != nil {
-			return fmt.Errorf("writing app config file %q: %w", cfgFile, err)
-		}
-	}
-
-	return nil
-}
-
-// IsUp checks if the V2Ray server process is running.
-func (s *Server) IsUp() (bool, error) {
+// IsRunning checks if the V2Ray server process is running.
+func (s *Server) IsRunning() (bool, error) {
 	// Read PID from file.
-	pid, err := s.readPIDFromFile()
+	pid, err := s.readPID()
 	if err != nil {
-		return false, fmt.Errorf("reading PID from file: %w", err)
+		return false, fmt.Errorf("reading PID: %w", err)
 	}
 	if pid == 0 {
 		return false, nil
 	}
 
 	// Retrieve process with the given PID.
-	proc, err := process.NewProcess(pid)
+	proc, err := procutils.NewProcess(pid)
 	if err != nil {
-		if utils.ErrorIs(err, process.ErrorProcessNotRunning) {
+		if utils.ErrorIs(err, procutils.ErrorProcessNotRunning) {
 			return false, nil
 		}
 
@@ -196,8 +145,6 @@ func (s *Server) IsUp() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("getting process name: %w", err)
 	}
-
-	// Check if the process name matches constant v2ray.
 	if name != v2ray {
 		return false, nil
 	}
@@ -205,10 +152,15 @@ func (s *Server) IsUp() (bool, error) {
 	return true, nil
 }
 
-// PreUp writes the configuration to the config file before starting the server process.
-func (s *Server) PreUp() error {
+// Init sets up service configuration, creating directories and writing defaults unless config exists.
+func (s *Server) Init(force bool) error {
+	// Create the home directory if it doesn't exist
+	if err := os.MkdirAll(s.homeDir, 0700); err != nil {
+		return fmt.Errorf("creating home directory %q: %w", s.homeDir, err)
+	}
+
 	// Construct the full path to the config file
-	cfgFile := s.appConfigFilePath()
+	cfgFile := s.appConfigFile()
 
 	// Check if the config file exists at the specified path
 	exists, err := utils.IsFileExists(cfgFile)
@@ -216,192 +168,191 @@ func (s *Server) PreUp() error {
 		return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 	}
 
-	// If the config file exists, proceed to read its contents
-	if exists {
-		if err := s.cfg.ReadAppConfig(cfgFile); err != nil {
-			return fmt.Errorf("reading app config file %q: %w", cfgFile, err)
+	// Write config only if file doesn't exist or force flag is enabled
+	if !exists || force {
+		if err := s.cfg.WriteAppConfig(cfgFile); err != nil {
+			return fmt.Errorf("writing app config file %q: %w", cfgFile, err)
 		}
-	}
-
-	s.cfg.TLSCertFile = filepath.Join(s.homeDir, "tls.crt")
-	s.cfg.TLSKeyFile = filepath.Join(s.homeDir, "tls.key")
-
-	// Validate the config
-	if err := s.cfg.Validate(); err != nil {
-		return fmt.Errorf("validating config: %w", err)
-	}
-
-	// Initialize PKI and issue a tls certificate
-	pki := crypto.NewPKI(s.homeDir)
-	if err := pki.Init(); err != nil {
-		return fmt.Errorf("initializing PKI: %w", err)
-	}
-	if _, _, err := pki.Issue("tls"); err != nil {
-		return fmt.Errorf("issuing TLS certificate and key: %w", err)
-	}
-
-	for _, inbound := range s.cfg.Inbounds {
-		metadata := &ServerMetadata{
-			Port:              inbound.OutPort(),
-			ProxyProtocol:     inbound.GetProxyProtocol(),
-			TransportProtocol: inbound.GetTransportProtocol(),
-			TransportSecurity: inbound.GetTransportSecurity(),
-		}
-
-		s.metadata = append(s.metadata, metadata)
-		s.proxies[inbound.Tag()] = inbound.GetProxyProtocol()
-	}
-
-	// Write configuration to file.
-	cfgFile = s.serviceConfigFilePath()
-	if err := s.cfg.WriteServiceConfig(cfgFile); err != nil {
-		return fmt.Errorf("writing service config file %q: %w", cfgFile, err)
 	}
 
 	return nil
 }
 
-// Up starts the V2Ray server process.
-func (s *Server) Up() error {
-	// Constructs the command to start the V2Ray server.
-	cfgFile := s.serviceConfigFilePath()
-	s.cmd = exec.CommandContext(
-		s.ctx,
-		s.execFile(v2ray),
-		strings.Fields(fmt.Sprintf("run --config %s", cfgFile))...,
-	)
+// Start starts the V2Ray server service.
+func (s *Server) Start() error {
+	return s.Manager.Start(func(ctx context.Context) error {
+		// Construct the full path to the config file
+		cfgFile := s.appConfigFile()
 
-	// Starts the V2Ray server process.
-	if err := s.cmd.Start(); err != nil {
-		return fmt.Errorf("starting command: %w", err)
-	}
-
-	// Wait for the V2Ray process to finish in a separate goroutine.
-	s.eg.Go(func() (err error) {
-		if err = s.cmd.Wait(); err == nil {
-			err = errors.New("command exited unexpectedly")
+		// Check if the config file exists at the specified path
+		exists, err := utils.IsFileExists(cfgFile)
+		if err != nil {
+			return fmt.Errorf("checking if config file %q exists: %w", cfgFile, err)
 		}
 
-		return fmt.Errorf("waiting command: %w", err)
-	})
-
-	return nil
-}
-
-// PostUp performs operations after the server process is started.
-func (s *Server) PostUp() (err error) {
-	// Write PID to file.
-	if err := s.writePIDToFile(s.cmd.Process.Pid); err != nil {
-		return fmt.Errorf("writing PID to file: %w", err)
-	}
-
-	target := "127.0.0.1:2323"
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-
-	// Establish a safe, concurrency-managed gRPC connection to the target.
-	if err := s.conn.Dial(target, opts...); err != nil {
-		return fmt.Errorf("gRPC dialing target %q: %w", target, err)
-	}
-
-	// Start background goroutine for periodic peer statistics updates.
-	s.eg.Go(func() error {
-		// Blocking loop that runs until stop signal is received
-		for {
-			select {
-			case <-s.ctx.Done():
-				return s.ctx.Err()
-			case <-time.After(time.Second):
-				// Check if server is up before syncing peers.
-				ok, err := s.IsUp()
-				if err != nil {
-					return fmt.Errorf("checking serivce status: %w", err)
-				}
-				if !ok {
-					continue
-				}
-
-				// Sync peer statistics from V2Ray.
-				if err := s.syncPeers(s.ctx); err != nil {
-					return fmt.Errorf("syncing peer statistics: %w", err)
-				}
+		// If the config file exists, proceed to read its contents
+		if exists {
+			if err := s.cfg.ReadAppConfig(cfgFile); err != nil {
+				return fmt.Errorf("reading app config file %q: %w", cfgFile, err)
 			}
 		}
-	})
 
-	return nil
-}
+		s.cfg.TLSCertFile = filepath.Join(s.homeDir, "tls.crt")
+		s.cfg.TLSKeyFile = filepath.Join(s.homeDir, "tls.key")
 
-// Wait blocks until all goroutines in the error group finish or one returns an error.
-func (s *Server) Wait() error {
-	if err := s.eg.Wait(); err != nil {
-		if !utils.ErrorIs(context.Cause(s.ctx), context.Canceled) {
-			return err
+		// Validate the config
+		if err := s.cfg.Validate(); err != nil {
+			return fmt.Errorf("validating config: %w", err)
 		}
-	}
 
-	return nil
-}
+		// Initialize PKI and issue a tls certificate
+		pki := crypto.NewPKI(s.homeDir)
+		if err := pki.Init(); err != nil {
+			return fmt.Errorf("initializing PKI: %w", err)
+		}
+		if _, _, err := pki.Issue("tls"); err != nil {
+			return fmt.Errorf("issuing TLS certificate and key: %w", err)
+		}
 
-// PreDown performs cleanup tasks before the server process is stopped.
-// It cancels the server context to gracefully stop background operations.
-func (s *Server) PreDown() error {
-	// Cancel background tasks if any.
-	s.cancel()
+		for _, inbound := range s.cfg.Inbounds {
+			metadata := &ServerMetadata{
+				Port:              inbound.OutPort(),
+				ProxyProtocol:     inbound.GetProxyProtocol(),
+				TransportProtocol: inbound.GetTransportProtocol(),
+				TransportSecurity: inbound.GetTransportSecurity(),
+			}
 
-	// Close gRPC client connection.
-	if err := s.conn.Close(); err != nil {
-		return fmt.Errorf("closing gRPC client connection: %w", err)
-	}
+			s.metadata = append(s.metadata, metadata)
+			s.proxies[inbound.Tag()] = inbound.GetProxyProtocol()
+		}
 
-	return nil
-}
+		// Write configuration to file.
+		cfgFile = s.serviceConfigFile()
+		if err := s.cfg.WriteServiceConfig(cfgFile); err != nil {
+			return fmt.Errorf("writing service config file %q: %w", cfgFile, err)
+		}
 
-// Down terminates the V2Ray server process.
-func (s *Server) Down() error {
-	// Read PID from file.
-	pid, err := s.readPIDFromFile()
-	if err != nil {
-		return fmt.Errorf("reading PID from file: %w", err)
-	}
-	if pid == 0 {
+		// Constructs the command to start the V2Ray server.
+		s.cmd = exec.CommandContext(
+			ctx,
+			s.execFile(v2ray),
+			strings.Fields(fmt.Sprintf("run --config %s", cfgFile))...,
+		)
+
+		// Starts the V2Ray server process.
+		if err := s.cmd.Start(); err != nil {
+			return fmt.Errorf("starting command: %w", err)
+		}
+
+		// Write PID to file.
+		if err := s.writePID(s.cmd.Process.Pid); err != nil {
+			return fmt.Errorf("writing PID: %w", err)
+		}
+
+		target := "127.0.0.1:2323"
+		opts := []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		}
+
+		// Establish a safe, concurrency-managed gRPC connection to the target.
+		if err := s.conn.Dial(target, opts...); err != nil {
+			return fmt.Errorf("gRPC dialing target %q: %w", target, err)
+		}
+
+		// Wait for the V2Ray process to finish in a separate goroutine.
+		s.Go(func(ctx context.Context) (err error) {
+			if err = s.cmd.Wait(); err == nil {
+				err = errors.New("exited unexpectedly")
+			}
+
+			return fmt.Errorf("waiting command: %w", err)
+		})
+
+		s.Go(func(ctx context.Context) error {
+			for {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(time.Second):
+					// Check if server is up before syncing peers.
+					ok, err := s.IsRunning()
+					if err != nil {
+						return fmt.Errorf("checking serivce status: %w", err)
+					}
+					if !ok {
+						continue
+					}
+
+					// Sync peer statistics from V2Ray.
+					if err := s.syncPeers(ctx); err != nil {
+						return fmt.Errorf("syncing peer statistics: %w", err)
+					}
+				}
+			}
+		})
+
 		return nil
-	}
+	})
+}
 
-	// Retrieve process with the given PID.
-	proc, err := process.NewProcess(pid)
-	if err != nil {
-		if utils.ErrorIs(err, process.ErrorProcessNotRunning) {
+// Stop stops the V2Ray server service.
+func (s *Server) Stop() error {
+	return s.Manager.Stop(func() error {
+		// Close gRPC client connection.
+		if err := s.conn.Close(); err != nil {
+			return fmt.Errorf("closing gRPC client connection: %w", err)
+		}
+
+		// Read PID from file.
+		pid, err := s.readPID()
+		if err != nil {
+			return fmt.Errorf("reading PID: %w", err)
+		}
+		if pid == 0 {
 			return nil
 		}
 
-		return fmt.Errorf("getting process for PID %d: %w", pid, err)
-	}
+		// Retrieve process with the given PID.
+		proc, err := procutils.NewProcess(pid)
+		if err != nil {
+			if utils.ErrorIs(err, procutils.ErrorProcessNotRunning) {
+				return nil
+			}
 
-	// Terminate the process.
-	if err := proc.Terminate(); err != nil {
-		return fmt.Errorf("terminating process: %w", err)
-	}
+			return fmt.Errorf("getting process for PID %d: %w", pid, err)
+		}
 
-	return nil
+		// Terminate the process.
+		if err := proc.Terminate(); err != nil {
+			return fmt.Errorf("terminating process: %w", err)
+		}
+
+		return nil
+	})
 }
 
-// PostDown performs cleanup operations after the server process is terminated.
-func (s *Server) PostDown() error {
-	// Removes configuration file.
-	cfgFile := s.serviceConfigFilePath()
-	if err := utils.RemoveFile(cfgFile); err != nil {
-		return fmt.Errorf("removing config file %q: %w", cfgFile, err)
-	}
+// Wait waits for all background goroutines to complete.
+func (s *Server) Wait() error {
+	return s.Manager.Wait(nil)
+}
 
-	// Remove PID file.
-	pidFile := s.pidFilePath()
-	if err := utils.RemoveFile(pidFile); err != nil {
-		return fmt.Errorf("removing PID file %q: %w", pidFile, err)
-	}
+// Cleanup removes service configuration files.
+func (s *Server) Cleanup() error {
+	return s.Manager.Cleanup(func() error {
+		// Removes configuration file.
+		cfgFile := s.serviceConfigFile()
+		if err := utils.RemoveFile(cfgFile); err != nil {
+			return fmt.Errorf("removing config file %q: %w", cfgFile, err)
+		}
 
-	return nil
+		// Remove PID file.
+		pidFile := s.pidFile()
+		if err := utils.RemoveFile(pidFile); err != nil {
+			return fmt.Errorf("removing PID file %q: %w", pidFile, err)
+		}
+
+		return nil
+	})
 }
 
 // AddPeer adds a new peer to the V2Ray server.
