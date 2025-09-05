@@ -26,6 +26,11 @@ func NewScheduler(ctx context.Context, name string) *Scheduler {
 	}
 }
 
+// Setup prepares the scheduler for operation.
+func (s *Scheduler) Setup() error {
+	return s.Manager.Setup(nil)
+}
+
 // Start begins executing all registered workers concurrently.
 func (s *Scheduler) Start() error {
 	return s.Manager.Start(func(_ context.Context) error {

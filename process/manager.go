@@ -46,6 +46,29 @@ func (m *Manager) Name() string { return m.name }
 // IsRunning checks whether the manager is in a started state.
 func (m *Manager) IsRunning() bool { return m.state.Load() == internal.StateCodeStarted }
 
+// Setup runs the provided setup function with the parent context.
+// It does not change the state and must only be called in the "unspecified" state.
+//
+// CONTRACT:
+//   - MUST be called only before Start().
+//   - MUST NOT spawn goroutines.
+func (m *Manager) Setup(fn func(ctx context.Context) error) (err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.state.Load() != internal.StateCodeUnspecified {
+		return NewErrInvalidState(m.name)
+	}
+
+	log.Info("Setting up process", "name", m.name)
+
+	if fn != nil {
+		return fn(m.parent)
+	}
+
+	return nil
+}
+
 // Go starts a goroutine tied to the lifecycle of the manager.
 //
 // CONTRACT:

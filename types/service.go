@@ -61,6 +61,7 @@ type ClientService interface {
 	IsRunning() (bool, error) // IsRunning checks if the client service is currently running.
 
 	Init(force bool) error // Init initializes the service, optionally overwriting the config if force is true.
+	Setup() error          // Setup prepares the client service for operation.
 	Start() error          // Start brings up the client service.
 	Stop() error           // Stop shuts down the client service.
 	Wait() error           // Wait blocks until the client service finishes.
@@ -75,6 +76,7 @@ type ServerService interface {
 	IsRunning() (bool, error) // IsRunning checks if the server service is currently running.
 
 	Init(force bool) error // Init initializes the service, optionally overwriting the config if force is true.
+	Setup() error          // Setup prepares the server service for operation.
 	Start() error          // Start brings up the server service.
 	Stop() error           // Stop shuts down the server service.
 	Wait() error           // Wait blocks until the server service finishes.

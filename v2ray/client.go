@@ -162,9 +162,9 @@ func (c *Client) Init(force bool) error {
 	return nil
 }
 
-// Start starts the V2Ray client service.
-func (c *Client) Start() error {
-	return c.Manager.Start(func(ctx context.Context) error {
+// Setup prepares the V2Ray client service for operation.
+func (c *Client) Setup() error {
+	return c.Manager.Setup(func(ctx context.Context) error {
 		// Construct the full path to the config file
 		cfgFile := c.appConfigFile()
 
@@ -192,7 +192,15 @@ func (c *Client) Start() error {
 			return fmt.Errorf("writing service config file %q: %w", cfgFile, err)
 		}
 
+		return nil
+	})
+}
+
+// Start starts the V2Ray client service.
+func (c *Client) Start() error {
+	return c.Manager.Start(func(ctx context.Context) error {
 		// Constructs the command to start the V2Ray client.
+		cfgFile := c.serviceConfigFile()
 		c.cmd = exec.CommandContext(
 			ctx,
 			c.execFile(v2ray),

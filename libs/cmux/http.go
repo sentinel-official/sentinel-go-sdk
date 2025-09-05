@@ -43,6 +43,11 @@ func NewServer(ctx context.Context, name, addr, certFile, keyFile string, handle
 	}
 }
 
+// Setup prepares the server for operation.
+func (s *Server) Setup() error {
+	return s.Manager.Setup(nil)
+}
+
 // Start launches the server and begins handling both HTTP and HTTPS traffic.
 func (s *Server) Start() (err error) {
 	return s.Manager.Start(func(_ context.Context) error {

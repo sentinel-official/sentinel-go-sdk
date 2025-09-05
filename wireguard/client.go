@@ -103,9 +103,9 @@ func (c *Client) Init(force bool) error {
 	return nil
 }
 
-// Start starts the WireGuard client service.
-func (c *Client) Start() error {
-	return c.Manager.Start(func(ctx context.Context) error {
+// Setup prepares the WireGuard client service for operation.
+func (c *Client) Setup() error {
+	return c.Manager.Setup(func(ctx context.Context) error {
 		// Construct the full path to the config file.
 		cfgFile := c.appConfigFile()
 
@@ -133,6 +133,13 @@ func (c *Client) Start() error {
 			return fmt.Errorf("writing service config file %q: %w", cfgFile, err)
 		}
 
+		return nil
+	})
+}
+
+// Start starts the WireGuard client service.
+func (c *Client) Start() error {
+	return c.Manager.Start(func(ctx context.Context) error {
 		// Start the WireGuard process.
 		cmd, err := c.startCmd(ctx)
 		if err != nil {

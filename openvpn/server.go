@@ -191,9 +191,9 @@ func (s *Server) Init(force bool) error {
 	return nil
 }
 
-// Start starts the OpenVPN server service.
-func (s *Server) Start() error {
-	return s.Manager.Start(func(ctx context.Context) error {
+// Setup prepares the OpenVPN server service for operation.
+func (s *Server) Setup() error {
+	return s.Manager.Setup(func(ctx context.Context) error {
 		// Construct the full path to the config file
 		cfgFile := s.appConfigFile()
 
@@ -254,7 +254,15 @@ func (s *Server) Start() error {
 			},
 		}
 
+		return nil
+	})
+}
+
+// Start starts the OpenVPN server service.
+func (s *Server) Start() error {
+	return s.Manager.Start(func(ctx context.Context) error {
 		// Constructs the command to start the OpenVPN server.
+		cfgFile := s.serviceConfigFile()
 		s.cmd = exec.CommandContext(
 			ctx,
 			s.execFile(openVPN),
