@@ -62,8 +62,16 @@ func (m *Manager) Setup(fn func(ctx context.Context) error) (err error) {
 		return NewErrInvalidState(m.name)
 	}
 
-	log.Info("Setting up process", "name", m.name)
+	log.Debug("Setting up process", "name", m.name)
 
+	// Check if context was already canceled.
+	select {
+	case <-m.parent.Done():
+		return m.parent.Err()
+	default:
+	}
+
+	// Run provided setup function if given.
 	if fn != nil {
 		return fn(m.parent)
 	}
@@ -115,7 +123,7 @@ func (m *Manager) Start(fn func(ctx context.Context) error) (err error) {
 		}
 	}()
 
-	log.Info("Starting process", "name", m.name)
+	log.Debug("Starting process", "name", m.name)
 
 	// Create a fresh context tied to this manager, with cancellation support.
 	ctx, cancel := context.WithCancel(m.parent)
@@ -162,7 +170,7 @@ func (m *Manager) Stop(fn func() error) (err error) {
 		}
 	}()
 
-	log.Info("Stopping process", "name", m.name)
+	log.Debug("Stopping process", "name", m.name)
 	if m.cancel != nil {
 		m.cancel()
 	}
@@ -220,7 +228,7 @@ func (m *Manager) Cleanup(fn func() error) error {
 		return NewErrNotStopped(m.name)
 	}
 
-	log.Info("Cleaning up process", "name", m.name)
+	log.Debug("Cleaning up process", "name", m.name)
 
 	m.eg = nil
 	m.ctx = nil

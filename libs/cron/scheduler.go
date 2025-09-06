@@ -41,7 +41,7 @@ func (s *Scheduler) Start() error {
 			s.Go(func(ctx context.Context) error {
 				// Run the worker and log error if any
 				if err := s.runWorker(ctx, worker); err != nil {
-					if !utils.ErrorIs(context.Cause(ctx), context.Canceled) {
+					if !utils.ErrorIs(err, context.Canceled) {
 						log.Error("Worker exited", "cause", err, "name", worker.Name())
 					}
 				}
