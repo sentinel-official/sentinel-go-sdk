@@ -10,6 +10,7 @@ import (
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/log"
 	"github.com/sentinel-official/sentinel-go-sdk/process"
+	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // Scheduler manages the scheduling and execution of workers.
@@ -40,7 +41,9 @@ func (s *Scheduler) Start() error {
 			s.Go(func(ctx context.Context) error {
 				// Run the worker and log error if any
 				if err := s.runWorker(ctx, worker); err != nil {
-					log.Error("Worker exited", "cause", err, "name", worker.Name())
+					if !utils.ErrorIs(context.Cause(ctx), context.Canceled) {
+						log.Error("Worker exited", "cause", err, "name", worker.Name())
+					}
 				}
 
 				return nil

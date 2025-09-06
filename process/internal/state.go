@@ -1,42 +1,99 @@
 package internal
 
 import (
-	"sync/atomic"
+	"sync"
 )
 
 // StateCode represents the state of a process.
-// It uses int32 internally for atomic operations.
 type StateCode int32
 
 const (
-	StateCodeUnspecified StateCode = iota // Default state (not started yet).
-	StateCodeStarted                      // Process has started.
-	StateCodeStopped                      // Process has been stopped.
+	StateUnspecified StateCode = iota
+	StateStarting
+	StateStartError
+	StateStarted
+	StateStopping
+	StateStopError
+	StateStopped
 )
 
-// State wraps an atomic integer to safely manage state transitions
-// between multiple goroutines.
+// State wraps a RWMutex-protected integer to safely manage state transitions.
 type State struct {
-	v atomic.Int32
+	mu   sync.RWMutex
+	code StateCode
 }
 
-// Load returns the current state atomically.
-func (s *State) Load() StateCode {
-	return StateCode(s.v.Load())
+// Get returns the current state.
+func (s *State) Get() StateCode {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.code
 }
 
-// Store sets the state atomically to the given value.
-func (s *State) Store(val StateCode) {
-	s.v.Store(int32(val))
+// Set unconditionally sets the state to 'new'.
+// Returns the previous state.
+func (s *State) Set(new StateCode) StateCode {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	old := s.code
+	s.code = new
+
+	return old
 }
 
-// Swap atomically replaces the state with a new one and returns the old state.
-func (s *State) Swap(new StateCode) (old StateCode) {
-	return StateCode(s.v.Swap(int32(new)))
+// SetIf sets the state to 'new' only if the current state matches any of the given 'olds' states.
+// Returns the previous state and true if the state was changed, false if no change occurred.
+func (s *State) SetIf(new StateCode, olds ...StateCode) (old StateCode, changed bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	old = s.code
+
+	// Check if the current state matches any of the 'olds'
+	for _, code := range olds {
+		if old == code {
+			s.code = new
+			return old, true
+		}
+	}
+
+	// No change if no match
+	return old, false
 }
 
-// CompareAndSwap atomically sets the state to 'new' if the current state matches 'old'.
-// Returns true if the swap was successful.
-func (s *State) CompareAndSwap(old, new StateCode) (swapped bool) {
-	return s.v.CompareAndSwap(int32(old), int32(new))
+// SetIfNot sets the state to 'new' only if the current state does NOT match any of the given 'olds' states.
+// Returns the previous state and true if the state was changed, false if no change occurred.
+func (s *State) SetIfNot(new StateCode, olds ...StateCode) (old StateCode, changed bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	old = s.code
+
+	// Check if the current state matches any of the 'olds'
+	for _, code := range olds {
+		if old == code {
+			// No change if there's a match
+			return old, false
+		}
+	}
+
+	// Set the new state if no match is found
+	s.code = new
+	return old, true
+}
+
+// Is reports whether the current state matches any of the given states.
+func (s *State) Is(states ...StateCode) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, code := range states {
+		if s.code == code {
+			return true
+		}
+	}
+
+	return false
 }

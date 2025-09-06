@@ -36,15 +36,17 @@ func NewManager(ctx context.Context, name string) *Manager {
 		parent: ctx,
 	}
 
-	m.state.Store(internal.StateCodeUnspecified)
+	m.state.Set(internal.StateUnspecified)
 	return m
 }
 
 // Name returns the name of the manager.
 func (m *Manager) Name() string { return m.name }
 
-// IsRunning checks whether the manager is in a started state.
-func (m *Manager) IsRunning() bool { return m.state.Load() == internal.StateCodeStarted }
+// IsRunning checks whether the manager is in starting or started state.
+func (m *Manager) IsRunning() bool {
+	return m.state.Is(internal.StateStarting, internal.StateStarted)
+}
 
 // Setup runs the provided setup function with the parent context.
 // It does not change the state and must only be called in the "unspecified" state.
@@ -56,7 +58,7 @@ func (m *Manager) Setup(fn func(ctx context.Context) error) (err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.state.Load() != internal.StateCodeUnspecified {
+	if !m.state.Is(internal.StateUnspecified) {
 		return NewErrInvalidState(m.name)
 	}
 
@@ -87,8 +89,9 @@ func (m *Manager) Go(fn func(ctx context.Context) error) {
 	})
 }
 
-// Start transitions the manager from "unspecified" to "started" state
-// and initializes a new context + errgroup for managing goroutines.
+// Start transitions the manager from "unspecified" to "starting" state,
+// and then to either "started" or "start error" based on success or failure.
+// It also initializes a new context and errgroup for managing goroutines.
 //
 // CONTRACT:
 //   - The fn must not block; long-running work must be placed in Go().
@@ -97,14 +100,18 @@ func (m *Manager) Start(fn func(ctx context.Context) error) (err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if !m.state.CompareAndSwap(internal.StateCodeUnspecified, internal.StateCodeStarted) {
+	if _, ok := m.state.SetIf(internal.StateStarting, internal.StateUnspecified); !ok {
 		return NewErrInvalidState(m.name)
 	}
 
 	defer func() {
-		// If Start fails, revert state back to unspecified.
+		state := internal.StateStarted
 		if err != nil {
-			_ = m.state.CompareAndSwap(internal.StateCodeStarted, internal.StateCodeUnspecified)
+			state = internal.StateStartError
+		}
+
+		if _, ok := m.state.SetIf(state, internal.StateStarting); !ok {
+			panic(NewErrInvalidState(m.name))
 		}
 	}()
 
@@ -133,15 +140,27 @@ func (m *Manager) Start(fn func(ctx context.Context) error) (err error) {
 	return nil
 }
 
-// Stop cancels the process context and marks the manager as stopped.
+// Stop cancels the process context and transitions the manager's state
+// to "stopping", then to either "stopped" or "stop error" based on success or failure.
 func (m *Manager) Stop(fn func() error) (err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	// If already stopped or not started, return nil.
-	if !m.state.CompareAndSwap(internal.StateCodeStarted, internal.StateCodeStopped) {
+	if _, ok := m.state.SetIfNot(internal.StateStopping, internal.StateUnspecified); !ok {
 		return nil
 	}
+
+	defer func() {
+		state := internal.StateStopped
+		if err != nil {
+			state = internal.StateStopError
+		}
+
+		if _, ok := m.state.SetIf(state, internal.StateStopping); !ok {
+			panic(NewErrInvalidState(m.name))
+		}
+	}()
 
 	log.Info("Stopping process", "name", m.name)
 	if m.cancel != nil {
@@ -162,14 +181,14 @@ func (m *Manager) Stop(fn func() error) (err error) {
 // CONTRACT:
 //   - MUST be called only after Start() succeeds.
 func (m *Manager) Wait(fn func() error) (err error) {
-	if m.state.Load() == internal.StateCodeUnspecified {
+	if m.state.Is(internal.StateUnspecified) {
 		return NewErrInvalidState(m.name)
 	}
 
 	if m.eg != nil {
 		if err := m.eg.Wait(); err != nil {
 			// If not stopped, propagate error.
-			if m.state.Load() != internal.StateCodeStopped {
+			if !m.state.Is(internal.StateStopping, internal.StateStopError, internal.StateStopped) {
 				return err
 			}
 
@@ -197,7 +216,7 @@ func (m *Manager) Cleanup(fn func() error) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.state.Load() != internal.StateCodeStopped {
+	if !m.state.Is(internal.StateStopped) {
 		return NewErrNotStopped(m.name)
 	}
 
@@ -219,7 +238,7 @@ func (m *Manager) Cleanup(fn func() error) error {
 
 // Reset moves the state from "stopped" back to "unspecified".
 func (m *Manager) Reset() error {
-	if !m.state.CompareAndSwap(internal.StateCodeStopped, internal.StateCodeUnspecified) {
+	if _, ok := m.state.SetIf(internal.StateUnspecified, internal.StateStopped); !ok {
 		return NewErrNotStopped(m.name)
 	}
 
