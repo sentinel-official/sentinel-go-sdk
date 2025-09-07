@@ -14,30 +14,20 @@ import (
 // Manager controls the lifecycle of a process, including start, stop, and cleanup.
 // It ensures correct state transitions and provides concurrency-safe process management.
 type Manager struct {
-	name   string          // Process name.
-	parent context.Context // Parent context provided at creation.
-	state  internal.State  // Current state of the process.
+	name  string         // Process name.
+	state internal.State // Current state of the process.
 
 	cancel context.CancelFunc // Cancel function for the process context.
-	ctx    context.Context    // Derived context tied to this manager.
 	eg     *errgroup.Group    // Errgroup to manage goroutines under this manager.
 
 	mu sync.Mutex // Protects state and context fields from concurrent access
 }
 
 // NewManager initializes a new Manager with a given parent context, and name.
-func NewManager(ctx context.Context, name string) *Manager {
-	if ctx == nil {
-		ctx = context.Background()
+func NewManager(name string) *Manager {
+	return &Manager{
+		name: name,
 	}
-
-	m := &Manager{
-		name:   name,
-		parent: ctx,
-	}
-
-	m.state.Set(internal.StateUnspecified)
-	return m
 }
 
 // Name returns the name of the manager.
@@ -48,13 +38,38 @@ func (m *Manager) IsRunning() bool {
 	return m.state.Is(internal.StateStarting, internal.StateStarted)
 }
 
+// Go starts a goroutine tied to the lifecycle of the manager.
+//
+// CONTRACT:
+//   - MUST only be called synchronously inside the function passed to Start().
+//   - MUST NOT be called externally.
+func (m *Manager) Go(ctx context.Context, fn func() error) {
+	m.eg.Go(func() error {
+		// Check if context was already canceled.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		// Run provided go function if given.
+		if fn != nil {
+			if err := fn(); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
 // Setup runs the provided setup function with the parent context.
 // It does not change the state and must only be called in the "unspecified" state.
 //
 // CONTRACT:
 //   - MUST be called only before Start().
 //   - MUST NOT spawn goroutines.
-func (m *Manager) Setup(fn func(ctx context.Context) error) (err error) {
+func (m *Manager) Setup(ctx context.Context, fn func() error) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -66,35 +81,19 @@ func (m *Manager) Setup(fn func(ctx context.Context) error) (err error) {
 
 	// Check if context was already canceled.
 	select {
-	case <-m.parent.Done():
-		return m.parent.Err()
+	case <-ctx.Done():
+		return ctx.Err()
 	default:
 	}
 
 	// Run provided setup function if given.
 	if fn != nil {
-		return fn(m.parent)
+		if err := fn(); err != nil {
+			return err
+		}
 	}
 
 	return nil
-}
-
-// Go starts a goroutine tied to the lifecycle of the manager.
-//
-// CONTRACT:
-//   - MUST only be called synchronously inside the function passed to Start().
-//   - MUST NOT be called externally.
-func (m *Manager) Go(fn func(ctx context.Context) error) {
-	m.eg.Go(func() error {
-		// Check if context was already canceled.
-		select {
-		case <-m.ctx.Done():
-			return m.ctx.Err()
-		default:
-		}
-
-		return fn(m.ctx)
-	})
 }
 
 // Start transitions the manager from "unspecified" to "starting" state,
@@ -104,12 +103,12 @@ func (m *Manager) Go(fn func(ctx context.Context) error) {
 // CONTRACT:
 //   - The fn must not block; long-running work must be placed in Go().
 //   - The fn must not return an error if Go() is called inside it.
-func (m *Manager) Start(fn func(ctx context.Context) error) (err error) {
+func (m *Manager) Start(parent context.Context, fn func(ctx context.Context) error) (_ context.Context, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if _, ok := m.state.SetIf(internal.StateStarting, internal.StateUnspecified); !ok {
-		return NewErrInvalidState(m.name)
+		return nil, NewErrInvalidState(m.name)
 	}
 
 	defer func() {
@@ -126,26 +125,27 @@ func (m *Manager) Start(fn func(ctx context.Context) error) (err error) {
 	log.Debug("Starting process", "name", m.name)
 
 	// Create a fresh context tied to this manager, with cancellation support.
-	ctx, cancel := context.WithCancel(m.parent)
+	ctx, cancel := context.WithCancel(parent)
 	eg, ctx := errgroup.WithContext(ctx)
 
 	m.cancel = cancel
-	m.ctx = ctx
 	m.eg = eg
 
 	// Check if context was already canceled.
 	select {
-	case <-m.ctx.Done():
-		return m.ctx.Err()
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	default:
 	}
 
 	// Run provided start function if given.
 	if fn != nil {
-		return fn(m.ctx)
+		if err := fn(ctx); err != nil {
+			return nil, err
+		}
 	}
 
-	return nil
+	return ctx, nil
 }
 
 // Stop cancels the process context and transitions the manager's state
@@ -188,7 +188,7 @@ func (m *Manager) Stop(fn func() error) (err error) {
 //
 // CONTRACT:
 //   - MUST be called only after Start() succeeds.
-func (m *Manager) Wait(fn func() error) (err error) {
+func (m *Manager) Wait(ctx context.Context, fn func() error) error {
 	if m.state.Is(internal.StateUnspecified) {
 		return NewErrInvalidState(m.name)
 	}
@@ -201,7 +201,7 @@ func (m *Manager) Wait(fn func() error) (err error) {
 			}
 
 			// If stopped, ignore context.Canceled errors.
-			if !utils.ErrorIs(context.Cause(m.ctx), context.Canceled) {
+			if !utils.ErrorIs(context.Cause(ctx), context.Canceled) {
 				return err
 			}
 		}
@@ -231,7 +231,6 @@ func (m *Manager) Cleanup(fn func() error) error {
 	log.Debug("Cleaning up process", "name", m.name)
 
 	m.eg = nil
-	m.ctx = nil
 	m.cancel = nil
 
 	// Run provided cleanup function if given.

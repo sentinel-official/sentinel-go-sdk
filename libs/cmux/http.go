@@ -19,7 +19,7 @@ import (
 // Server is a multiprotocol HTTP server that supports both
 // HTTP and HTTPS traffic on the same TCP port using cmux.
 type Server struct {
-	*process.Manager // Embedded process manager for handling server lifecycle
+	*process.Manager // Embedded process manager for handling lifecycle
 
 	addr     string       // TCP address to listen on (e.g., ":8080")
 	certFile string       // Path to TLS certificate file
@@ -33,9 +33,9 @@ type Server struct {
 
 // NewServer initializes a new Server instance with the given address,
 // TLS certificate and key files, and HTTP handler.
-func NewServer(ctx context.Context, name, addr, certFile, keyFile string, handler http.Handler) *Server {
+func NewServer(name, addr, certFile, keyFile string, handler http.Handler) *Server {
 	return &Server{
-		Manager:  process.NewManager(ctx, name),
+		Manager:  process.NewManager(name),
 		addr:     addr,
 		certFile: certFile,
 		handler:  handler,
@@ -44,13 +44,13 @@ func NewServer(ctx context.Context, name, addr, certFile, keyFile string, handle
 }
 
 // Setup prepares the server for operation.
-func (s *Server) Setup() error {
-	return s.Manager.Setup(nil)
+func (s *Server) Setup(ctx context.Context) error {
+	return s.Manager.Setup(ctx, nil)
 }
 
 // Start launches the server and begins handling both HTTP and HTTPS traffic.
-func (s *Server) Start() (err error) {
-	return s.Manager.Start(func(_ context.Context) error {
+func (s *Server) Start(parent context.Context) (context.Context, error) {
+	return s.Manager.Start(parent, func(ctx context.Context) error {
 		// Load the TLS certificate and key from disk
 		cert, err := tls.LoadX509KeyPair(s.certFile, s.keyFile)
 		if err != nil {
@@ -84,7 +84,7 @@ func (s *Server) Start() (err error) {
 		}
 
 		// Start the cmux multiplexer, which delegates connections to the correct server
-		s.Go(func(_ context.Context) error {
+		s.Go(ctx, func() error {
 			if err := s.cMux.Serve(); err != nil {
 				return err
 			}
@@ -93,7 +93,7 @@ func (s *Server) Start() (err error) {
 		})
 
 		// Start serving TLS traffic in a separate goroutine
-		s.Go(func(_ context.Context) error {
+		s.Go(ctx, func() error {
 			cfg := &tls.Config{
 				Certificates: []tls.Certificate{cert}, // Load TLS certificate
 				Rand:         rand.Reader,             // Use secure random for crypto
@@ -111,7 +111,7 @@ func (s *Server) Start() (err error) {
 		})
 
 		// Start serving non-TLS HTTP traffic
-		s.Go(func(_ context.Context) error {
+		s.Go(ctx, func() error {
 			if err := s.anyServer.Serve(anyMux); err != nil {
 				return err
 			}
@@ -120,7 +120,7 @@ func (s *Server) Start() (err error) {
 		})
 
 		// Close CMux on context cancellation
-		s.Go(func(ctx context.Context) error {
+		s.Go(ctx, func() error {
 			defer func() {
 				if s.cMux != nil {
 					s.cMux.Close()
@@ -138,8 +138,8 @@ func (s *Server) Start() (err error) {
 }
 
 // Wait blocks until all server goroutines have exited or an error occurs.
-func (s *Server) Wait() error {
-	return s.Manager.Wait(nil)
+func (s *Server) Wait(ctx context.Context) error {
+	return s.Manager.Wait(ctx, nil)
 }
 
 // Stop gracefully shuts down both the TLS and non-TLS servers and stops the multiplexer.

@@ -35,9 +35,9 @@ type Server struct {
 }
 
 // NewServer creates a new Server instance.
-func NewServer(ctx context.Context, name, appDir string, cfg *ServerConfig) *Server {
+func NewServer(name, appDir string, cfg *ServerConfig) *Server {
 	return &Server{
-		Manager: process.NewManager(ctx, name),
+		Manager: process.NewManager(name),
 		cfg:     cfg,
 		device:  "wg0",
 		homeDir: filepath.Join(appDir, "wireguard"),
@@ -62,8 +62,7 @@ func (s *Server) Type() types.ServiceType {
 // IsRunning checks if the WireGuard interface is up and active.
 func (s *Server) IsRunning() (bool, error) {
 	// Executes the 'wg show' command to check the interface status.
-	cmd := exec.CommandContext(
-		context.Background(),
+	cmd := exec.Command(
 		s.execFile("wg"),
 		strings.Fields(fmt.Sprintf("show %s", s.device))...,
 	)
@@ -112,8 +111,8 @@ func (s *Server) Init(force bool) error {
 }
 
 // Setup prepares the WireGuard server service for operation.
-func (s *Server) Setup() error {
-	return s.Manager.Setup(func(ctx context.Context) error {
+func (s *Server) Setup(ctx context.Context) error {
+	return s.Manager.Setup(ctx, func() error {
 		// Construct the full path to the config file
 		cfgFile := s.appConfigFile()
 
@@ -160,8 +159,8 @@ func (s *Server) Setup() error {
 }
 
 // Start starts the WireGuard server service.
-func (s *Server) Start() error {
-	return s.Manager.Start(func(ctx context.Context) error {
+func (s *Server) Start(parent context.Context) (context.Context, error) {
+	return s.Manager.Start(parent, func(ctx context.Context) error {
 		// Start the WireGuard process.
 		cmd, err := s.startCmd(ctx)
 		if err != nil {
@@ -173,7 +172,7 @@ func (s *Server) Start() error {
 		}
 
 		// Periodically sync peer statistics.
-		s.Go(func(ctx context.Context) error {
+		s.Go(ctx, func() error {
 			for {
 				select {
 				case <-ctx.Done():
@@ -217,8 +216,8 @@ func (s *Server) Stop() error {
 }
 
 // Wait waits for all background goroutines to complete.
-func (s *Server) Wait() error {
-	return s.Manager.Wait(nil)
+func (s *Server) Wait(ctx context.Context) error {
+	return s.Manager.Wait(ctx, nil)
 }
 
 // Cleanup removes service configuration files.

@@ -29,8 +29,7 @@ func (c *Client) startCmd(ctx context.Context) (*exec.Cmd, error) {
 func (c *Client) stopCmd() (*exec.Cmd, error) {
 	// Build the command to install the WireGuard tunnel service.
 	cfgFile := c.serviceConfigFile()
-	cmd := exec.CommandContext(
-		context.Background(),
+	cmd := exec.Command(
 		c.execFile("wireguard"),
 		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", cfgFile))...,
 	)

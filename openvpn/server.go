@@ -41,9 +41,9 @@ type Server struct {
 }
 
 // NewServer creates a new Server instance.
-func NewServer(ctx context.Context, name, appDir string, cfg *ServerConfig) *Server {
+func NewServer(name, appDir string, cfg *ServerConfig) *Server {
 	return &Server{
-		Manager: process.NewManager(ctx, name),
+		Manager: process.NewManager(name),
 		cfg:     cfg,
 		homeDir: filepath.Join(appDir, "openvpn"),
 		peers:   safe.NewMap[string, Peer](),
@@ -192,8 +192,8 @@ func (s *Server) Init(force bool) error {
 }
 
 // Setup prepares the OpenVPN server service for operation.
-func (s *Server) Setup() error {
-	return s.Manager.Setup(func(ctx context.Context) error {
+func (s *Server) Setup(ctx context.Context) error {
+	return s.Manager.Setup(ctx, func() error {
 		// Construct the full path to the config file
 		cfgFile := s.appConfigFile()
 
@@ -259,8 +259,8 @@ func (s *Server) Setup() error {
 }
 
 // Start starts the OpenVPN server service.
-func (s *Server) Start() error {
-	return s.Manager.Start(func(ctx context.Context) error {
+func (s *Server) Start(parent context.Context) (context.Context, error) {
+	return s.Manager.Start(parent, func(ctx context.Context) error {
 		// Constructs the command to start the OpenVPN server.
 		cfgFile := s.serviceConfigFile()
 		s.cmd = exec.CommandContext(
@@ -280,7 +280,7 @@ func (s *Server) Start() error {
 		}
 
 		// Wait for the OpenVPN process to finish in a separate goroutine.
-		s.Go(func(ctx context.Context) (err error) {
+		s.Go(ctx, func() (err error) {
 			if err = s.cmd.Wait(); err == nil {
 				err = errors.New("exited unexpectedly")
 			}
@@ -289,7 +289,7 @@ func (s *Server) Start() error {
 		})
 
 		// Start background goroutine for periodic peer statistics updates.
-		s.Go(func(ctx context.Context) error {
+		s.Go(ctx, func() error {
 			for {
 				select {
 				case <-ctx.Done():
@@ -348,8 +348,8 @@ func (s *Server) Stop() error {
 }
 
 // Wait waits for all background goroutines to complete.
-func (s *Server) Wait() error {
-	return s.Manager.Wait(nil)
+func (s *Server) Wait(ctx context.Context) error {
+	return s.Manager.Wait(ctx, nil)
 }
 
 // Cleanup removes service configuration files.

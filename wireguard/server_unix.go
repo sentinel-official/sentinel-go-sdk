@@ -31,8 +31,7 @@ func (s *Server) startCmd(ctx context.Context) (*exec.Cmd, error) {
 func (s *Server) stopCmd() (*exec.Cmd, error) {
 	// Build the 'wg-quick down' command with the service config file.
 	cfgFile := s.serviceConfigFile()
-	cmd := exec.CommandContext(
-		context.Background(),
+	cmd := exec.Command(
 		s.execFile("wg-quick"),
 		strings.Fields(fmt.Sprintf("down %s", cfgFile))...,
 	)

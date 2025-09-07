@@ -15,30 +15,31 @@ import (
 
 // Scheduler manages the scheduling and execution of workers.
 type Scheduler struct {
-	*process.Manager                   // Embedded process manager for handling scheduler lifecycle.
-	workers          map[string]Worker // Holds all workers registered with the scheduler.
+	*process.Manager // Embedded process manager for handling lifecycle.
+
+	workers map[string]Worker // Holds all workers registered with the scheduler.
 }
 
 // NewScheduler creates and initializes a new Scheduler instance.
-func NewScheduler(ctx context.Context, name string) *Scheduler {
+func NewScheduler(name string) *Scheduler {
 	return &Scheduler{
-		Manager: process.NewManager(ctx, name),
+		Manager: process.NewManager(name),
 		workers: make(map[string]Worker),
 	}
 }
 
 // Setup prepares the scheduler for operation.
-func (s *Scheduler) Setup() error {
-	return s.Manager.Setup(nil)
+func (s *Scheduler) Setup(ctx context.Context) error {
+	return s.Manager.Setup(ctx, nil)
 }
 
 // Start begins executing all registered workers concurrently.
-func (s *Scheduler) Start() error {
-	return s.Manager.Start(func(_ context.Context) error {
+func (s *Scheduler) Start(parent context.Context) (context.Context, error) {
+	return s.Manager.Start(parent, func(ctx context.Context) error {
 		for _, val := range s.workers {
 			worker := val
 
-			s.Go(func(ctx context.Context) error {
+			s.Go(ctx, func() error {
 				// Run the worker and log error if any
 				if err := s.runWorker(ctx, worker); err != nil {
 					if !utils.ErrorIs(err, context.Canceled) {
@@ -55,8 +56,8 @@ func (s *Scheduler) Start() error {
 }
 
 // Wait blocks until all workers have exited or the manager is stopped.
-func (s *Scheduler) Wait() error {
-	return s.Manager.Wait(nil)
+func (s *Scheduler) Wait(ctx context.Context) error {
+	return s.Manager.Wait(ctx, nil)
 }
 
 // Stop gracefully halts the scheduler and cancels all running workers.

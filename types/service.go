@@ -60,12 +60,12 @@ type ClientService interface {
 	Type() ServiceType        // Type returns the type of the client service.
 	IsRunning() (bool, error) // IsRunning checks if the client service is currently running.
 
-	Init(force bool) error // Init initializes the service, optionally overwriting the config if force is true.
-	Setup() error          // Setup prepares the client service for operation.
-	Start() error          // Start brings up the client service.
-	Stop() error           // Stop shuts down the client service.
-	Wait() error           // Wait blocks until the client service finishes.
-	Cleanup() error        // Cleanup performs cleanup operations after stopping the service.
+	Init(force bool) error                                 // Init initializes the service, optionally overwriting the config if force is true.
+	Setup(ctx context.Context) error                       // Setup prepares the client service for operation.
+	Start(parent context.Context) (context.Context, error) // Start brings up the client service.
+	Stop() error                                           // Stop shuts down the client service.
+	Wait(ctx context.Context) error                        // Wait blocks until the client service finishes.
+	Cleanup() error                                        // Cleanup performs cleanup operations after stopping the service.
 
 	Statistics(ctx context.Context) (int64, int64, error) // Statistics returns the download and upload statistics.
 }
@@ -75,12 +75,12 @@ type ServerService interface {
 	Type() ServiceType        // Type returns the type of the server service.
 	IsRunning() (bool, error) // IsRunning checks if the server service is currently running.
 
-	Init(force bool) error // Init initializes the service, optionally overwriting the config if force is true.
-	Setup() error          // Setup prepares the server service for operation.
-	Start() error          // Start brings up the server service.
-	Stop() error           // Stop shuts down the server service.
-	Wait() error           // Wait blocks until the server service finishes.
-	Cleanup() error        // Cleanup performs cleanup operations after stopping the service.
+	Init(force bool) error                                 // Init initializes the service, optionally overwriting the config if force is true.
+	Setup(ctx context.Context) error                       // Setup prepares the server service for operation.
+	Start(parent context.Context) (context.Context, error) // Start brings up the server service.
+	Stop() error                                           // Stop shuts down the server service.
+	Wait(ctx context.Context) error                        // Wait blocks until the server service finishes.
+	Cleanup() error                                        // Cleanup performs cleanup operations after stopping the service.
 
 	AddPeer(ctx context.Context, req interface{}) (id string, res interface{}, err error) // AddPeer adds a peer and returns its ID, the peer object, and an error if any.
 	HasPeer(ctx context.Context, id string) (bool, error)                                 // HasPeer checks if a peer exists in the server service.

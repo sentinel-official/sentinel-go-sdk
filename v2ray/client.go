@@ -31,9 +31,9 @@ type Client struct {
 }
 
 // NewClient creates a new Client instance.
-func NewClient(ctx context.Context, name, appDir string, cfg *ClientConfig) *Client {
+func NewClient(name, appDir string, cfg *ClientConfig) *Client {
 	return &Client{
-		Manager: process.NewManager(ctx, name),
+		Manager: process.NewManager(name),
 		cfg:     cfg,
 		homeDir: filepath.Join(appDir, "v2ray"),
 	}
@@ -163,8 +163,8 @@ func (c *Client) Init(force bool) error {
 }
 
 // Setup prepares the V2Ray client service for operation.
-func (c *Client) Setup() error {
-	return c.Manager.Setup(func(ctx context.Context) error {
+func (c *Client) Setup(ctx context.Context) error {
+	return c.Manager.Setup(ctx, func() error {
 		// Construct the full path to the config file
 		cfgFile := c.appConfigFile()
 
@@ -197,8 +197,8 @@ func (c *Client) Setup() error {
 }
 
 // Start starts the V2Ray client service.
-func (c *Client) Start() error {
-	return c.Manager.Start(func(ctx context.Context) error {
+func (c *Client) Start(parent context.Context) (context.Context, error) {
+	return c.Manager.Start(parent, func(ctx context.Context) error {
 		// Constructs the command to start the V2Ray client.
 		cfgFile := c.serviceConfigFile()
 		c.cmd = exec.CommandContext(
@@ -218,7 +218,7 @@ func (c *Client) Start() error {
 		}
 
 		// Wait for the V2Ray process to finish in a separate goroutine.
-		c.Go(func(ctx context.Context) (err error) {
+		c.Go(ctx, func() (err error) {
 			if err = c.cmd.Wait(); err == nil {
 				err = errors.New("exited unexpectedly")
 			}
@@ -262,8 +262,8 @@ func (c *Client) Stop() error {
 }
 
 // Wait waits for all background goroutines to complete.
-func (c *Client) Wait() error {
-	return c.Manager.Wait(nil)
+func (c *Client) Wait(ctx context.Context) error {
+	return c.Manager.Wait(ctx, nil)
 }
 
 // Cleanup removes service configuration files.
