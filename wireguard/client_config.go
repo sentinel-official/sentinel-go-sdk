@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -25,7 +26,7 @@ type PeerClientConfig struct {
 
 // Endpoint returns the full network endpoint for the WireGuard peer.
 func (c *PeerClientConfig) Endpoint() string {
-	return net.JoinHostPort(c.Addr, fmt.Sprintf("%d", c.Port))
+	return net.JoinHostPort(c.Addr, strconv.FormatUint(uint64(c.Port), 10))
 }
 
 // Validate checks if the PeerClientConfig fields are correctly formatted and returns an error if any validation fails.
@@ -56,6 +57,7 @@ func (c *PeerClientConfig) Validate() error {
 	if c.PublicKey == "" {
 		return errors.New("public_key is empty")
 	}
+
 	if _, err := NewKeyFromString(c.PublicKey); err != nil {
 		return fmt.Errorf("parsing public_key %q: %w", c.PublicKey, err)
 	}
@@ -170,6 +172,7 @@ func (c *ClientConfig) Validate() error {
 	if c.Peer == nil {
 		return errors.New("peer is nil")
 	}
+
 	if err := c.Peer.Validate(); err != nil {
 		return fmt.Errorf("validating peer config: %w", err)
 	}
@@ -183,6 +186,7 @@ func (c *ClientConfig) Validate() error {
 	if c.PrivateKey == "" {
 		return errors.New("private_key is empty")
 	}
+
 	if _, err := NewKeyFromString(c.PrivateKey); err != nil {
 		return fmt.Errorf("parsing private_key %q: %w", c.PrivateKey, err)
 	}
@@ -276,6 +280,7 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 
 	// Bind all added flags.
 	r := strings.NewReplacer("-", "_")
+
 	fs.VisitAll(func(f *pflag.Flag) {
 		if strings.HasPrefix(f.Name, prefix) {
 			_ = c.viper.BindPFlag(strings.TrimPrefix(r.Replace(f.Name), prefix), f)

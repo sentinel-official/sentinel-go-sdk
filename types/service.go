@@ -26,6 +26,8 @@ func (s ServiceType) String() string {
 		return "v2ray"
 	case ServiceTypeOpenVPN:
 		return "openvpn"
+	case ServiceTypeUnspecified:
+		return "unspecified"
 	default:
 		return ""
 	}

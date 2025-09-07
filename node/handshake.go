@@ -14,10 +14,10 @@ import (
 
 // InitHandshakeRequestBody represents the request payload for adding a session.
 type InitHandshakeRequestBody struct {
-	Data      []byte `json:"data" binding:"required,gt=0"`             // JSON encoded session data, must be present and non-empty.
-	ID        uint64 `json:"id" binding:"required,gt=0"`               // Unique identifier for the session, must be greater than zero.
-	PubKey    string `json:"pub_key" binding:"required,gt=0"`          // Public key associated with the session, required and non-empty.
-	Signature string `json:"signature" binding:"required,base64,gt=0"` // Digital signature in Base64 format, required and non-empty.
+	Data      []byte `binding:"required,gt=0"        json:"data"`      // JSON encoded session data, must be present and non-empty.
+	ID        uint64 `binding:"required,gt=0"        json:"id"`        // Unique identifier for the session, must be greater than zero.
+	PubKey    string `binding:"required,gt=0"        json:"pub_key"`   // Public key associated with the session, required and non-empty.
+	Signature string `binding:"required,base64,gt=0" json:"signature"` // Digital signature in Base64 format, required and non-empty.
 }
 
 // AccAddr converts the public key into a Cosmos SDK AccAddress.
@@ -35,6 +35,7 @@ func (r *InitHandshakeRequestBody) AccAddr() (types.AccAddress, error) {
 func (r *InitHandshakeRequestBody) Msg() (buf []byte) {
 	buf = append(buf, types.Uint64ToBigEndian(r.ID)...)
 	buf = append(buf, r.Data...)
+
 	return buf
 }
 

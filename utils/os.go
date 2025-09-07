@@ -27,6 +27,7 @@ func RemoveFile(path string) error {
 	if err != nil {
 		return fmt.Errorf("checking if file %q exists: %w", path, err)
 	}
+
 	if !exists {
 		return nil
 	}

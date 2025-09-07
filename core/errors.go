@@ -13,7 +13,7 @@ var ErrNotFound = errors.New("not found")
 
 // NewErrNotFound wraps an existing error with the predefined ErrNotFound.
 func NewErrNotFound(err error) error {
-	return fmt.Errorf("%w: %v", ErrNotFound, err)
+	return fmt.Errorf("%w: %w", ErrNotFound, err)
 }
 
 // IsWrongSequenceErr checks if the error message indicates an account sequence mismatch error.
@@ -31,9 +31,11 @@ func HandleQueryErr(err error) error {
 	if strings.Contains(err.Error(), "rpc error: code = NotFound") {
 		return nil
 	}
+
 	if strings.Contains(err.Error(), authz.ErrNoAuthorizationFound.Error()) {
 		return nil
 	}
+
 	if strings.Contains(err.Error(), "fee-grant not found") {
 		return nil
 	}

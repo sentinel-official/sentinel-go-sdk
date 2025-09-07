@@ -30,6 +30,7 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 
 	// Marshal the request body if provided.
 	var body io.Reader
+
 	if reqBody != nil {
 		buf, err := json.Marshal(reqBody)
 		if err != nil {
@@ -75,6 +76,7 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 		if err != nil {
 			return fmt.Errorf("marshaling response body result: %w", err)
 		}
+
 		if err := json.Unmarshal(buf, result); err != nil {
 			return fmt.Errorf("unmarshaling response body result: %w", err)
 		}
@@ -89,6 +91,7 @@ func (c *Client) getURL(ctx context.Context, pathSuffix string) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("querying node %q: %w", c.addr.String(), err)
 	}
+
 	if node == nil {
 		return "", fmt.Errorf("node %q does not exist", c.addr.String())
 	}

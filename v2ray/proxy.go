@@ -18,6 +18,18 @@ const (
 	ProxyProtocolVMess                            // ProxyProtocolVMess represents the VMess protocol
 )
 
+// NewProxyProtocolFromString converts a string to a ProxyProtocol type.
+func NewProxyProtocolFromString(v string) ProxyProtocol {
+	switch v {
+	case "vless":
+		return ProxyProtocolVLess
+	case "vmess":
+		return ProxyProtocolVMess
+	default:
+		return ProxyProtocolUnspecified // Returns the default protocol if no match is found
+	}
+}
+
 // String returns a string representation of the ProxyProtocol type.
 func (p ProxyProtocol) String() string {
 	switch p {
@@ -25,8 +37,10 @@ func (p ProxyProtocol) String() string {
 		return "vless"
 	case ProxyProtocolVMess:
 		return "vmess"
+	case ProxyProtocolUnspecified:
+		return "unspecified"
 	default:
-		return "" // Return empty string for unspecified or unknown protocols
+		return "" // Return empty string for unknown protocols
 	}
 }
 
@@ -50,19 +64,9 @@ func (p ProxyProtocol) Account(uid uuid.UUID) *anypb.Any {
 				Id: uid.String(),
 			},
 		)
+	case ProxyProtocolUnspecified:
+		return nil
 	default:
 		return nil
-	}
-}
-
-// NewProxyProtocolFromString converts a string to a ProxyProtocol type.
-func NewProxyProtocolFromString(v string) ProxyProtocol {
-	switch v {
-	case "vless":
-		return ProxyProtocolVLess
-	case "vmess":
-		return ProxyProtocolVMess
-	default:
-		return ProxyProtocolUnspecified // Returns the default protocol if no match is found
 	}
 }

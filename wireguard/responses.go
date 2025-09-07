@@ -12,7 +12,7 @@ type AddPeerResponse struct {
 
 // GetAddrs returns the assigned IP addresses as strings.
 func (r *AddPeerResponse) GetAddrs() []string {
-	var addrs []string
+	addrs := make([]string, 0, len(r.Addrs))
 
 	// Convert netip.Prefix to string.
 	for _, addr := range r.Addrs {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -28,6 +29,7 @@ func (c *InboundServerConfig) GetPort() *netip.Port {
 	if err != nil {
 		panic(err)
 	}
+
 	if port == nil {
 		panic(errors.New("nil port"))
 	}
@@ -134,6 +136,7 @@ func (c *ServerConfig) Validate() error {
 		if err != nil {
 			panic(err)
 		}
+
 		if port == nil {
 			panic(errors.New("nil port"))
 		}
@@ -251,13 +254,13 @@ func DefaultServerConfig() *ServerConfig {
 	return &ServerConfig{
 		Inbounds: []*InboundServerConfig{
 			{
-				Port:              fmt.Sprintf("%d", utils.RandomPort()),
+				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
 				ProxyProtocol:     randomProxyProtocol(),
 				TransportProtocol: randomTransportProtocol(),
 				TransportSecurity: randomTransportSecurity(),
 			},
 			{
-				Port:              fmt.Sprintf("%d", utils.RandomPort()),
+				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
 				ProxyProtocol:     randomProxyProtocol(),
 				TransportProtocol: randomTransportProtocol(),
 				TransportSecurity: randomTransportSecurity(),

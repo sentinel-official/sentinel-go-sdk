@@ -33,28 +33,29 @@ func (s *State) Get() StateCode {
 
 // Set unconditionally sets the state to 'new'.
 // Returns the previous state.
-func (s *State) Set(new StateCode) StateCode {
+func (s *State) Set(code StateCode) StateCode {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	old := s.code
-	s.code = new
+	s.code = code
 
 	return old
 }
 
 // SetIf sets the state to 'new' only if the current state matches any of the given 'olds' states.
 // Returns the previous state and true if the state was changed, false if no change occurred.
-func (s *State) SetIf(new StateCode, olds ...StateCode) (old StateCode, changed bool) {
+func (s *State) SetIf(code StateCode, olds ...StateCode) (old StateCode, changed bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	old = s.code
 
 	// Check if the current state matches any of the 'olds'
-	for _, code := range olds {
-		if old == code {
-			s.code = new
+	for _, v := range olds {
+		if old == v {
+			s.code = code
+
 			return old, true
 		}
 	}
@@ -65,22 +66,23 @@ func (s *State) SetIf(new StateCode, olds ...StateCode) (old StateCode, changed 
 
 // SetIfNot sets the state to 'new' only if the current state does NOT match any of the given 'olds' states.
 // Returns the previous state and true if the state was changed, false if no change occurred.
-func (s *State) SetIfNot(new StateCode, olds ...StateCode) (old StateCode, changed bool) {
+func (s *State) SetIfNot(code StateCode, olds ...StateCode) (old StateCode, changed bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	old = s.code
 
 	// Check if the current state matches any of the 'olds'
-	for _, code := range olds {
-		if old == code {
+	for _, v := range olds {
+		if old == v {
 			// No change if there's a match
 			return old, false
 		}
 	}
 
 	// Set the new state if no match is found
-	s.code = new
+	s.code = code
+
 	return old, true
 }
 
@@ -89,8 +91,8 @@ func (s *State) Is(states ...StateCode) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	for _, code := range states {
-		if s.code == code {
+	for _, v := range states {
+		if s.code == v {
 			return true
 		}
 	}

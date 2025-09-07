@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -31,6 +32,7 @@ func (c *ServerConfig) Address() string {
 	if c.IPv4Addr != "" {
 		addrs = append(addrs, c.IPv4Addr)
 	}
+
 	if c.IPv6Addr != "" {
 		addrs = append(addrs, c.IPv6Addr)
 	}
@@ -44,6 +46,7 @@ func (c *ServerConfig) InPort() uint16 {
 	if err != nil {
 		panic(err)
 	}
+
 	if v == nil {
 		panic(errors.New("nil port"))
 	}
@@ -57,6 +60,7 @@ func (c *ServerConfig) OutPort() uint16 {
 	if err != nil {
 		panic(err)
 	}
+
 	if v == nil {
 		panic(errors.New("nil port"))
 	}
@@ -80,6 +84,7 @@ func (c *ServerConfig) AddrPoolSet() (*netip.AddrPoolSet, error) {
 	if c.IPv4Addr != "" {
 		addrs = append(addrs, c.IPv4Addr)
 	}
+
 	if c.IPv6Addr != "" {
 		addrs = append(addrs, c.IPv6Addr)
 	}
@@ -122,6 +127,7 @@ func (c *ServerConfig) Validate() error {
 	if c.Port == "" {
 		return errors.New("port is empty")
 	}
+
 	if _, err := netip.NewPortFromString(c.Port); err != nil {
 		return fmt.Errorf("parsing port %q: %w", c.Port, err)
 	}
@@ -130,6 +136,7 @@ func (c *ServerConfig) Validate() error {
 	if c.PrivateKey == "" {
 		return errors.New("private_key is empty")
 	}
+
 	if _, err := NewKeyFromString(c.PrivateKey); err != nil {
 		return fmt.Errorf("parsing private_key %q: %w", c.PrivateKey, err)
 	}
@@ -216,7 +223,7 @@ func DefaultServerConfig() *ServerConfig {
 		IPv4Addr:     fmt.Sprintf("10.%d.%d.1/24", rand.IntN(256), rand.IntN(256)),
 		IPv6Addr:     "",
 		OutInterface: "eth0",
-		Port:         fmt.Sprintf("%d", utils.RandomPort()),
+		Port:         strconv.FormatUint(uint64(utils.RandomPort()), 10),
 		PrivateKey:   pk.String(),
 	}
 }

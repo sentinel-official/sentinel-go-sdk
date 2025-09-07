@@ -39,56 +39,6 @@ func NewClient(name, appDir string, cfg *ClientConfig) *Client {
 	}
 }
 
-func (c *Client) appConfigFile() string     { return filepath.Join(c.homeDir, "config.toml") }
-func (c *Client) pidFile() string           { return filepath.Join(c.homeDir, "client.pid") }
-func (c *Client) serviceConfigFile() string { return filepath.Join(c.homeDir, "client.json") }
-
-// readPID reads the PID from the client's PID file.
-func (c *Client) readPID() (int32, error) {
-	// Get the full path to the PID file
-	pidFile := c.pidFile()
-
-	// Check if the PID file exists
-	exists, err := utils.IsFileExists(pidFile)
-	if err != nil {
-		return 0, fmt.Errorf("checking if PID file %q exists: %w", pidFile, err)
-	}
-	if !exists {
-		return 0, nil
-	}
-
-	// Read PID from the PID file.
-	data, err := os.ReadFile(pidFile)
-	if err != nil {
-		return 0, fmt.Errorf("reading PID file %q: %w", pidFile, err)
-	}
-
-	// Convert PID data to integer.
-	pid, err := strconv.ParseInt(string(data), 10, 32)
-	if err != nil {
-		return 0, fmt.Errorf("parsing PID: %w", err)
-	}
-	if pid <= 0 {
-		return 0, fmt.Errorf("invalid PID %d", pid)
-	}
-
-	return int32(pid), nil
-}
-
-// writePID writes the given PID to the client's PID file.
-func (c *Client) writePID(pid int) error {
-	// Convert PID to byte slice.
-	data := []byte(strconv.Itoa(pid))
-
-	// Write PID to file with appropriate permissions.
-	pidFile := c.pidFile()
-	if err := os.WriteFile(pidFile, data, 0600); err != nil {
-		return fmt.Errorf("writing PID file %q: %w", pidFile, err)
-	}
-
-	return nil
-}
-
 // Type returns the service type of the client.
 func (c *Client) Type() types.ServiceType {
 	return types.ServiceTypeV2Ray
@@ -101,6 +51,7 @@ func (c *Client) IsRunning() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("reading PID: %w", err)
 	}
+
 	if pid == 0 {
 		return false, nil
 	}
@@ -120,6 +71,7 @@ func (c *Client) IsRunning() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("checking process status: %w", err)
 	}
+
 	if !ok {
 		return false, nil
 	}
@@ -129,6 +81,7 @@ func (c *Client) IsRunning() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("getting process name: %w", err)
 	}
+
 	if name != v2ray {
 		return false, nil
 	}
@@ -204,7 +157,7 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 		c.cmd = exec.CommandContext(
 			ctx,
 			c.execFile(v2ray),
-			strings.Fields(fmt.Sprintf("run --config %s", cfgFile))...,
+			strings.Fields("run --config "+cfgFile)...,
 		)
 
 		// Starts the V2Ray client process.
@@ -238,6 +191,7 @@ func (c *Client) Stop() error {
 		if err != nil {
 			return fmt.Errorf("reading PID: %w", err)
 		}
+
 		if pid == 0 {
 			return nil
 		}
@@ -288,4 +242,56 @@ func (c *Client) Cleanup() error {
 // Statistics returns dummy statistics for now (to be implemented).
 func (c *Client) Statistics(_ context.Context) (int64, int64, error) {
 	return 0, 0, errors.New("not implemented")
+}
+
+func (c *Client) appConfigFile() string     { return filepath.Join(c.homeDir, "config.toml") }
+func (c *Client) pidFile() string           { return filepath.Join(c.homeDir, "client.pid") }
+func (c *Client) serviceConfigFile() string { return filepath.Join(c.homeDir, "client.json") }
+
+// readPID reads the PID from the client's PID file.
+func (c *Client) readPID() (int32, error) {
+	// Get the full path to the PID file
+	pidFile := c.pidFile()
+
+	// Check if the PID file exists
+	exists, err := utils.IsFileExists(pidFile)
+	if err != nil {
+		return 0, fmt.Errorf("checking if PID file %q exists: %w", pidFile, err)
+	}
+
+	if !exists {
+		return 0, nil
+	}
+
+	// Read PID from the PID file.
+	data, err := os.ReadFile(pidFile)
+	if err != nil {
+		return 0, fmt.Errorf("reading PID file %q: %w", pidFile, err)
+	}
+
+	// Convert PID data to integer.
+	pid, err := strconv.ParseInt(string(data), 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("parsing PID: %w", err)
+	}
+
+	if pid <= 0 {
+		return 0, fmt.Errorf("invalid PID %d", pid)
+	}
+
+	return int32(pid), nil
+}
+
+// writePID writes the given PID to the client's PID file.
+func (c *Client) writePID(pid int) error {
+	// Convert PID to byte slice.
+	data := []byte(strconv.Itoa(pid))
+
+	// Write PID to file with appropriate permissions.
+	pidFile := c.pidFile()
+	if err := os.WriteFile(pidFile, data, 0600); err != nil {
+		return fmt.Errorf("writing PID file %q: %w", pidFile, err)
+	}
+
+	return nil
 }

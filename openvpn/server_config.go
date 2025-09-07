@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"net"
 	"os"
+	"strconv"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -51,6 +52,7 @@ func (c *ServerConfig) OutPort() uint16 {
 	if err != nil {
 		panic(err)
 	}
+
 	if v == nil {
 		panic(errors.New("nil port"))
 	}
@@ -71,6 +73,7 @@ func (c *ServerConfig) Validate() error {
 		if err != nil {
 			return fmt.Errorf("parsing ipv4_addr %q: %w", c.IPv4Addr, err)
 		}
+
 		if ip == nil || ipNet == nil {
 			return errors.New("invalid ipv4_addr: ip or netmask is empty")
 		}
@@ -82,6 +85,7 @@ func (c *ServerConfig) Validate() error {
 		if err != nil {
 			return fmt.Errorf("parsing ipv6_addr %q: %w", c.IPv6Addr, err)
 		}
+
 		if ip == nil || ipNet == nil {
 			return errors.New("invalid ipv6_addr: ip or netmask is empty")
 		}
@@ -96,6 +100,7 @@ func (c *ServerConfig) Validate() error {
 	if c.Port == "" {
 		return errors.New("port is empty")
 	}
+
 	if _, err := netip.NewPortFromString(c.Port); err != nil {
 		return fmt.Errorf("parsing port %q: %w", c.Port, err)
 	}
@@ -191,13 +196,13 @@ func DefaultServerConfig() *ServerConfig {
 		IPv4Addr:   fmt.Sprintf("10.%d.%d.1/24", rand.IntN(256), rand.IntN(256)),
 		IPv6Addr:   "",
 		PKIDir:     "",
-		Port:       fmt.Sprintf("%d", utils.RandomPort()),
+		Port:       strconv.FormatUint(uint64(utils.RandomPort()), 10),
 		Protocol:   randomProtocol(),
 		StatusFile: "",
 	}
 }
 
-// randomProtocol randomly returns either "tcp" or "udp"
+// randomProtocol randomly returns either "tcp" or "udp".
 func randomProtocol() string {
 	return [...]string{
 		"tcp", "udp",

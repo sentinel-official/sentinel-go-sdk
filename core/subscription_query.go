@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	// gRPC methods for querying subscription and allocation information
+	// gRPC methods for querying subscription and allocation information.
 	methodQuerySubscription            = "/sentinel.subscription.v3.QueryService/QuerySubscription"            // Fetch details of a specific subscription
 	methodQuerySubscriptionAllocation  = "/sentinel.subscription.v2.QueryService/QueryAllocation"              // Fetch details of a specific allocation within a subscription
 	methodQuerySubscriptionAllocations = "/sentinel.subscription.v2.QueryService/QueryAllocations"             // Fetch a list of allocations within a subscription

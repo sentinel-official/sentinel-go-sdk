@@ -69,9 +69,11 @@ func (p *AddrPool) Assign(addr netip.Addr) error {
 	if !p.prefix.Contains(addr) {
 		return fmt.Errorf("cannot assign %q: outside of prefix", addr)
 	}
+
 	if p.reserved[addr] {
 		return fmt.Errorf("cannot assign %q: addr is reserved", addr)
 	}
+
 	if p.assigned[addr] {
 		return fmt.Errorf("cannot assign %q: addr is already assigned", addr)
 	}
@@ -90,9 +92,11 @@ func (p *AddrPool) Reserve(addr netip.Addr) error {
 	if !p.prefix.Contains(addr) {
 		return fmt.Errorf("cannot reserve %q: outside of prefix", addr)
 	}
+
 	if p.assigned[addr] {
 		return fmt.Errorf("cannot reserve %q: addr is assigned", addr)
 	}
+
 	if p.reserved[addr] {
 		return fmt.Errorf("cannot reserve %q: addr is already reserved", addr)
 	}
@@ -131,6 +135,7 @@ func (p *AddrPool) Acquire() (addr netip.Addr, err error) {
 	}
 
 	p.assigned[addr] = true
+
 	return addr, nil
 }
 
@@ -142,9 +147,11 @@ func (p *AddrPool) Release(addr netip.Addr) error {
 	if !p.prefix.Contains(addr) {
 		return fmt.Errorf("cannot release %q: outside of prefix", addr)
 	}
+
 	if p.reserved[addr] {
 		return fmt.Errorf("cannot release %q: addr is reserved", addr)
 	}
+
 	if !p.assigned[addr] {
 		return fmt.Errorf("cannot release %q: addr was not assigned", addr)
 	}
@@ -170,6 +177,7 @@ func NewAddrPoolSet(cidrs ...string) (*AddrPoolSet, error) {
 	}
 
 	var items []*Prefix
+
 	for _, cidr := range cidrs {
 		pool, prefix, err := NewAddrPool(cidr)
 		if err != nil {
@@ -215,6 +223,7 @@ func (p *AddrPoolSet) Assign(addrs ...netip.Addr) error {
 
 	for _, addr := range addrs {
 		assigned := false
+
 		for _, pool := range p.pools {
 			if pool.Contains(addr) {
 				if err := pool.Assign(addr); err != nil {
@@ -222,6 +231,7 @@ func (p *AddrPoolSet) Assign(addrs ...netip.Addr) error {
 				}
 
 				assigned = true
+
 				break
 			}
 		}
@@ -257,7 +267,7 @@ func (p *AddrPoolSet) Acquire() (addrs []netip.Addr, err error) {
 	// Rollback logic: release any acquired addresses on error.
 	defer func() {
 		if len(addrs) != len(p.pools) {
-			for i := 0; i < len(addrs); i++ {
+			for i := range addrs {
 				if err := p.pools[i].Release(addrs[i]); err != nil {
 					panic(fmt.Errorf("rollback failed for addr %q: %w", addrs[i], err))
 				}
@@ -288,6 +298,7 @@ func (p *AddrPoolSet) Release(addrs []netip.Addr) error {
 
 	for _, addr := range addrs {
 		released := false
+
 		for _, pool := range p.pools {
 			if pool.Contains(addr) {
 				if err := pool.Release(addr); err != nil {
@@ -295,6 +306,7 @@ func (p *AddrPoolSet) Release(addrs []netip.Addr) error {
 				}
 
 				released = true
+
 				break
 			}
 		}

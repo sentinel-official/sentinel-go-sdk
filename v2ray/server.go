@@ -55,56 +55,6 @@ func NewServer(name, appDir string, cfg *ServerConfig) *Server {
 	}
 }
 
-func (s *Server) appConfigFile() string     { return filepath.Join(s.homeDir, "config.toml") }
-func (s *Server) pidFile() string           { return filepath.Join(s.homeDir, "server.pid") }
-func (s *Server) serviceConfigFile() string { return filepath.Join(s.homeDir, "server.json") }
-
-// readPID reads the PID from the server's PID file.
-func (s *Server) readPID() (int32, error) {
-	// Get the full path to the PID file
-	pidFile := s.pidFile()
-
-	// Check if the PID file exists
-	exists, err := utils.IsFileExists(pidFile)
-	if err != nil {
-		return 0, fmt.Errorf("checking if PID file %q exists: %w", pidFile, err)
-	}
-	if !exists {
-		return 0, nil
-	}
-
-	// Read PID from the PID file.
-	data, err := os.ReadFile(pidFile)
-	if err != nil {
-		return 0, fmt.Errorf("reading PID file %q: %w", pidFile, err)
-	}
-
-	// Convert PID data to integer.
-	pid, err := strconv.ParseInt(string(data), 10, 32)
-	if err != nil {
-		return 0, fmt.Errorf("parsing PID: %w", err)
-	}
-	if pid <= 0 {
-		return 0, fmt.Errorf("invalid PID %d", pid)
-	}
-
-	return int32(pid), nil
-}
-
-// writePID writes the given PID to the server's PID file.
-func (s *Server) writePID(pid int) error {
-	// Convert PID to byte slice.
-	data := []byte(strconv.Itoa(pid))
-
-	// Write PID to file with appropriate permissions.
-	pidFile := s.pidFile()
-	if err := os.WriteFile(pidFile, data, 0600); err != nil {
-		return fmt.Errorf("writing PID file %q: %w", pidFile, err)
-	}
-
-	return nil
-}
-
 // Type returns the service type of the server.
 func (s *Server) Type() types.ServiceType {
 	return types.ServiceTypeV2Ray
@@ -117,6 +67,7 @@ func (s *Server) IsRunning() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("reading PID: %w", err)
 	}
+
 	if pid == 0 {
 		return false, nil
 	}
@@ -136,6 +87,7 @@ func (s *Server) IsRunning() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("checking process status: %w", err)
 	}
+
 	if !ok {
 		return false, nil
 	}
@@ -145,6 +97,7 @@ func (s *Server) IsRunning() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("getting process name: %w", err)
 	}
+
 	if name != v2ray {
 		return false, nil
 	}
@@ -216,6 +169,7 @@ func (s *Server) Setup(ctx context.Context) error {
 		if err := pki.Init(); err != nil {
 			return fmt.Errorf("initializing PKI: %w", err)
 		}
+
 		if _, _, err := pki.Issue("tls"); err != nil {
 			return fmt.Errorf("issuing TLS certificate and key: %w", err)
 		}
@@ -245,7 +199,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 		s.cmd = exec.CommandContext(
 			ctx,
 			s.execFile(v2ray),
-			strings.Fields(fmt.Sprintf("run --config %s", cfgFile))...,
+			strings.Fields("run --config "+cfgFile)...,
 		)
 
 		// Starts the V2Ray server process.
@@ -289,6 +243,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 					if err != nil {
 						return fmt.Errorf("checking serivce status: %w", err)
 					}
+
 					if !ok {
 						continue
 					}
@@ -318,6 +273,7 @@ func (s *Server) Stop() error {
 		if err != nil {
 			return fmt.Errorf("reading PID: %w", err)
 		}
+
 		if pid == 0 {
 			return nil
 		}
@@ -372,6 +328,7 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	if err != nil {
 		return "", nil, fmt.Errorf("parsing request: %w", err)
 	}
+
 	if err := r.Validate(); err != nil {
 		return "", nil, fmt.Errorf("validating request: %w", err)
 	}
@@ -458,6 +415,7 @@ func (s *Server) RemovePeer(ctx context.Context, id string) error {
 
 	// Remove the peer information from the local collection.
 	s.peers.Delete(id, nil)
+
 	return nil
 }
 
@@ -484,6 +442,58 @@ func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 	})
 
 	return items, nil
+}
+
+func (s *Server) appConfigFile() string     { return filepath.Join(s.homeDir, "config.toml") }
+func (s *Server) pidFile() string           { return filepath.Join(s.homeDir, "server.pid") }
+func (s *Server) serviceConfigFile() string { return filepath.Join(s.homeDir, "server.json") }
+
+// readPID reads the PID from the server's PID file.
+func (s *Server) readPID() (int32, error) {
+	// Get the full path to the PID file
+	pidFile := s.pidFile()
+
+	// Check if the PID file exists
+	exists, err := utils.IsFileExists(pidFile)
+	if err != nil {
+		return 0, fmt.Errorf("checking if PID file %q exists: %w", pidFile, err)
+	}
+
+	if !exists {
+		return 0, nil
+	}
+
+	// Read PID from the PID file.
+	data, err := os.ReadFile(pidFile)
+	if err != nil {
+		return 0, fmt.Errorf("reading PID file %q: %w", pidFile, err)
+	}
+
+	// Convert PID data to integer.
+	pid, err := strconv.ParseInt(string(data), 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("parsing PID: %w", err)
+	}
+
+	if pid <= 0 {
+		return 0, fmt.Errorf("invalid PID %d", pid)
+	}
+
+	return int32(pid), nil
+}
+
+// writePID writes the given PID to the server's PID file.
+func (s *Server) writePID(pid int) error {
+	// Convert PID to byte slice.
+	data := []byte(strconv.Itoa(pid))
+
+	// Write PID to file with appropriate permissions.
+	pidFile := s.pidFile()
+	if err := os.WriteFile(pidFile, data, 0600); err != nil {
+		return fmt.Errorf("writing PID file %q: %w", pidFile, err)
+	}
+
+	return nil
 }
 
 // syncPeers retrieves the latest peer transfer statistics from the stats service

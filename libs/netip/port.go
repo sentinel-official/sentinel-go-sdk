@@ -14,83 +14,6 @@ type Port struct {
 	OutTo   uint16 `json:"out_to"`
 }
 
-// InPort returns a string representation of the input port range.
-func (p *Port) InPort() string {
-	if p.InFrom == p.InTo {
-		return fmt.Sprintf("%d", p.InFrom)
-	}
-
-	return fmt.Sprintf("%d-%d", p.InFrom, p.InTo)
-}
-
-// OutPort returns a string representation of the output port range.
-func (p *Port) OutPort() string {
-	if p.OutFrom == p.OutTo {
-		return fmt.Sprintf("%d", p.OutFrom)
-	}
-
-	return fmt.Sprintf("%d-%d", p.OutFrom, p.OutTo)
-}
-
-// String provides a string representation of the Port struct.
-func (p *Port) String() string {
-	switch {
-	case p.InFrom == p.InTo && p.OutFrom == p.OutTo && p.InFrom == p.OutFrom:
-		return fmt.Sprintf("%d", p.InFrom)
-	case p.InFrom == p.InTo && p.OutFrom == p.OutTo:
-		return fmt.Sprintf("%d:%d", p.InFrom, p.OutFrom)
-	case p.InFrom == p.InTo:
-		return fmt.Sprintf("%d:%d-%d", p.InFrom, p.OutFrom, p.OutTo)
-	case p.OutFrom == p.OutTo:
-		return fmt.Sprintf("%d-%d:%d", p.InFrom, p.InTo, p.OutFrom)
-	default:
-		return fmt.Sprintf("%d-%d:%d-%d", p.InFrom, p.InTo, p.OutFrom, p.OutTo)
-	}
-}
-
-// Validate checks if the Port struct values are valid.
-func (p *Port) Validate() error {
-	if p.InFrom < 1 || p.InTo > 65535 || p.OutFrom < 1 || p.OutTo > 65535 {
-		return fmt.Errorf("port numbers are out of range 1-65535 (got: %d-%d:%d-%d)",
-			p.InFrom, p.InTo, p.OutFrom, p.OutTo)
-	}
-	if p.InFrom > p.InTo {
-		return fmt.Errorf("in_from %d is greater than in_to %d", p.InFrom, p.InTo)
-	}
-	if p.OutFrom > p.OutTo {
-		return fmt.Errorf("out_from %d is greater than out_to %d", p.OutFrom, p.OutTo)
-	}
-	if (p.InTo - p.InFrom) != (p.OutTo - p.OutFrom) {
-		return fmt.Errorf("in range size %d does not match out range size %d", p.InTo-p.InFrom, p.OutTo-p.OutFrom)
-	}
-
-	return nil
-}
-
-// MarshalJSON marshals Port as a string using String()
-func (p *Port) MarshalJSON() ([]byte, error) {
-	return json.Marshal(p.String())
-}
-
-// UnmarshalJSON parses a JSON string into a Port
-func (p *Port) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return fmt.Errorf("unmarshaling port string from bytes: %w", err)
-	}
-
-	port, err := NewPortFromString(s)
-	if err != nil {
-		return err
-	}
-	if port == nil {
-		return fmt.Errorf("empty port string %q", s)
-	}
-
-	*p = *port
-	return nil
-}
-
 // NewPortFromString parses a port string and returns a Port struct if the string is valid.
 func NewPortFromString(s string) (*Port, error) {
 	s = strings.TrimSpace(s)
@@ -132,6 +55,88 @@ func NewPortFromString(s string) (*Port, error) {
 	}
 
 	return port, nil
+}
+
+// InPort returns a string representation of the input port range.
+func (p *Port) InPort() string {
+	if p.InFrom == p.InTo {
+		return strconv.FormatUint(uint64(p.InFrom), 10)
+	}
+
+	return fmt.Sprintf("%d-%d", p.InFrom, p.InTo)
+}
+
+// OutPort returns a string representation of the output port range.
+func (p *Port) OutPort() string {
+	if p.OutFrom == p.OutTo {
+		return strconv.FormatUint(uint64(p.OutFrom), 10)
+	}
+
+	return fmt.Sprintf("%d-%d", p.OutFrom, p.OutTo)
+}
+
+// String provides a string representation of the Port struct.
+func (p *Port) String() string {
+	switch {
+	case p.InFrom == p.InTo && p.OutFrom == p.OutTo && p.InFrom == p.OutFrom:
+		return strconv.FormatUint(uint64(p.InFrom), 10)
+	case p.InFrom == p.InTo && p.OutFrom == p.OutTo:
+		return fmt.Sprintf("%d:%d", p.InFrom, p.OutFrom)
+	case p.InFrom == p.InTo:
+		return fmt.Sprintf("%d:%d-%d", p.InFrom, p.OutFrom, p.OutTo)
+	case p.OutFrom == p.OutTo:
+		return fmt.Sprintf("%d-%d:%d", p.InFrom, p.InTo, p.OutFrom)
+	default:
+		return fmt.Sprintf("%d-%d:%d-%d", p.InFrom, p.InTo, p.OutFrom, p.OutTo)
+	}
+}
+
+// Validate checks if the Port struct values are valid.
+func (p *Port) Validate() error {
+	if p.InFrom < 1 || p.OutFrom < 1 {
+		return fmt.Errorf("port numbers are out of range 1-65535 (got: %d-%d:%d-%d)",
+			p.InFrom, p.InTo, p.OutFrom, p.OutTo)
+	}
+
+	if p.InFrom > p.InTo {
+		return fmt.Errorf("in_from %d is greater than in_to %d", p.InFrom, p.InTo)
+	}
+
+	if p.OutFrom > p.OutTo {
+		return fmt.Errorf("out_from %d is greater than out_to %d", p.OutFrom, p.OutTo)
+	}
+
+	if (p.InTo - p.InFrom) != (p.OutTo - p.OutFrom) {
+		return fmt.Errorf("in range size %d does not match out range size %d", p.InTo-p.InFrom, p.OutTo-p.OutFrom)
+	}
+
+	return nil
+}
+
+// MarshalJSON marshals Port as a string using String().
+func (p *Port) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.String())
+}
+
+// UnmarshalJSON parses a JSON string into a Port.
+func (p *Port) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return fmt.Errorf("unmarshaling port string from bytes: %w", err)
+	}
+
+	port, err := NewPortFromString(s)
+	if err != nil {
+		return err
+	}
+
+	if port == nil {
+		return fmt.Errorf("empty port string %q", s)
+	}
+
+	*p = *port
+
+	return nil
 }
 
 // parseRange parses a range string and returns the start and end as uint16.
@@ -177,6 +182,7 @@ func parsePort(s string) (uint16, error) {
 	if err != nil {
 		return 0, fmt.Errorf("parsing port %q: %w", s, err)
 	}
+
 	if port < 1 || port > 65535 {
 		return 0, fmt.Errorf("port %d is out of range 1-65535", port)
 	}

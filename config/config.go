@@ -19,12 +19,15 @@ func (c *Config) Validate() error {
 	if err := c.Keyring.Validate(); err != nil {
 		return fmt.Errorf("validating keyring config: %w", err)
 	}
+
 	if err := c.Query.Validate(); err != nil {
 		return fmt.Errorf("validating query config: %w", err)
 	}
+
 	if err := c.RPC.Validate(); err != nil {
 		return fmt.Errorf("validating rpc config: %w", err)
 	}
+
 	if err := c.Tx.Validate(); err != nil {
 		return fmt.Errorf("validating tx config: %w", err)
 	}

@@ -171,6 +171,7 @@ func encodeHex(w io.Writer, b *pem.Block) error {
 		if _, err := w.Write(hexData[i:end]); err != nil {
 			return err
 		}
+
 		if _, err := w.Write([]byte{'\n'}); err != nil {
 			return err
 		}
@@ -199,6 +200,7 @@ func decodeHex(data []byte) (*pem.Block, []byte) {
 	}
 
 	remainder := data[idx+endIdx:]
+
 	newline := bytes.IndexByte(remainder, '\n')
 	if newline >= 0 {
 		remainder = remainder[newline+1:]
@@ -206,6 +208,7 @@ func decodeHex(data []byte) (*pem.Block, []byte) {
 
 	// Extract block lines between BEGIN and END
 	blockData := data[idx : idx+endIdx]
+
 	lines := bytes.Split(blockData, []byte{'\n'})
 	if len(lines) < 2 {
 		return nil, data
@@ -231,11 +234,13 @@ func decodeHex(data []byte) (*pem.Block, []byte) {
 
 	// Decode hex data into raw bytes
 	decoded := make([]byte, hex.DecodedLen(len(hexBuffer)))
+
 	n, err := hex.Decode(decoded, hexBuffer)
 	if err != nil {
 		return nil, data
 	}
 
 	block := &pem.Block{Type: typeLine, Bytes: decoded[:n]}
+
 	return block, remainder
 }

@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	// gRPC methods for querying bank balances
+	// gRPC methods for querying bank balances.
 	methodQueryBalance  = "/cosmos.bank.v1beta1.Query/Balance"     // Retrieve the balance of a specific account
 	methodQueryBalances = "/cosmos.bank.v1beta1.Query/AllBalances" // Retrieve all balances for a given account
 )

@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// PostDown generates the PostDown rules based on IPv4 and IPv6 settings
+// PostDown generates the PostDown rules based on IPv4 and IPv6 settings.
 func (c *ServerConfig) PostDown() (rules []string) {
 	// Check if an IPv4 address is configured
 	if c.IPv4Addr != "" {
@@ -23,7 +23,7 @@ func (c *ServerConfig) PostDown() (rules []string) {
 	return rules
 }
 
-// PostUp generates the PostUp rules based on IPv4 and IPv6 settings
+// PostUp generates the PostUp rules based on IPv4 and IPv6 settings.
 func (c *ServerConfig) PostUp() (rules []string) {
 	// Check if an IPv4 address is configured
 	if c.IPv4Addr != "" {

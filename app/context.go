@@ -16,6 +16,7 @@ func SignalContext(ctx context.Context) (context.Context, context.CancelCauseFun
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
 	ctx, cancel := context.WithCancelCause(ctx)
+
 	go func() {
 		defer signal.Stop(signalChan)
 

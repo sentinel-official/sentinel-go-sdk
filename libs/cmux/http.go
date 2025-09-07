@@ -57,10 +57,13 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 			return fmt.Errorf("loading TLS X509 certificate key pair from %q and %q: %w", s.certFile, s.keyFile, err)
 		}
 
+		// Create a new ListenConfig
+		lc := &net.ListenConfig{}
+
 		// Create a TCP listener on the configured address
-		listener, err := net.Listen("tcp", s.addr)
+		listener, err := lc.Listen(ctx, "tcp", s.addr)
 		if err != nil {
-			return fmt.Errorf("creating TCP listener on %q: %w", s.addr, err)
+			return fmt.Errorf("creating listener on %q: %w", s.addr, err)
 		}
 
 		// Create a cmux multiplexer to distinguish between TLS and non-TLS traffic
@@ -122,15 +125,16 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 		// Close CMux on context cancellation
 		s.Go(ctx, func() error {
 			defer func() {
+				_ = listener.Close()
+
 				if s.cMux != nil {
 					s.cMux.Close()
 				}
 			}()
 
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			}
+			<-ctx.Done()
+
+			return ctx.Err()
 		})
 
 		return nil

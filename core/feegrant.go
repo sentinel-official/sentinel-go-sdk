@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	// gRPC methods for querying fee grants
+	// gRPC methods for querying fee grants.
 	methodQueryFeegrantAllowance           = "/cosmos.feegrant.v1beta1.Query/Allowance"           // Retrieve details of a specific fee grant
 	methodQueryFeegrantAllowances          = "/cosmos.feegrant.v1beta1.Query/Allowances"          // Retrieve a list of fee grants
 	methodQueryFeegrantAllowancesByGranter = "/cosmos.feegrant.v1beta1.Query/AllowancesByGranter" // Retrieve a list of fee grants issued by a specific granter

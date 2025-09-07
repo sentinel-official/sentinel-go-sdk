@@ -22,7 +22,7 @@ func (l *Location) String() string {
 
 // Client is an interface for resolving IP addresses into location data.
 type Client interface {
-	Get(context.Context, string) (*Location, error)
+	Get(ctx context.Context, ipAddr string) (*Location, error)
 }
 
 // NewDefaultClient creates a new default Client instance using the default IPAPIClient.

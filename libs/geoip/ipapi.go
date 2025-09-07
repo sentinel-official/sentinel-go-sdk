@@ -32,7 +32,7 @@ func (c *IPAPIClient) Get(ctx context.Context, ip string) (*Location, error) {
 	}
 
 	// Create the HTTP GET request to the ip-api.com service.
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request with context: %w", err)
 	}

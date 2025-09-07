@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	// gRPC methods for querying plan information
+	// gRPC methods for querying plan information.
 	methodQueryPlan             = "/sentinel.plan.v3.QueryService/QueryPlan"             // Retrieve details of a specific plan
 	methodQueryPlans            = "/sentinel.plan.v3.QueryService/QueryPlans"            // Retrieve a list of plans
 	methodQueryPlansForProvider = "/sentinel.plan.v3.QueryService/QueryPlansForProvider" // Retrieve plans associated with a specific provider

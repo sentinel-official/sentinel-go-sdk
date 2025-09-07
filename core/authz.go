@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	// gRPC methods for querying authorization grants
+	// gRPC methods for querying authorization grants.
 	methodQueryAuthzGranteeGrants = "/cosmos.authz.v1beta1.Query/GranteeGrants" // Retrieve a list of grants for a specific grantee
 	methodQueryAuthzGranterGrants = "/cosmos.authz.v1beta1.Query/GranterGrants" // Retrieve a list of grants issued by a specific granter
 	methodQueryAuthzGrants        = "/cosmos.authz.v1beta1.Query/Grants"        // Retrieve details of a specific grant

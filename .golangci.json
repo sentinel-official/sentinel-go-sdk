@@ -1,0 +1,24 @@
+{
+  "version": "2",
+  "linters": {
+    "default": "all",
+    "disable": [
+      "cyclop",
+      "depguard",
+      "err113",
+      "exhaustruct",
+      "funlen",
+      "gocognit",
+      "ireturn",
+      "lll",
+      "noinlineerr",
+      "nonamedreturns",
+      "revive",
+      "tagliatelle",
+      "wsl"
+    ]
+  },
+  "run": {
+    "timeout": "1m"
+  }
+}

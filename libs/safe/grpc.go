@@ -25,6 +25,7 @@ func (c *GRPCConn) Dial(target string, opts ...grpc.DialOption) (err error) {
 	if c.closed.Load() {
 		return errors.New("gRPC connection already closed")
 	}
+
 	if c.conn != nil {
 		return nil
 	}
@@ -48,6 +49,7 @@ func (c *GRPCConn) Acquire() (*grpc.ClientConn, func()) {
 	}
 
 	c.wg.Add(1)
+
 	return c.conn, func() { c.wg.Done() }
 }
 
@@ -69,5 +71,6 @@ func (c *GRPCConn) Close() error {
 	}
 
 	c.conn = nil
+
 	return nil
 }

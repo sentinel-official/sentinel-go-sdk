@@ -50,48 +50,56 @@ func NewBasicWorker(name string) *BasicWorker {
 // WithHandler sets the handler function for the worker.
 func (w *BasicWorker) WithHandler(handler func(ctx context.Context) error) *BasicWorker {
 	w.handler = handler
+
 	return w
 }
 
 // WithInterval sets the interval at which the worker should be run.
 func (w *BasicWorker) WithInterval(interval time.Duration) *BasicWorker {
 	w.interval = interval
+
 	return w
 }
 
 // WithMaxRuns sets the maximum number of times the worker should run.
 func (w *BasicWorker) WithMaxRuns(runs uint) *BasicWorker {
 	w.maxRuns = runs
+
 	return w
 }
 
 // WithOnError sets the function to handle errors that occur during worker execution.
 func (w *BasicWorker) WithOnError(onError func(error) bool) *BasicWorker {
 	w.onError = onError
+
 	return w
 }
 
 // WithOnExit sets the function to be called when the worker stops.
 func (w *BasicWorker) WithOnExit(onExit func()) *BasicWorker {
 	w.onExit = onExit
+
 	return w
 }
 
 // WithOnRetry sets the function to be called after each failed attempt.
 func (w *BasicWorker) WithOnRetry(onRetry func(uint, error)) *BasicWorker {
 	w.onRetry = onRetry
+
 	return w
 }
 
 // WithRetryAttempts sets the number of retry attempts for the worker.
 func (w *BasicWorker) WithRetryAttempts(attempts uint) *BasicWorker {
 	w.retryAttempts = attempts
+
 	return w
 }
 
 // WithRetryDelay sets the delay between retry attempts.
 func (w *BasicWorker) WithRetryDelay(delay time.Duration) *BasicWorker {
 	w.retryDelay = delay
+
 	return w
 }
 
@@ -115,6 +123,7 @@ func (w *BasicWorker) OnError(err error) bool {
 	log.Debug("Executing scheduler worker OnError callback",
 		"cause", err.Error(), "name", w.Name(),
 	)
+
 	if w.onError != nil {
 		return w.onError(err)
 	}
@@ -125,6 +134,7 @@ func (w *BasicWorker) OnError(err error) bool {
 // OnExit calls the onExit function if it is set.
 func (w *BasicWorker) OnExit() {
 	log.Debug("Executing scheduler worker OnExit callback", "name", w.Name())
+
 	if w.onExit != nil {
 		w.onExit()
 	}
@@ -135,6 +145,7 @@ func (w *BasicWorker) OnRetry(attempt uint, err error) {
 	log.Debug("Executing scheduler worker OnRetry callback",
 		"attempt", attempt, "cause", err, "name", w.Name(),
 	)
+
 	if w.onRetry != nil {
 		w.onRetry(attempt, err)
 	}
@@ -153,6 +164,7 @@ func (w *BasicWorker) RetryDelay() time.Duration {
 // Run executes the worker's handler function and returns any error encountered.
 func (w *BasicWorker) Run(ctx context.Context) error {
 	log.Debug("Executing scheduler worker handler", "name", w.Name())
+
 	if w.handler != nil {
 		return w.handler(ctx)
 	}

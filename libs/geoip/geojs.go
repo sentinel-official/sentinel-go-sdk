@@ -32,7 +32,7 @@ func (c *GeoJSClient) Get(ctx context.Context, ip string) (*Location, error) {
 	}
 
 	// Create the HTTP GET request to the get-geojs.io service.
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request with context: %w", err)
 	}
@@ -71,6 +71,7 @@ func (c *GeoJSClient) Get(ctx context.Context, ip string) (*Location, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parsing latitude: %w", err)
 	}
+
 	longitude, err := strconv.ParseFloat(result.Longitude, 64)
 	if err != nil {
 		return nil, fmt.Errorf("parsing longitude: %w", err)

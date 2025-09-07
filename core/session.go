@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	// gRPC methods for querying session information
+	// gRPC methods for querying session information.
 	methodQuerySession                           = "/sentinel.session.v3.QueryService/QuerySession"                 // Retrieve details of a specific session
 	methodQuerySessionParams                     = "/sentinel.session.v3.QueryService/QueryParams"                  // Retrieve module parameters for sessions
 	methodQuerySessions                          = "/sentinel.session.v3.QueryService/QuerySessions"                // Retrieve a list of sessions with pagination
@@ -72,7 +72,7 @@ func (c *Client) Sessions(ctx context.Context, pageReq *query.PageRequest) (res 
 
 	// Unpack each session from the response.
 	res = make([]v3.Session, len(resp.Sessions))
-	for i := 0; i < len(resp.Sessions); i++ {
+	for i := range len(resp.Sessions) {
 		if err := c.ProtoCodec().UnpackAny(resp.Sessions[i], &res[i]); err != nil {
 			return nil, nil, err
 		}
@@ -99,7 +99,7 @@ func (c *Client) SessionsForAccount(ctx context.Context, accAddr cosmossdk.AccAd
 
 	// Unpack each session from the response.
 	res = make([]v3.Session, len(resp.Sessions))
-	for i := 0; i < len(resp.Sessions); i++ {
+	for i := range len(resp.Sessions) {
 		if err := c.ProtoCodec().UnpackAny(resp.Sessions[i], &res[i]); err != nil {
 			return nil, nil, err
 		}
@@ -126,7 +126,7 @@ func (c *Client) SessionsForNode(ctx context.Context, nodeAddr sentinelhub.NodeA
 
 	// Unpack each session from the response.
 	res = make([]v3.Session, len(resp.Sessions))
-	for i := 0; i < len(resp.Sessions); i++ {
+	for i := range len(resp.Sessions) {
 		if err := c.ProtoCodec().UnpackAny(resp.Sessions[i], &res[i]); err != nil {
 			return nil, nil, err
 		}
@@ -153,7 +153,7 @@ func (c *Client) SessionsForSubscription(ctx context.Context, id uint64, pageReq
 
 	// Unpack each session from the response.
 	res = make([]v3.Session, len(resp.Sessions))
-	for i := 0; i < len(resp.Sessions); i++ {
+	for i := range len(resp.Sessions) {
 		if err := c.ProtoCodec().UnpackAny(resp.Sessions[i], &res[i]); err != nil {
 			return nil, nil, err
 		}
@@ -181,7 +181,7 @@ func (c *Client) SessionsForSubscriptionAllocation(ctx context.Context, id uint6
 
 	// Unpack each session from the response.
 	res = make([]v3.Session, len(resp.Sessions))
-	for i := 0; i < len(resp.Sessions); i++ {
+	for i := range len(resp.Sessions) {
 		if err := c.ProtoCodec().UnpackAny(resp.Sessions[i], &res[i]); err != nil {
 			return nil, nil, err
 		}

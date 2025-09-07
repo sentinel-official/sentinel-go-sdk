@@ -86,7 +86,7 @@ func (p *Prefix) BroadcastAddr() (netip.Addr, error) {
 
 	addr, ok := netip.AddrFromSlice(buf[:])
 	if !ok {
-		return netip.Addr{}, fmt.Errorf("creating broadcast addr from slice")
+		return netip.Addr{}, errors.New("creating broadcast addr from slice")
 	}
 
 	return addr, nil

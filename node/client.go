@@ -12,7 +12,8 @@ import (
 
 // Client is a struct for interacting with nodes.
 type Client struct {
-	*core.Client
+	*core.Client // Embed blockchain client
+
 	addr     types.NodeAddress
 	fromName string
 	insecure bool
@@ -24,30 +25,6 @@ func NewClient(c *core.Client) *Client {
 	return &Client{
 		Client: c,
 	}
-}
-
-// WithAddr sets the address of the Client and returns the updated instance.
-func (c *Client) WithAddr(addr types.NodeAddress) *Client {
-	c.addr = addr
-	return c
-}
-
-// WithFromName sets the fromName of the Client and returns the updated instance.
-func (c *Client) WithFromName(fromName string) *Client {
-	c.fromName = fromName
-	return c
-}
-
-// WithInsecure sets the insecure flag of the Client and returns the updated instance.
-func (c *Client) WithInsecure(insecure bool) *Client {
-	c.insecure = insecure
-	return c
-}
-
-// WithTimeout sets the timeout of the Client and returns the updated instance.
-func (c *Client) WithTimeout(timeout time.Duration) *Client {
-	c.timeout = timeout
-	return c
 }
 
 // NewClientFromConfig creates a new Client instance based on the provided configuration.
@@ -63,6 +40,7 @@ func NewClientFromConfig(cfg *config.Config) (*Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("retrieving key for authz_granter_addr %q: %w", addr.String(), err)
 		}
+
 		if key == nil {
 			return nil, fmt.Errorf("key for authz_granter_addr %q does not exist", addr.String())
 		}
@@ -77,4 +55,32 @@ func NewClientFromConfig(cfg *config.Config) (*Client, error) {
 		WithTimeout(cfg.RPC.GetTimeout())
 
 	return v, nil
+}
+
+// WithAddr sets the address of the Client and returns the updated instance.
+func (c *Client) WithAddr(addr types.NodeAddress) *Client {
+	c.addr = addr
+
+	return c
+}
+
+// WithFromName sets the fromName of the Client and returns the updated instance.
+func (c *Client) WithFromName(fromName string) *Client {
+	c.fromName = fromName
+
+	return c
+}
+
+// WithInsecure sets the insecure flag of the Client and returns the updated instance.
+func (c *Client) WithInsecure(insecure bool) *Client {
+	c.insecure = insecure
+
+	return c
+}
+
+// WithTimeout sets the timeout of the Client and returns the updated instance.
+func (c *Client) WithTimeout(timeout time.Duration) *Client {
+	c.timeout = timeout
+
+	return c
 }

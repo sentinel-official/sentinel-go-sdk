@@ -177,6 +177,7 @@ func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	if err != nil {
 		return nil, fmt.Errorf("getting key %q: %w", c.txFromName, err)
 	}
+
 	if key == nil {
 		return nil, NewErrNotFound(fmt.Errorf("key %q does not exist", c.txFromName))
 	}
@@ -204,6 +205,7 @@ func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	if err != nil {
 		return nil, fmt.Errorf("querying account %q: %w", addr.String(), err)
 	}
+
 	if acc == nil {
 		return nil, NewErrNotFound(fmt.Errorf("account %q does not exist", addr.String()))
 	}
@@ -242,8 +244,10 @@ func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 
 // BroadcastTxSync attempts to broadcast a transaction synchronously with retry logic.
 func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*core.ResultBroadcastTx, error) {
-	var err error
-	var resp *core.ResultBroadcastTx
+	var (
+		err  error
+		resp *core.ResultBroadcastTx
+	)
 
 	// Define a function to perform the transaction broadcast.
 	retryFunc := func() error {
@@ -301,8 +305,10 @@ func (c *Client) tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, e
 
 // Tx retrieves a transaction from the blockchain using its hash, with retry logic.
 func (c *Client) Tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, error) {
-	var err error
-	var result *core.ResultTx
+	var (
+		err    error
+		result *core.ResultTx
+	)
 
 	// Define a function to perform the transaction query.
 	retryFunc := func() error {
@@ -348,6 +354,7 @@ func (c *Client) BroadcastTxCommit(ctx context.Context, msgs ...cosmossdk.Msg) (
 	//  Ensure the transaction was accepted by the mempool.
 	if resp.Code != abci.CodeTypeOK {
 		err := fmt.Errorf("code=%s/%d, log=%s", resp.Codespace, resp.Code, resp.Log)
+
 		return resp, nil, fmt.Errorf("tx rejected by mempool: %w", err)
 	}
 
@@ -360,6 +367,7 @@ func (c *Client) BroadcastTxCommit(ctx context.Context, msgs ...cosmossdk.Msg) (
 	//  Ensure the transaction executed successfully.
 	if !res.TxResult.IsOK() {
 		err := fmt.Errorf("code=%s/%d, log=%s", res.TxResult.Codespace, res.TxResult.Code, res.TxResult.Log)
+
 		return resp, res, fmt.Errorf("tx failed: %w", err)
 	}
 

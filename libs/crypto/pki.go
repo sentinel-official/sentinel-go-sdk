@@ -38,17 +38,17 @@ func NewPKI(dir string) *PKI {
 
 // CertPath returns the full file path for a certificate with the given name.
 func (p *PKI) CertPath(name string) string {
-	return filepath.Join(p.Dir, fmt.Sprintf("%s.crt", name))
+	return filepath.Join(p.Dir, name+".crt")
 }
 
 // KeyPath returns the full file path for a private key with the given name.
 func (p *PKI) KeyPath(name string) string {
-	return filepath.Join(p.Dir, fmt.Sprintf("%s.key", name))
+	return filepath.Join(p.Dir, name+".key")
 }
 
 // RLPath returns the full file path for a revocation list with the given name.
 func (p *PKI) RLPath(name string) string {
-	return filepath.Join(p.Dir, fmt.Sprintf("%s.rl", name))
+	return filepath.Join(p.Dir, name+".rl")
 }
 
 // Init initializes the PKI by generating a root certificate, private key, and CRL.
@@ -124,9 +124,11 @@ func (p *PKI) Init(opts ...CertOption) (err error) {
 	if err := pem.WriteFile(p.KeyPath("ca"), pem.FormatBase64, pem.BlockTypePrivateKey, keyDER); err != nil {
 		return fmt.Errorf("writing CA private key: %w", err)
 	}
+
 	if err := pem.WriteFile(p.CertPath("ca"), pem.FormatBase64, pem.BlockTypeCertificate, certDER); err != nil {
 		return fmt.Errorf("writing CA certificate: %w", err)
 	}
+
 	if err := pem.WriteFile(p.RLPath("ca"), pem.FormatBase64, pem.BlockTypeCRL, rlDER); err != nil {
 		return fmt.Errorf("writing CA revocation list: %w", err)
 	}
@@ -181,6 +183,7 @@ func (p *PKI) Issue(name string, opts ...CertOption) (keyDER []byte, certDER []b
 	if err := pem.WriteFile(p.KeyPath(name), pem.FormatBase64, pem.BlockTypePrivateKey, keyDER); err != nil {
 		return nil, nil, fmt.Errorf("writing private key for %q: %w", name, err)
 	}
+
 	if err := pem.WriteFile(p.CertPath(name), pem.FormatBase64, pem.BlockTypeCertificate, certDER); err != nil {
 		return nil, nil, fmt.Errorf("writing certificate for %q: %w", name, err)
 	}
@@ -229,6 +232,7 @@ func (p *PKI) Revoke(name string) (err error) {
 	if err := utils.RemoveFile(p.KeyPath(name)); err != nil {
 		return fmt.Errorf("removing private key for %q: %w", name, err)
 	}
+
 	if err := utils.RemoveFile(p.CertPath(name)); err != nil {
 		return fmt.Errorf("removing certificate for %q: %w", name, err)
 	}

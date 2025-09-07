@@ -16,35 +16,6 @@ const (
 	TransportProtocolWebSocket                             // TransportProtocolWebSocket represents the WebSocket protocol
 )
 
-// String returns a string representation of the TransportProtocol type.
-func (t TransportProtocol) String() string {
-	switch t {
-	case TransportProtocolDomainSocket:
-		return "domainsocket"
-	case TransportProtocolGUN:
-		return "gun"
-	case TransportProtocolGRPC:
-		return "grpc"
-	case TransportProtocolHTTP:
-		return "http"
-	case TransportProtocolMKCP:
-		return "mkcp"
-	case TransportProtocolQUIC:
-		return "quic"
-	case TransportProtocolTCP:
-		return "tcp"
-	case TransportProtocolWebSocket:
-		return "websocket"
-	default:
-		return "" // Return empty string for unspecified or unknown transport protocol types
-	}
-}
-
-// IsValid checks if the TransportProtocol value is valid.
-func (t TransportProtocol) IsValid() bool {
-	return t.String() != ""
-}
-
 // NewTransportProtocolFromString converts a string to a TransportProtocol type.
 func NewTransportProtocolFromString(v string) TransportProtocol {
 	switch v {
@@ -69,6 +40,37 @@ func NewTransportProtocolFromString(v string) TransportProtocol {
 	}
 }
 
+// String returns a string representation of the TransportProtocol type.
+func (t TransportProtocol) String() string {
+	switch t {
+	case TransportProtocolDomainSocket:
+		return "domainsocket"
+	case TransportProtocolGUN:
+		return "gun"
+	case TransportProtocolGRPC:
+		return "grpc"
+	case TransportProtocolHTTP:
+		return "http"
+	case TransportProtocolMKCP:
+		return "mkcp"
+	case TransportProtocolQUIC:
+		return "quic"
+	case TransportProtocolTCP:
+		return "tcp"
+	case TransportProtocolWebSocket:
+		return "websocket"
+	case TransportProtocolUnspecified:
+		return "unspecified"
+	default:
+		return "" // Return empty string for unknown transport protocol types
+	}
+}
+
+// IsValid checks if the TransportProtocol value is valid.
+func (t TransportProtocol) IsValid() bool {
+	return t.String() != ""
+}
+
 // TransportSecurity is a custom type used to represent different transport security settings.
 type TransportSecurity byte
 
@@ -78,23 +80,6 @@ const (
 	TransportSecurityNone                                 // TransportSecurityNone represents no security
 	TransportSecurityTLS                                  // TransportSecurityTLS represents TLS security
 )
-
-// String returns a string representation of the TransportSecurity type.
-func (t TransportSecurity) String() string {
-	switch t {
-	case TransportSecurityNone:
-		return "none"
-	case TransportSecurityTLS:
-		return "tls"
-	default:
-		return "" // Return empty string for unspecified or unknown security settings
-	}
-}
-
-// IsValid checks if the TransportSecurity value is valid.
-func (t TransportSecurity) IsValid() bool {
-	return t.String() != ""
-}
 
 // NewTransportSecurityFromString converts a string to a TransportSecurity type.
 func NewTransportSecurityFromString(v string) TransportSecurity {
@@ -106,4 +91,23 @@ func NewTransportSecurityFromString(v string) TransportSecurity {
 	default:
 		return TransportSecurityUnspecified // Returns the default security if no match is found
 	}
+}
+
+// String returns a string representation of the TransportSecurity type.
+func (t TransportSecurity) String() string {
+	switch t {
+	case TransportSecurityNone:
+		return "none"
+	case TransportSecurityTLS:
+		return "tls"
+	case TransportSecurityUnspecified:
+		return "unspecified"
+	default:
+		return "" // Return empty string for unknown security settings
+	}
+}
+
+// IsValid checks if the TransportSecurity value is valid.
+func (t TransportSecurity) IsValid() bool {
+	return t.String() != ""
 }

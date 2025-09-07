@@ -97,9 +97,11 @@ func validateURL(s string) error {
 	if err != nil {
 		return fmt.Errorf("parsing URL %q: %w", s, err)
 	}
+
 	if u.Scheme == "" {
 		return errors.New("URL scheme cannot be empty")
 	}
+
 	if u.Host == "" {
 		return errors.New("URL host cannot be empty")
 	}
@@ -109,6 +111,7 @@ func validateURL(s string) error {
 	if err != nil {
 		return fmt.Errorf("parsing URL port %q: %w", u.Port(), err)
 	}
+
 	if port < 1 || port > 65535 {
 		return fmt.Errorf("URL port %d is out of range 1-65535", port)
 	}

@@ -145,6 +145,7 @@ func (c *Client) HasKey(name string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("getting key %q: %w", name, err)
 	}
+
 	if key == nil {
 		return false, nil
 	}
@@ -159,6 +160,7 @@ func (c *Client) KeyAddr(name string) (cosmossdk.AccAddress, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getting key %q: %w", name, err)
 	}
+
 	if key == nil {
 		return nil, fmt.Errorf("key %q does not exist", name)
 	}

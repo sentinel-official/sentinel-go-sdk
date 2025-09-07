@@ -48,11 +48,9 @@ func NewServer(name, appDir string, cfg *ServerConfig) *Server {
 // WithDevice sets the WireGuard network interface name and returns the updated Server instance.
 func (s *Server) WithDevice(device string) *Server {
 	s.device = device
+
 	return s
 }
-
-func (s *Server) appConfigFile() string     { return filepath.Join(s.homeDir, "config.toml") }
-func (s *Server) serviceConfigFile() string { return filepath.Join(s.homeDir, s.device+".conf") }
 
 // Type returns the service type of the server.
 func (s *Server) Type() types.ServiceType {
@@ -64,11 +62,12 @@ func (s *Server) IsRunning() (bool, error) {
 	// Executes the 'wg show' command to check the interface status.
 	cmd := exec.Command(
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf("show %s", s.device))...,
+		strings.Fields("show "+s.device)...,
 	)
 
 	// Capture stderr output.
 	var stderr bytes.Buffer
+
 	cmd.Stderr = &stderr
 
 	// Run the command and handle errors.
@@ -183,6 +182,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 					if err != nil {
 						return fmt.Errorf("checking service status: %w", err)
 					}
+
 					if !ok {
 						continue
 					}
@@ -240,6 +240,7 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	if err != nil {
 		return "", nil, fmt.Errorf("parsing request: %w", err)
 	}
+
 	if err := r.Validate(); err != nil {
 		return "", nil, fmt.Errorf("validating request: %w", err)
 	}
@@ -341,6 +342,7 @@ func (s *Server) RemovePeer(ctx context.Context, id string) error {
 
 	// Remove the peer information from the local collection.
 	s.peers.Delete(id, nil)
+
 	return nil
 }
 
@@ -368,6 +370,9 @@ func (s *Server) PeerStatistics() (map[string]*types.PeerStatistics, error) {
 
 	return items, nil
 }
+
+func (s *Server) appConfigFile() string     { return filepath.Join(s.homeDir, "config.toml") }
+func (s *Server) serviceConfigFile() string { return filepath.Join(s.homeDir, s.device+".conf") }
 
 // syncPeers retrieves the latest peer transfer statistics from WireGuard
 // and updates the in-memory peer data accordingly.

@@ -171,6 +171,7 @@ func (m *Manager) Stop(fn func() error) (err error) {
 	}()
 
 	log.Debug("Stopping process", "name", m.name)
+
 	if m.cancel != nil {
 		m.cancel()
 	}

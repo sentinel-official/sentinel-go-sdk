@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	// gRPC methods for querying deposit information
+	// gRPC methods for querying deposit information.
 	methodQueryDeposit  = "/sentinel.deposit.v1.QueryService/QueryDeposit"  // Retrieve details of a specific deposit
 	methodQueryDeposits = "/sentinel.deposit.v1.QueryService/QueryDeposits" // Retrieve a list of deposits
 )

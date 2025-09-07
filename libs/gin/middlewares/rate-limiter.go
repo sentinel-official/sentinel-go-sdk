@@ -27,15 +27,19 @@ func RateLimiter(opts *RateLimiterOptions) gin.HandlerFunc {
 	if opts == nil {
 		opts = &RateLimiterOptions{}
 	}
+
 	if opts.Limit <= 0 {
 		opts.Limit = 1
 	}
+
 	if opts.Burst <= 0 {
 		opts.Burst = 5
 	}
+
 	if opts.InactiveTimeout <= 0 {
 		opts.InactiveTimeout = 15 * time.Minute
 	}
+
 	if opts.CleanupInterval <= 0 {
 		opts.CleanupInterval = time.Minute
 	}
@@ -72,6 +76,7 @@ func RateLimiter(opts *RateLimiterOptions) gin.HandlerFunc {
 			}
 
 			v.timestamp = timestamp
+
 			return v, true
 		})
 
@@ -79,11 +84,13 @@ func RateLimiter(opts *RateLimiterOptions) gin.HandlerFunc {
 		r := v.limiter.ReserveN(timestamp, 1)
 		if !r.OK() {
 			c.AbortWithStatus(http.StatusTooManyRequests)
+
 			return
 		}
 
 		// Calculate delay, remaining tokens, and reset time
 		delay := r.DelayFrom(timestamp)
+
 		remaining := math.Floor(v.limiter.TokensAt(timestamp))
 		if remaining < 0 {
 			remaining = 0

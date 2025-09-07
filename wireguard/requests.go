@@ -25,6 +25,7 @@ func (r *PeerRequest) Validate() error {
 	if r.PublicKey == nil {
 		return errors.New("public_key is nil")
 	}
+
 	if r.PublicKey.IsZero() {
 		return errors.New("public_key is zero")
 	}

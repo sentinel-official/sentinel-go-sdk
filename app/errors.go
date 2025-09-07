@@ -34,12 +34,12 @@ func (e *SignalError) ExitCode() int {
 
 // NewErrRun wraps a run-time error.
 func NewErrRun(err error) error {
-	return fmt.Errorf("%w: %v", ErrRun, err)
+	return fmt.Errorf("%w: %w", ErrRun, err)
 }
 
 // NewErrShutdown wraps a shutdown error.
 func NewErrShutdown(err error) error {
-	return fmt.Errorf("%w: %v", ErrShutdown, err)
+	return fmt.Errorf("%w: %w", ErrShutdown, err)
 }
 
 // NewErrSignal creates a new SignalError.

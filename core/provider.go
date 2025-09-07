@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	// gRPC methods for querying provider information
+	// gRPC methods for querying provider information.
 	methodQueryProvider       = "/sentinel.provider.v2.QueryService/QueryProvider"  // Retrieve details of a specific provider
 	methodQueryProviderParams = "/sentinel.provider.v3.QueryService/QueryParams"    // Retrieve module parameters for providers
 	methodQueryProviders      = "/sentinel.provider.v2.QueryService/QueryProviders" // Retrieve a list of providers with optional filtering

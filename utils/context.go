@@ -11,6 +11,7 @@ func AnyDoneContext(ctxs ...context.Context) (context.Context, context.CancelCau
 	merged, cancel := context.WithCancelCause(context.Background())
 
 	var once sync.Once
+
 	for _, c := range ctxs {
 		if c == nil {
 			continue

@@ -28,6 +28,7 @@ func performTests(ctx context.Context, s *speedtest.Server) error {
 
 	// Wait for the context to be ready after the tests
 	s.Context.Wait()
+
 	return nil
 }
 
@@ -53,6 +54,7 @@ func Run(ctx context.Context) (dlSpeed, ulSpeed math.Int, err error) {
 		// Perform the tests on the target server
 		if err := performTests(ctx, target); err != nil {
 			target.Context.Reset()
+
 			continue
 		}
 
@@ -60,12 +62,14 @@ func Run(ctx context.Context) (dlSpeed, ulSpeed math.Int, err error) {
 		dlSpeedDec, err := math.LegacyNewDecFromStr(fmt.Sprintf("%f", target.DLSpeed))
 		if err != nil {
 			target.Context.Reset()
+
 			continue
 		}
 
 		ulSpeedDec, err := math.LegacyNewDecFromStr(fmt.Sprintf("%f", target.ULSpeed))
 		if err != nil {
 			target.Context.Reset()
+
 			continue
 		}
 
@@ -76,6 +80,7 @@ func Run(ctx context.Context) (dlSpeed, ulSpeed math.Int, err error) {
 		// Check if the speeds are positive
 		if !dlSpeed.IsPositive() || !ulSpeed.IsPositive() {
 			target.Context.Reset()
+
 			continue
 		}
 

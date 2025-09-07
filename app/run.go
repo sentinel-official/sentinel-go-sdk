@@ -13,12 +13,14 @@ import (
 
 // Run initializes the root Cobra command, sets up signal handling,
 // and executes the CLI with proper error and exit handling.
-func Run(buildRootCmd func(userDir string) *cobra.Command) {
+// It returns an exit code that should be used to terminate the program.
+func Run(buildRootCmd func(userDir string) *cobra.Command) (exitCode int) {
 	// Retrieve the user's home directory.
 	userDir, err := os.UserHomeDir()
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error: Unable to determine user home directory: %v\n", err)
-		os.Exit(1)
+
+		return 1
 	}
 
 	// Enable Cobra's feature to traverse and execute hooks for commands.
@@ -54,6 +56,8 @@ func Run(buildRootCmd func(userDir string) *cobra.Command) {
 			_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
 
-		os.Exit(sigErr.ExitCode())
+		return sigErr.ExitCode()
 	}
+
+	return 0
 }

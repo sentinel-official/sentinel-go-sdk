@@ -12,5 +12,6 @@ func NewUUID() uuid.UUID {
 // NewStringUUID generates a new UUID and returns it as a string.
 func NewStringUUID() string {
 	i := NewUUID()
+
 	return i.String()
 }

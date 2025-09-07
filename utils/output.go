@@ -14,6 +14,7 @@ func writeJSON(w io.Writer, v interface{}) error {
 	}
 
 	_, _ = fmt.Fprintf(w, "%s", buf)
+
 	return nil
 }
 
@@ -25,6 +26,7 @@ func writeText(w io.Writer, v interface{}) error {
 	}
 
 	_, _ = fmt.Fprintf(w, "%s", buf)
+
 	return nil
 }
 
@@ -47,5 +49,6 @@ func Writeln(w io.Writer, v interface{}, format string) error {
 	}
 
 	_, _ = fmt.Fprintln(w)
+
 	return nil
 }

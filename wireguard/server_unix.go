@@ -4,7 +4,6 @@ package wireguard
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -21,7 +20,7 @@ func (s *Server) startCmd(ctx context.Context) (*exec.Cmd, error) {
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wg-quick"),
-		strings.Fields(fmt.Sprintf("up %s", cfgFile))...,
+		strings.Fields("up "+cfgFile)...,
 	)
 
 	return cmd, nil
@@ -33,7 +32,7 @@ func (s *Server) stopCmd() (*exec.Cmd, error) {
 	cfgFile := s.serviceConfigFile()
 	cmd := exec.Command(
 		s.execFile("wg-quick"),
-		strings.Fields(fmt.Sprintf("down %s", cfgFile))...,
+		strings.Fields("down "+cfgFile)...,
 	)
 
 	return cmd, nil

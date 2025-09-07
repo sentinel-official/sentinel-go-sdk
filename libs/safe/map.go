@@ -29,6 +29,7 @@ func (m *Map[K, V]) Get(key K) (V, bool) {
 	defer m.mu.RUnlock()
 
 	value, found := m.m[key]
+
 	return value, found
 }
 
@@ -54,6 +55,7 @@ func (m *Map[K, V]) Delete(key K, fn func(value V, found bool) (do bool)) (done 
 
 	if fn == nil {
 		delete(m.m, key)
+
 		return true
 	}
 
@@ -73,6 +75,7 @@ func (m *Map[K, V]) Exists(key K) bool {
 	defer m.mu.RUnlock()
 
 	_, found := m.m[key]
+
 	return found
 }
 

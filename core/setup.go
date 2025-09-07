@@ -18,5 +18,6 @@ func (c *Client) SetupKeyring(cfg *config.KeyringConfig) error {
 
 	// Assign the created keyring to the client.
 	c.WithKeyring(kr)
+
 	return nil
 }

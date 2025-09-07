@@ -120,6 +120,7 @@ func (c *Client) QueryGRPC(ctx context.Context, method string, req, resp codec.P
 	if reply == nil {
 		return errors.New("nil reply from gRPC query")
 	}
+
 	if reply.IsErr() {
 		return errors.New(reply.Log)
 	}

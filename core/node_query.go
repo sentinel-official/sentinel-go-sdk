@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	// gRPC methods for querying node information
+	// gRPC methods for querying node information.
 	methodQueryNode         = "/sentinel.node.v3.QueryService/QueryNode"         // Retrieve details of a specific node
 	methodQueryNodeParams   = "/sentinel.node.v3.QueryService/QueryParams"       // Retrieve module parameters for nodes
 	methodQueryNodes        = "/sentinel.node.v3.QueryService/QueryNodes"        // Retrieve a list of nodes with optional filtering

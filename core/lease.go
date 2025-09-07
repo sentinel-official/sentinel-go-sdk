@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	// gRPC methods for querying lease information
+	// gRPC methods for querying lease information.
 	methodQueryLease             = "/sentinel.lease.v1.QueryService/QueryLease"             // Retrieve a specific lease by ID
 	methodQueryLeaseParams       = "/sentinel.lease.v1.QueryService/QueryParams"            // Retrieve module parameters for leases
 	methodQueryLeases            = "/sentinel.lease.v1.QueryService/QueryLeases"            // List leases with pagination

@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	// gRPC methods for querying account information
+	// gRPC methods for querying account information.
 	methodQueryAccount  = "/cosmos.auth.v1beta1.Query/Account"  // Endpoint for retrieving a single account
 	methodQueryAccounts = "/cosmos.auth.v1beta1.Query/Accounts" // Endpoint for listing accounts with pagination
 )
@@ -50,7 +50,7 @@ func (c *Client) Accounts(ctx context.Context, pageReq *query.PageRequest) (res 
 
 	// Allocate memory for account slice and unpack each account record.
 	res = make([]auth.AccountI, len(resp.Accounts))
-	for i := 0; i < len(resp.Accounts); i++ {
+	for i := range len(resp.Accounts) {
 		if err := c.ProtoCodec().UnpackAny(resp.Accounts[i], &res[i]); err != nil {
 			return nil, nil, err
 		}

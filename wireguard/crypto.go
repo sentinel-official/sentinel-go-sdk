@@ -15,6 +15,46 @@ const KeyLength = 32
 // Key represents a 32-byte key used in WireGuard.
 type Key [KeyLength]byte
 
+// NewPresharedKey generates a new random 32-byte key.
+func NewPresharedKey() (*Key, error) {
+	var k Key
+	if _, err := rand.Read(k[:]); err != nil {
+		return nil, fmt.Errorf("generating random key: %w", err)
+	}
+
+	return &k, nil
+}
+
+// NewPrivateKey generates a new private key with the required properties.
+func NewPrivateKey() (*Key, error) {
+	k, err := NewPresharedKey()
+	if err != nil {
+		return nil, err
+	}
+
+	k[0] &= 248
+	k[31] = (k[31] & 127) | 64
+
+	return k, nil
+}
+
+// NewKeyFromString decodes a base64-encoded string to a Key.
+func NewKeyFromString(s string) (*Key, error) {
+	v, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return nil, fmt.Errorf("parsing Base64 key: %w", err)
+	}
+
+	if len(v) != KeyLength {
+		return nil, fmt.Errorf("key length is not %d bytes", KeyLength)
+	}
+
+	var key Key
+	copy(key[:], v)
+
+	return &key, nil
+}
+
 // String returns the base64 encoding of the key.
 func (k *Key) String() string {
 	return base64.StdEncoding.EncodeToString(k[:])
@@ -23,6 +63,7 @@ func (k *Key) String() string {
 // IsZero checks if the key is all zeros.
 func (k *Key) IsZero() bool {
 	var zeros Key
+
 	return subtle.ConstantTimeCompare(k[:], zeros[:]) == 1
 }
 
@@ -52,43 +93,6 @@ func (k *Key) UnmarshalJSON(data []byte) error {
 	}
 
 	*k = *key
+
 	return nil
-}
-
-// NewPresharedKey generates a new random 32-byte key.
-func NewPresharedKey() (*Key, error) {
-	var k Key
-	if _, err := rand.Read(k[:]); err != nil {
-		return nil, fmt.Errorf("generating random key: %w", err)
-	}
-
-	return &k, nil
-}
-
-// NewPrivateKey generates a new private key with the required properties.
-func NewPrivateKey() (*Key, error) {
-	k, err := NewPresharedKey()
-	if err != nil {
-		return nil, err
-	}
-	k[0] &= 248
-	k[31] = (k[31] & 127) | 64
-
-	return k, nil
-}
-
-// NewKeyFromString decodes a base64-encoded string to a Key.
-func NewKeyFromString(s string) (*Key, error) {
-	v, err := base64.StdEncoding.DecodeString(s)
-	if err != nil {
-		return nil, fmt.Errorf("parsing Base64 key: %w", err)
-	}
-	if len(v) != KeyLength {
-		return nil, fmt.Errorf("key length is not %d bytes", KeyLength)
-	}
-
-	var key Key
-	copy(key[:], v)
-
-	return &key, nil
 }

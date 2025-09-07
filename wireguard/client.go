@@ -40,11 +40,9 @@ func NewClient(name, appDir string, cfg *ClientConfig) *Client {
 // WithDevice sets the WireGuard network interface name and returns the updated Client instance.
 func (c *Client) WithDevice(device string) *Client {
 	c.device = device
+
 	return c
 }
-
-func (c *Client) appConfigFile() string     { return filepath.Join(c.homeDir, "config.toml") }
-func (c *Client) serviceConfigFile() string { return filepath.Join(c.homeDir, c.device+".conf") }
 
 // Type returns the service type of the client.
 func (c *Client) Type() types.ServiceType {
@@ -56,11 +54,12 @@ func (c *Client) IsRunning() (bool, error) {
 	// Executes the 'wg show' command to check the interface status.
 	cmd := exec.Command(
 		c.execFile("wg"),
-		strings.Fields(fmt.Sprintf("show %s", c.device))...,
+		strings.Fields("show "+c.device)...,
 	)
 
 	// Capture stderr output.
 	var stderr bytes.Buffer
+
 	cmd.Stderr = &stderr
 
 	// Run the command and handle errors.
@@ -226,3 +225,6 @@ func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 
 	return 0, 0, nil
 }
+
+func (c *Client) appConfigFile() string     { return filepath.Join(c.homeDir, "config.toml") }
+func (c *Client) serviceConfigFile() string { return filepath.Join(c.homeDir, c.device+".conf") }

@@ -11,10 +11,6 @@ type Error struct {
 	Message string `json:"message,omitempty"` // Description of the error
 }
 
-func (e *Error) String() string {
-	return fmt.Sprintf("code=%d, message=%s", e.Code, e.Message)
-}
-
 // NewError creates a new Error with the given code and message.
 func NewError(code int, msg string) *Error {
 	return &Error{
@@ -23,22 +19,15 @@ func NewError(code int, msg string) *Error {
 	}
 }
 
+func (e *Error) String() string {
+	return fmt.Sprintf("code=%d, message=%s", e.Code, e.Message)
+}
+
 // Response standardizes API response structures.
 type Response struct {
 	Success bool        `json:"success"`          // Success status of the operation
 	Error   *Error      `json:"error,omitempty"`  // Details of any error that occurred
 	Result  interface{} `json:"result,omitempty"` // Result data of the operation
-}
-
-func (r *Response) Err() error {
-	if r.Success {
-		return nil
-	}
-	if r.Error != nil {
-		return errors.New(r.Error.String())
-	}
-
-	return errors.New("unknown error")
 }
 
 // NewResponseError returns a Response indicating a failure with the specified error details.
@@ -66,4 +55,16 @@ func NewResponseResult(v interface{}) *Response {
 		Success: true,
 		Result:  v,
 	}
+}
+
+func (r *Response) Err() error {
+	if r.Success {
+		return nil
+	}
+
+	if r.Error != nil {
+		return errors.New(r.Error.String())
+	}
+
+	return errors.New("unknown error")
 }

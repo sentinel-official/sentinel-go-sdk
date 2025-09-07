@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	// gRPC methods for simulating the transaction
+	// gRPC methods for simulating the transaction.
 	methodSimulate = "/cosmos.tx.v1beta1.Service/Simulate"
 )
 

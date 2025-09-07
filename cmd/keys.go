@@ -132,6 +132,7 @@ func keysAddCmd(c *core.Client) *cobra.Command {
 			}
 
 			cmd.Println("Key created successfully")
+
 			return nil
 		},
 	}
@@ -177,6 +178,7 @@ func keysDeleteCmd(c *core.Client) *cobra.Command {
 			}
 
 			cmd.Println("Key deleted successfully")
+
 			return nil
 		},
 	}
