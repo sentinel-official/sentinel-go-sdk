@@ -14,7 +14,7 @@ import (
 // Run initializes the root Cobra command, sets up signal handling,
 // and executes the CLI with proper error and exit handling.
 // It returns an exit code that should be used to terminate the program.
-func Run(buildRootCmd func(userDir string) *cobra.Command) (exitCode int) {
+func Run(ctx context.Context, buildRootCmd func(userDir string) *cobra.Command) (exitCode int) {
 	// Retrieve the user's home directory.
 	userDir, err := os.UserHomeDir()
 	if err != nil {
@@ -32,7 +32,7 @@ func Run(buildRootCmd func(userDir string) *cobra.Command) (exitCode int) {
 	cmd.SilenceUsage = true
 
 	// Create a context that listens for SIGINT and SIGTERM signals
-	ctx, cancel := SignalContext(context.Background())
+	ctx, cancel := SignalContext(ctx)
 	defer cancel(nil)
 
 	// Execute the root command.
