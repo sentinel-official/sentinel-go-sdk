@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -62,6 +63,9 @@ func Decode(data []byte, format Format) (*pem.Block, []byte) {
 
 // WriteFile writes encoded data as a PEM block to the specified file.
 func WriteFile(path string, format Format, blockType string, data []byte) error {
+	// Clean path before opening
+	path = filepath.Clean(path)
+
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("opening file %q: %w", path, err)
@@ -81,6 +85,9 @@ func WriteFile(path string, format Format, blockType string, data []byte) error 
 
 // ReadFile reads a PEM-encoded file, decodes it, and parses the content into the provided output object.
 func ReadFile(path string, format Format, out any) error {
+	// Clean path before reading
+	path = filepath.Clean(path)
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("reading file %q: %w", path, err)
@@ -142,7 +149,11 @@ func ReadFile(path string, format Format, out any) error {
 
 // encodeBase64 encodes and writes a PEM block using standard base64 encoding.
 func encodeBase64(w io.Writer, b *pem.Block) error {
-	return pem.Encode(w, b)
+	if err := pem.Encode(w, b); err != nil {
+		return fmt.Errorf("writing PEM block: %w", err)
+	}
+
+	return nil
 }
 
 // decodeBase64 decodes the first base64 PEM block found in the data.
@@ -154,7 +165,7 @@ func decodeBase64(data []byte) (*pem.Block, []byte) {
 func encodeHex(w io.Writer, b *pem.Block) error {
 	// Write BEGIN header
 	if _, err := fmt.Fprintf(w, "%s%s-----\n", beginMarker, b.Type); err != nil {
-		return err
+		return fmt.Errorf("writing PEM begin marker: %w", err)
 	}
 
 	// Encode block bytes to hex
@@ -169,17 +180,17 @@ func encodeHex(w io.Writer, b *pem.Block) error {
 		}
 
 		if _, err := w.Write(hexData[i:end]); err != nil {
-			return err
+			return fmt.Errorf("writing PEM hex data: %w", err)
 		}
 
 		if _, err := w.Write([]byte{'\n'}); err != nil {
-			return err
+			return fmt.Errorf("writing PEM new line: %w", err)
 		}
 	}
 
 	// Write END footer
 	if _, err := fmt.Fprintf(w, "%s%s-----\n", endMarker, b.Type); err != nil {
-		return err
+		return fmt.Errorf("writing PEM end marker: %w", err)
 	}
 
 	return nil

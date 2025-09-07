@@ -1,5 +1,9 @@
 package v2ray
 
+import (
+	"github.com/sentinel-official/sentinel-go-sdk/types"
+)
+
 // TransportProtocol is a custom type used to represent different transport protocols.
 type TransportProtocol byte
 
@@ -60,7 +64,7 @@ func (t TransportProtocol) String() string {
 	case TransportProtocolWebSocket:
 		return "websocket"
 	case TransportProtocolUnspecified:
-		return "unspecified"
+		return types.StringUnspecified
 	default:
 		return "" // Return empty string for unknown transport protocol types
 	}
@@ -101,7 +105,7 @@ func (t TransportSecurity) String() string {
 	case TransportSecurityTLS:
 		return "tls"
 	case TransportSecurityUnspecified:
-		return "unspecified"
+		return types.StringUnspecified
 	default:
 		return "" // Return empty string for unknown security settings
 	}

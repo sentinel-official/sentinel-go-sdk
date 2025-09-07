@@ -176,8 +176,7 @@ func NewAddrPoolSet(cidrs ...string) (*AddrPoolSet, error) {
 		rwm:   &sync.RWMutex{},
 	}
 
-	var items []*Prefix
-
+	items := make([]*Prefix, 0, len(cidrs))
 	for _, cidr := range cidrs {
 		pool, prefix, err := NewAddrPool(cidr)
 		if err != nil {

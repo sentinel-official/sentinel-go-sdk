@@ -45,12 +45,12 @@ func NewServer(name, addr, certFile, keyFile string, handler http.Handler) *Serv
 
 // Setup prepares the server for operation.
 func (s *Server) Setup(ctx context.Context) error {
-	return s.Manager.Setup(ctx, nil)
+	return s.Manager.Setup(ctx, nil) //nolint:wrapcheck
 }
 
 // Start launches the server and begins handling both HTTP and HTTPS traffic.
 func (s *Server) Start(parent context.Context) (context.Context, error) {
-	return s.Manager.Start(parent, func(ctx context.Context) error {
+	return s.Manager.Start(parent, func(ctx context.Context) error { //nolint:wrapcheck
 		// Load the TLS certificate and key from disk
 		cert, err := tls.LoadX509KeyPair(s.certFile, s.keyFile)
 		if err != nil {
@@ -77,19 +77,21 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 
 		// Configure the HTTPS server with no error logging to avoid handshake noise
 		s.tlsServer = &http.Server{
-			Handler:  s.handler,
-			ErrorLog: log.New(io.Discard, "", 0),
+			ErrorLog:          log.New(io.Discard, "", 0),
+			Handler:           s.handler,
+			ReadHeaderTimeout: 5 * time.Second,
 		}
 
 		// Configure the plain HTTP server
 		s.anyServer = &http.Server{
-			Handler: s.handler,
+			Handler:           s.handler,
+			ReadHeaderTimeout: 5 * time.Second,
 		}
 
 		// Start the cmux multiplexer, which delegates connections to the correct server
 		s.Go(ctx, func() error {
 			if err := s.cMux.Serve(); err != nil {
-				return err
+				return fmt.Errorf("serving cMux: %w", err)
 			}
 
 			return nil
@@ -99,6 +101,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 		s.Go(ctx, func() error {
 			cfg := &tls.Config{
 				Certificates: []tls.Certificate{cert}, // Load TLS certificate
+				MinVersion:   tls.VersionTLS12,        // Use TLS 1.2 as minimum version
 				Rand:         rand.Reader,             // Use secure random for crypto
 			}
 
@@ -107,7 +110,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 
 			// Start HTTPS server
 			if err := s.tlsServer.Serve(l); err != nil {
-				return err
+				return fmt.Errorf("serving TLS: %w", err)
 			}
 
 			return nil
@@ -116,7 +119,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 		// Start serving non-TLS HTTP traffic
 		s.Go(ctx, func() error {
 			if err := s.anyServer.Serve(anyMux); err != nil {
-				return err
+				return fmt.Errorf("serving any: %w", err)
 			}
 
 			return nil
@@ -143,12 +146,12 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 
 // Wait blocks until all server goroutines have exited or an error occurs.
 func (s *Server) Wait(ctx context.Context) error {
-	return s.Manager.Wait(ctx, nil)
+	return s.Manager.Wait(ctx, nil) //nolint:wrapcheck
 }
 
 // Stop gracefully shuts down both the TLS and non-TLS servers and stops the multiplexer.
 func (s *Server) Stop() error {
-	return s.Manager.Stop(func() error {
+	return s.Manager.Stop(func() error { //nolint:wrapcheck
 		// Close cmux first (unblocks sub-listeners)
 		if s.cMux != nil {
 			s.cMux.Close()
@@ -180,7 +183,7 @@ func (s *Server) Stop() error {
 
 // Cleanup releases any remaining resources associated with the server.
 func (s *Server) Cleanup() error {
-	return s.Manager.Cleanup(func() error {
+	return s.Manager.Cleanup(func() error { //nolint:wrapcheck
 		s.cMux = nil
 		s.anyServer = nil
 		s.tlsServer = nil

@@ -29,9 +29,9 @@ func readLineFromBuf(buf *bufio.Reader) (string, error) {
 			break
 		}
 
-		return "", err
+		return "", fmt.Errorf("empty line: %w", err)
 	case err != nil:
-		return "", err
+		return "", fmt.Errorf("reading line: %w", err)
 	}
 
 	return strings.TrimSpace(line), nil
@@ -41,7 +41,7 @@ func readLineFromBuf(buf *bufio.Reader) (string, error) {
 func GetConfirmation(prompt string, buf *bufio.Reader) (bool, error) {
 	line, err := GetString(prompt, buf)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("reading string: %w", err)
 	}
 
 	line = strings.ToLower(line)
@@ -55,7 +55,12 @@ func GetConfirmation(prompt string, buf *bufio.Reader) (bool, error) {
 // GetPassword prompts the user for a password. If the standard input is a terminal, use a secure prompt.
 func GetPassword(prompt string, buf *bufio.Reader) (string, error) {
 	if prompt != "" && isTTY() {
-		return speakeasy.FAsk(os.Stderr, prompt)
+		password, err := speakeasy.FAsk(os.Stderr, prompt)
+		if err != nil {
+			return "", fmt.Errorf("asking: %w", err)
+		}
+
+		return password, nil
 	}
 
 	return readLineFromBuf(buf)

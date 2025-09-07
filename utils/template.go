@@ -9,14 +9,15 @@ import (
 	"text/template"
 )
 
-var funcMap = template.FuncMap{
-	"stringsJoin":  strings.Join,
-	"sum":          func(x, y int) int { return x + y },
-	"filepathJoin": filepath.Join,
-}
-
 // ExecTemplateToFile generates content from a template and writes it to a file.
 func ExecTemplateToFile(text string, data interface{}, filename string) error {
+	// Define a map of custom functions to be used in the template.
+	var funcMap = template.FuncMap{
+		"stringsJoin":  strings.Join,
+		"sum":          func(x, y int) int { return x + y },
+		"filepathJoin": filepath.Join,
+	}
+
 	// Parse the template with custom functions
 	tmpl, err := template.New("config").Funcs(funcMap).Parse(text)
 	if err != nil {

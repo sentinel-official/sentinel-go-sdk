@@ -128,7 +128,7 @@ func (s *Server) Init(force bool) error {
 
 // Setup prepares the OpenVPN server service for operation.
 func (s *Server) Setup(ctx context.Context) error {
-	return s.Manager.Setup(ctx, func() error {
+	return s.Manager.Setup(ctx, func() error { //nolint:wrapcheck
 		// Construct the full path to the config file
 		cfgFile := s.appConfigFile()
 
@@ -196,13 +196,13 @@ func (s *Server) Setup(ctx context.Context) error {
 
 // Start starts the OpenVPN server service.
 func (s *Server) Start(parent context.Context) (context.Context, error) {
-	return s.Manager.Start(parent, func(ctx context.Context) error {
+	return s.Manager.Start(parent, func(ctx context.Context) error { //nolint:wrapcheck
 		// Constructs the command to start the OpenVPN server.
 		cfgFile := s.serviceConfigFile()
 		s.cmd = exec.CommandContext(
 			ctx,
 			s.execFile(openVPN),
-			strings.Fields("--config "+cfgFile)...,
+			"--config", cfgFile,
 		)
 
 		// Starts the OpenVPN server process.
@@ -255,7 +255,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 
 // Stop stops the OpenVPN server service.
 func (s *Server) Stop() error {
-	return s.Manager.Stop(func() error {
+	return s.Manager.Stop(func() error { //nolint:wrapcheck
 		// Read PID from file.
 		pid, err := s.readPID()
 		if err != nil {
@@ -287,12 +287,12 @@ func (s *Server) Stop() error {
 
 // Wait waits for all background goroutines to complete.
 func (s *Server) Wait(ctx context.Context) error {
-	return s.Manager.Wait(ctx, nil)
+	return s.Manager.Wait(ctx, nil) //nolint:wrapcheck
 }
 
 // Cleanup removes service configuration files.
 func (s *Server) Cleanup() error {
-	return s.Manager.Cleanup(func() error {
+	return s.Manager.Cleanup(func() error { //nolint:wrapcheck
 		// Removes configuration file.
 		cfgFile := s.serviceConfigFile()
 		if err := utils.RemoveFile(cfgFile); err != nil {
@@ -436,7 +436,7 @@ func (s *Server) serviceConfigFile() string { return filepath.Join(s.homeDir, "s
 // readPID reads the PID from the server's PID file.
 func (s *Server) readPID() (int32, error) {
 	// Get the full path to the PID file
-	pidFile := s.pidFile()
+	pidFile := filepath.Clean(s.pidFile())
 
 	// Check if the PID file exists
 	exists, err := utils.IsFileExists(pidFile)

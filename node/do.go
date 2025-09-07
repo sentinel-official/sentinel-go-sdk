@@ -23,7 +23,7 @@ func (c *Client) do(ctx context.Context, method, url string, reqBody, result int
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: c.insecure,
+				InsecureSkipVerify: c.insecure, //nolint:gosec
 			},
 		},
 	}

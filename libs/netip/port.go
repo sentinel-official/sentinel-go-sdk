@@ -2,6 +2,7 @@ package netip
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -115,23 +116,28 @@ func (p *Port) Validate() error {
 
 // MarshalJSON marshals Port as a string using String().
 func (p *Port) MarshalJSON() ([]byte, error) {
-	return json.Marshal(p.String())
+	buf, err := json.Marshal(p.String())
+	if err != nil {
+		return nil, fmt.Errorf("marshaling port string: %w", err)
+	}
+
+	return buf, nil
 }
 
 // UnmarshalJSON parses a JSON string into a Port.
 func (p *Port) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
-		return fmt.Errorf("unmarshaling port string from bytes: %w", err)
+		return fmt.Errorf("unmarshaling port from data: %w", err)
 	}
 
 	port, err := NewPortFromString(s)
 	if err != nil {
-		return err
+		return fmt.Errorf("parsing port: %w", err)
 	}
 
 	if port == nil {
-		return fmt.Errorf("empty port string %q", s)
+		return errors.New("nil port")
 	}
 
 	*p = *port

@@ -30,12 +30,12 @@ func NewScheduler(name string) *Scheduler {
 
 // Setup prepares the scheduler for operation.
 func (s *Scheduler) Setup(ctx context.Context) error {
-	return s.Manager.Setup(ctx, nil)
+	return s.Manager.Setup(ctx, nil) //nolint:wrapcheck
 }
 
 // Start begins executing all registered workers concurrently.
 func (s *Scheduler) Start(parent context.Context) (context.Context, error) {
-	return s.Manager.Start(parent, func(ctx context.Context) error {
+	return s.Manager.Start(parent, func(ctx context.Context) error { //nolint:wrapcheck
 		for _, val := range s.workers {
 			worker := val
 
@@ -57,17 +57,17 @@ func (s *Scheduler) Start(parent context.Context) (context.Context, error) {
 
 // Wait blocks until all workers have exited or the manager is stopped.
 func (s *Scheduler) Wait(ctx context.Context) error {
-	return s.Manager.Wait(ctx, nil)
+	return s.Manager.Wait(ctx, nil) //nolint:wrapcheck
 }
 
 // Stop gracefully halts the scheduler and cancels all running workers.
 func (s *Scheduler) Stop() error {
-	return s.Manager.Stop(nil)
+	return s.Manager.Stop(nil) //nolint:wrapcheck
 }
 
 // Cleanup releases resources and finalizes the scheduler’s state after stopping.
 func (s *Scheduler) Cleanup() error {
-	return s.Manager.Cleanup(nil)
+	return s.Manager.Cleanup(nil) //nolint:wrapcheck
 }
 
 // Register adds multiple workers to the scheduler.
@@ -103,14 +103,14 @@ func (s *Scheduler) runWorker(ctx context.Context, w Worker) error {
 			retry.LastErrorOnly(true),
 		); err != nil {
 			if exit := w.OnError(err); exit {
-				return err
+				return fmt.Errorf("running worker: %w", err)
 			}
 		}
 
 		// Sleep for the interval—or stop early if the context is done
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return ctx.Err() //nolint:wrapcheck
 		case <-time.After(w.Interval()):
 		}
 	}

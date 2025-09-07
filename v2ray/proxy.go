@@ -6,6 +6,8 @@ import (
 	"github.com/v2fly/v2ray-core/v5/proxy/vless"
 	"github.com/v2fly/v2ray-core/v5/proxy/vmess"
 	"google.golang.org/protobuf/types/known/anypb"
+
+	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
 
 // ProxyProtocol is a custom type used to represent different proxy protocols.
@@ -38,7 +40,7 @@ func (p ProxyProtocol) String() string {
 	case ProxyProtocolVMess:
 		return "vmess"
 	case ProxyProtocolUnspecified:
-		return "unspecified"
+		return types.StringUnspecified
 	default:
 		return "" // Return empty string for unknown protocols
 	}

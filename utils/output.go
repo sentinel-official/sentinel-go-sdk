@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
 
 // writeJSON formats the output as JSON and writes it to the provided writer.
@@ -33,9 +35,9 @@ func writeText(w io.Writer, v interface{}) error {
 // Write formats the output according to the specified format and writes it to the provided writer.
 func Write(w io.Writer, v interface{}, format string) error {
 	switch format {
-	case "json":
+	case types.FormatJSON:
 		return writeJSON(w, v)
-	case "text":
+	case types.FormatText:
 		return writeText(w, v)
 	default:
 		return fmt.Errorf("unsupported output format %q", format)

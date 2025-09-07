@@ -5,7 +5,6 @@ package wireguard
 import (
 	"context"
 	"os/exec"
-	"strings"
 )
 
 // execFile returns the executable name.
@@ -20,7 +19,7 @@ func (s *Server) startCmd(ctx context.Context) (*exec.Cmd, error) {
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wg-quick"),
-		strings.Fields("up "+cfgFile)...,
+		"up", cfgFile,
 	)
 
 	return cmd, nil
@@ -30,9 +29,10 @@ func (s *Server) startCmd(ctx context.Context) (*exec.Cmd, error) {
 func (s *Server) stopCmd() (*exec.Cmd, error) {
 	// Build the 'wg-quick down' command with the service config file.
 	cfgFile := s.serviceConfigFile()
-	cmd := exec.Command(
+	cmd := exec.CommandContext(
+		context.Background(),
 		s.execFile("wg-quick"),
-		strings.Fields("down "+cfgFile)...,
+		"down", cfgFile,
 	)
 
 	return cmd, nil

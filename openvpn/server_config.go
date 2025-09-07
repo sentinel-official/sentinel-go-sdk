@@ -75,7 +75,7 @@ func (c *ServerConfig) Validate() error {
 		}
 
 		if ip == nil || ipNet == nil {
-			return errors.New("invalid ipv4_addr: ip or netmask is empty")
+			return errors.New("invalid ipv4_addr: ip or netmask is nil")
 		}
 	}
 
@@ -87,7 +87,7 @@ func (c *ServerConfig) Validate() error {
 		}
 
 		if ip == nil || ipNet == nil {
-			return errors.New("invalid ipv6_addr: ip or netmask is empty")
+			return errors.New("invalid ipv6_addr: ip or netmask is nil")
 		}
 	}
 

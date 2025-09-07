@@ -60,9 +60,10 @@ func (s *Server) Type() types.ServiceType {
 // IsRunning checks if the WireGuard interface is up and active.
 func (s *Server) IsRunning() (bool, error) {
 	// Executes the 'wg show' command to check the interface status.
-	cmd := exec.Command(
+	cmd := exec.CommandContext(
+		context.Background(),
 		s.execFile("wg"),
-		strings.Fields("show "+s.device)...,
+		"show", s.device,
 	)
 
 	// Capture stderr output.
@@ -111,7 +112,7 @@ func (s *Server) Init(force bool) error {
 
 // Setup prepares the WireGuard server service for operation.
 func (s *Server) Setup(ctx context.Context) error {
-	return s.Manager.Setup(ctx, func() error {
+	return s.Manager.Setup(ctx, func() error { //nolint:wrapcheck
 		// Construct the full path to the config file
 		cfgFile := s.appConfigFile()
 
@@ -159,7 +160,7 @@ func (s *Server) Setup(ctx context.Context) error {
 
 // Start starts the WireGuard server service.
 func (s *Server) Start(parent context.Context) (context.Context, error) {
-	return s.Manager.Start(parent, func(ctx context.Context) error {
+	return s.Manager.Start(parent, func(ctx context.Context) error { //nolint:wrapcheck
 		// Start the WireGuard process.
 		cmd, err := s.startCmd(ctx)
 		if err != nil {
@@ -178,7 +179,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 					return ctx.Err()
 				case <-time.After(time.Second):
 					// Check if service is up before syncing peers.
-					ok, err := s.IsRunning()
+					ok, err := s.IsRunning() //nolint:contextcheck
 					if err != nil {
 						return fmt.Errorf("checking service status: %w", err)
 					}
@@ -201,7 +202,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 
 // Stop stops the WireGuard server service.
 func (s *Server) Stop() error {
-	return s.Manager.Stop(func() error {
+	return s.Manager.Stop(func() error { //nolint:wrapcheck
 		cmd, err := s.stopCmd()
 		if err != nil {
 			return fmt.Errorf("preparing command: %w", err)
@@ -217,12 +218,12 @@ func (s *Server) Stop() error {
 
 // Wait waits for all background goroutines to complete.
 func (s *Server) Wait(ctx context.Context) error {
-	return s.Manager.Wait(ctx, nil)
+	return s.Manager.Wait(ctx, nil) //nolint:wrapcheck
 }
 
 // Cleanup removes service configuration files.
 func (s *Server) Cleanup() error {
-	return s.Manager.Cleanup(func() error {
+	return s.Manager.Cleanup(func() error { //nolint:wrapcheck
 		// Removes configuration file.
 		cfgFile := s.serviceConfigFile()
 		if err := utils.RemoveFile(cfgFile); err != nil {
@@ -287,7 +288,7 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf("set %s peer %s allowed-ips %s", s.device, id, strings.Join(allowedIPs, ",")))...,
+		"set", s.device, "peer", id, "allowed-ips", strings.Join(allowedIPs, ","),
 	)
 
 	// Run the command and check for errors.
@@ -321,7 +322,7 @@ func (s *Server) RemovePeer(ctx context.Context, id string) error {
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf(`set %s peer %s remove`, s.device, id))...,
+		"set", s.device, "peer", id, "remove",
 	)
 
 	// Run the command and check for errors.
@@ -381,7 +382,7 @@ func (s *Server) syncPeers(ctx context.Context) error {
 	cmd := exec.CommandContext(
 		ctx,
 		s.execFile("wg"),
-		strings.Fields(fmt.Sprintf("show %s transfer", s.device))...,
+		"show", s.device, "transfer",
 	)
 
 	output, err := cmd.Output()

@@ -6,10 +6,10 @@ import (
 
 var (
 	// Commit holds the commit hash of the current build.
-	Commit = ""
+	Commit = "" //nolint:gochecknoglobals
 
 	// Tag holds the version tag of the current build.
-	Tag = ""
+	Tag = "" //nolint:gochecknoglobals
 )
 
 // Info represents versioning information.

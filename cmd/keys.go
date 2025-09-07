@@ -13,6 +13,7 @@ import (
 	"github.com/sentinel-official/sentinel-go-sdk/config"
 	"github.com/sentinel-official/sentinel-go-sdk/core"
 	"github.com/sentinel-official/sentinel-go-sdk/core/input"
+	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
@@ -53,7 +54,7 @@ func NewKeysCmd(cfg *config.KeyringConfig) *cobra.Command {
 func keysAddCmd(c *core.Client) *cobra.Command {
 	// Declare variables for flags
 	hdPath := hd.CreateHDPath(118, 0, 0).String()
-	outputFormat := "text"
+	outputFormat := types.FormatText
 
 	cmd := &cobra.Command{
 		Use:   "add [name]",
@@ -189,7 +190,7 @@ func keysDeleteCmd(c *core.Client) *cobra.Command {
 // keysListCmd lists all the available keys.
 func keysListCmd(c *core.Client) *cobra.Command {
 	// Declare variables for flags
-	outputFormat := "text"
+	outputFormat := types.FormatText
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -225,7 +226,7 @@ func keysListCmd(c *core.Client) *cobra.Command {
 // keysShowCmd displays details of the key with the specified name.
 func keysShowCmd(c *core.Client) *cobra.Command {
 	// Declare variables for flags
-	outputFormat := "text"
+	outputFormat := types.FormatText
 
 	cmd := &cobra.Command{
 		Use:   "show [name]",

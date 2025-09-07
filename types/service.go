@@ -27,7 +27,7 @@ func (s ServiceType) String() string {
 	case ServiceTypeOpenVPN:
 		return "openvpn"
 	case ServiceTypeUnspecified:
-		return "unspecified"
+		return StringUnspecified
 	default:
 		return ""
 	}

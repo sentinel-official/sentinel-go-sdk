@@ -7,11 +7,16 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/rs/zerolog"
+
+	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
 
 type Logger = log.Logger // An alias for the log.Logger type
 
-var logger = log.NewNopLogger() // Default to a no-op logger
+var (
+	// Global logger, default to a no-op logger.
+	logger = log.NewNopLogger() //nolint:gochecknoglobals
+)
 
 // Info logs an informational message.
 func Info(msg string, keyVals ...any) {
@@ -54,8 +59,8 @@ func SetLogger(l Logger) {
 func NewLogger(w io.Writer, format, level string) (Logger, error) {
 	// Check if the format is valid.
 	validFormats := map[string]bool{
-		"json": true,
-		"text": true,
+		types.FormatJSON: true,
+		types.FormatText: true,
 	}
 	if !validFormats[format] {
 		return nil, fmt.Errorf("unsupported log format %q (allowed: json, text)", format)
@@ -91,7 +96,7 @@ func NewLogger(w io.Writer, format, level string) (Logger, error) {
 	}
 
 	// Set log format based on the provided format string
-	if format == "json" {
+	if format == types.FormatJSON {
 		opts = append(opts, log.OutputJSONOption())
 	}
 

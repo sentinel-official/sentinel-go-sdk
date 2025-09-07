@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
@@ -35,7 +36,7 @@ func (c *Client) Session(ctx context.Context, id uint64) (res v3.Session, err er
 
 	// Unpack the session data from the response.
 	if err := c.ProtoCodec().UnpackAny(resp.Session, &res); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unpacking session: %w", err)
 	}
 
 	return res, nil
@@ -74,7 +75,7 @@ func (c *Client) Sessions(ctx context.Context, pageReq *query.PageRequest) (res 
 	res = make([]v3.Session, len(resp.Sessions))
 	for i := range len(resp.Sessions) {
 		if err := c.ProtoCodec().UnpackAny(resp.Sessions[i], &res[i]); err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("unpacking session: %w", err)
 		}
 	}
 
@@ -101,7 +102,7 @@ func (c *Client) SessionsForAccount(ctx context.Context, accAddr cosmossdk.AccAd
 	res = make([]v3.Session, len(resp.Sessions))
 	for i := range len(resp.Sessions) {
 		if err := c.ProtoCodec().UnpackAny(resp.Sessions[i], &res[i]); err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("unpacking session: %w", err)
 		}
 	}
 
@@ -128,7 +129,7 @@ func (c *Client) SessionsForNode(ctx context.Context, nodeAddr sentinelhub.NodeA
 	res = make([]v3.Session, len(resp.Sessions))
 	for i := range len(resp.Sessions) {
 		if err := c.ProtoCodec().UnpackAny(resp.Sessions[i], &res[i]); err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("unpacking session: %w", err)
 		}
 	}
 
@@ -155,7 +156,7 @@ func (c *Client) SessionsForSubscription(ctx context.Context, id uint64, pageReq
 	res = make([]v3.Session, len(resp.Sessions))
 	for i := range len(resp.Sessions) {
 		if err := c.ProtoCodec().UnpackAny(resp.Sessions[i], &res[i]); err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("unpacking session: %w", err)
 		}
 	}
 
@@ -183,7 +184,7 @@ func (c *Client) SessionsForSubscriptionAllocation(ctx context.Context, id uint6
 	res = make([]v3.Session, len(resp.Sessions))
 	for i := range len(resp.Sessions) {
 		if err := c.ProtoCodec().UnpackAny(resp.Sessions[i], &res[i]); err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("unpacking session: %w", err)
 		}
 	}
 

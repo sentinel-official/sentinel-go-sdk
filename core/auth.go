@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
@@ -29,7 +30,7 @@ func (c *Client) Account(ctx context.Context, accAddr cosmossdk.AccAddress) (res
 
 	// Unpack the retrieved account data into the account interface.
 	if err := c.ProtoCodec().UnpackAny(resp.Account, &res); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unpacking account: %w", err)
 	}
 
 	return res, nil
@@ -52,7 +53,7 @@ func (c *Client) Accounts(ctx context.Context, pageReq *query.PageRequest) (res 
 	res = make([]auth.AccountI, len(resp.Accounts))
 	for i := range len(resp.Accounts) {
 		if err := c.ProtoCodec().UnpackAny(resp.Accounts[i], &res[i]); err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("unpacking account: %w", err)
 		}
 	}
 

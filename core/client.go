@@ -110,7 +110,12 @@ func (c *Client) HTTP() (*http.HTTP, error) {
 
 	timeout := uint(c.rpcTimeout / time.Second)
 
-	return http.NewWithTimeout(c.rpcAddr, "/websocket", timeout)
+	hc, err := http.NewWithTimeout(c.rpcAddr, "/websocket", timeout)
+	if err != nil {
+		return nil, fmt.Errorf("creating HTTP client with timeout %ds: %w", timeout, err)
+	}
+
+	return hc, nil
 }
 
 // MsgFromAddr returns the account address from which messages will be sent.

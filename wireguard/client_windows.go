@@ -2,10 +2,8 @@ package wireguard
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
 // execFile returns the executable name.
@@ -15,11 +13,12 @@ func (c *Client) execFile(name string) string {
 
 // startCmd returns the command to bring up the WireGuard interface.
 func (c *Client) startCmd(ctx context.Context) (*exec.Cmd, error) {
-	// Build the command to uninstall the WireGuard tunnel service.
+	// Build the command to install the WireGuard tunnel service.
+	cfgFile := c.serviceConfigFile()
 	cmd := exec.CommandContext(
 		ctx,
 		c.execFile("wireguard"),
-		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", c.device))...,
+		"/installtunnelservice", cfgFile,
 	)
 
 	return cmd, nil
@@ -27,11 +26,11 @@ func (c *Client) startCmd(ctx context.Context) (*exec.Cmd, error) {
 
 // stopCmd returns the command to bring down the WireGuard interface.
 func (c *Client) stopCmd() (*exec.Cmd, error) {
-	// Build the command to install the WireGuard tunnel service.
-	cfgFile := c.serviceConfigFile()
-	cmd := exec.Command(
+	// Build the command to uninstall the WireGuard tunnel service.
+	cmd := exec.CommandContext(
+		context.Background(),
 		c.execFile("wireguard"),
-		strings.Fields(fmt.Sprintf("/uninstalltunnelservice %s", cfgFile))...,
+		"/uninstalltunnelservice", c.device,
 	)
 
 	return cmd, nil

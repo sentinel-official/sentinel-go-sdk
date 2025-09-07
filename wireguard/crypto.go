@@ -77,19 +77,24 @@ func (k *Key) Public() *Key {
 
 // MarshalJSON encodes the Key as a base64 string.
 func (k *Key) MarshalJSON() ([]byte, error) {
-	return json.Marshal(k.String())
+	buf, err := json.Marshal(k.String())
+	if err != nil {
+		return nil, fmt.Errorf("marshaling key string: %w", err)
+	}
+
+	return buf, nil
 }
 
 // UnmarshalJSON decodes a base64 string into a Key.
 func (k *Key) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
-		return fmt.Errorf("unmarshaling key: %w", err)
+		return fmt.Errorf("unmarshaling key from data: %w", err)
 	}
 
 	key, err := NewKeyFromString(s)
 	if err != nil {
-		return fmt.Errorf("creating key: %w", err)
+		return fmt.Errorf("parsing key: %w", err)
 	}
 
 	*k = *key

@@ -52,9 +52,10 @@ func (c *Client) Type() types.ServiceType {
 // IsRunning checks if the WireGuard interface is up and active.
 func (c *Client) IsRunning() (bool, error) {
 	// Executes the 'wg show' command to check the interface status.
-	cmd := exec.Command(
+	cmd := exec.CommandContext(
+		context.Background(),
 		c.execFile("wg"),
-		strings.Fields("show "+c.device)...,
+		"show", c.device,
 	)
 
 	// Capture stderr output.
@@ -103,7 +104,7 @@ func (c *Client) Init(force bool) error {
 
 // Setup prepares the WireGuard client service for operation.
 func (c *Client) Setup(ctx context.Context) error {
-	return c.Manager.Setup(ctx, func() error {
+	return c.Manager.Setup(ctx, func() error { //nolint:wrapcheck
 		// Construct the full path to the config file.
 		cfgFile := c.appConfigFile()
 
@@ -137,7 +138,7 @@ func (c *Client) Setup(ctx context.Context) error {
 
 // Start starts the WireGuard client service.
 func (c *Client) Start(parent context.Context) (context.Context, error) {
-	return c.Manager.Start(parent, func(ctx context.Context) error {
+	return c.Manager.Start(parent, func(ctx context.Context) error { //nolint:wrapcheck
 		// Start the WireGuard process.
 		cmd, err := c.startCmd(ctx)
 		if err != nil {
@@ -154,7 +155,7 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 
 // Stop stops the WireGuard client service.
 func (c *Client) Stop() error {
-	return c.Manager.Stop(func() error {
+	return c.Manager.Stop(func() error { //nolint:wrapcheck
 		cmd, err := c.stopCmd()
 		if err != nil {
 			return fmt.Errorf("preparing command: %w", err)
@@ -170,12 +171,12 @@ func (c *Client) Stop() error {
 
 // Wait waits for all background goroutines to complete.
 func (c *Client) Wait(ctx context.Context) error {
-	return c.Manager.Wait(ctx, nil)
+	return c.Manager.Wait(ctx, nil) //nolint:wrapcheck
 }
 
 // Cleanup removes client-specific configuration files.
 func (c *Client) Cleanup() error {
-	return c.Manager.Cleanup(func() error {
+	return c.Manager.Cleanup(func() error { //nolint:wrapcheck
 		// Removes configuration file.
 		cfgFile := c.serviceConfigFile()
 		if err := utils.RemoveFile(cfgFile); err != nil {
@@ -192,7 +193,7 @@ func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 	cmd := exec.CommandContext(
 		ctx,
 		c.execFile("wg"),
-		strings.Fields(fmt.Sprintf("show %s transfer", c.device))...,
+		"show", c.device, "transfer",
 	)
 
 	output, err := cmd.Output()

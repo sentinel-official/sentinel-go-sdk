@@ -92,7 +92,7 @@ type ClientConfig struct {
 
 // GetAddrs returns the list of addresses (Addrs) as netip.Prefixes.
 func (c *ClientConfig) GetAddrs() []netip.Prefix {
-	var addrs []netip.Prefix
+	addrs := make([]netip.Prefix, 0, len(c.Addrs))
 	for _, addr := range c.Addrs {
 		addr, err := netip.ParsePrefix(addr)
 		if err != nil {
@@ -107,7 +107,7 @@ func (c *ClientConfig) GetAddrs() []netip.Prefix {
 
 // GetExcludeAddrs returns the list of exclude addresses (ExcludeAddrs) as netip.Prefixes.
 func (c *ClientConfig) GetExcludeAddrs() []netip.Prefix {
-	var addrs []netip.Prefix
+	addrs := make([]netip.Prefix, 0, len(c.ExcludeAddrs))
 	for _, addr := range c.ExcludeAddrs {
 		addr, err := netip.ParsePrefix(addr)
 		if err != nil {

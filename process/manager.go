@@ -2,6 +2,7 @@ package process
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
@@ -55,7 +56,7 @@ func (m *Manager) Go(ctx context.Context, fn func() error) {
 		// Run provided go function if given.
 		if fn != nil {
 			if err := fn(); err != nil {
-				return err
+				return fmt.Errorf("calling: %w", err)
 			}
 		}
 
@@ -82,14 +83,14 @@ func (m *Manager) Setup(ctx context.Context, fn func() error) error {
 	// Check if context was already canceled.
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return ctx.Err() //nolint:wrapcheck
 	default:
 	}
 
 	// Run provided setup function if given.
 	if fn != nil {
 		if err := fn(); err != nil {
-			return err
+			return fmt.Errorf("calling: %w", err)
 		}
 	}
 
@@ -134,14 +135,14 @@ func (m *Manager) Start(parent context.Context, fn func(ctx context.Context) err
 	// Check if context was already canceled.
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, ctx.Err() //nolint:wrapcheck
 	default:
 	}
 
 	// Run provided start function if given.
 	if fn != nil {
 		if err := fn(ctx); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("calling: %w", err)
 		}
 	}
 
@@ -178,7 +179,9 @@ func (m *Manager) Stop(fn func() error) (err error) {
 
 	// Run provided stop function if given.
 	if fn != nil {
-		return fn()
+		if err := fn(); err != nil {
+			return fmt.Errorf("calling: %w", err)
+		}
 	}
 
 	return nil
@@ -198,19 +201,21 @@ func (m *Manager) Wait(ctx context.Context, fn func() error) error {
 		if err := m.eg.Wait(); err != nil {
 			// If not stopped, propagate error.
 			if !m.state.Is(internal.StateStopping, internal.StateStopError, internal.StateStopped) {
-				return err
+				return fmt.Errorf("waiting group: %w", err)
 			}
 
 			// If stopped, ignore context.Canceled errors.
 			if !utils.ErrorIs(context.Cause(ctx), context.Canceled) {
-				return err
+				return fmt.Errorf("waiting group: %w", err)
 			}
 		}
 	}
 
 	// Run provided wait function if given.
 	if fn != nil {
-		return fn()
+		if err := fn(); err != nil {
+			return fmt.Errorf("calling: %w", err)
+		}
 	}
 
 	return nil
@@ -237,7 +242,7 @@ func (m *Manager) Cleanup(fn func() error) error {
 	// Run provided cleanup function if given.
 	if fn != nil {
 		if err := fn(); err != nil {
-			return err
+			return fmt.Errorf("calling: %w", err)
 		}
 	}
 
