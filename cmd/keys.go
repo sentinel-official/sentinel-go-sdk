@@ -10,8 +10,8 @@ import (
 	"github.com/cosmos/go-bip39"
 	"github.com/spf13/cobra"
 
-	"github.com/sentinel-official/sentinel-go-sdk/config"
 	"github.com/sentinel-official/sentinel-go-sdk/core"
+	"github.com/sentinel-official/sentinel-go-sdk/core/config"
 	"github.com/sentinel-official/sentinel-go-sdk/core/input"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"

@@ -13,7 +13,7 @@ import (
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 
-	"github.com/sentinel-official/sentinel-go-sdk/config"
+	"github.com/sentinel-official/sentinel-go-sdk/core/config"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
 
