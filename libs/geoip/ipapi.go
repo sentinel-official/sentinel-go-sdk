@@ -56,8 +56,8 @@ func (c *IPAPIClient) Get(ctx context.Context, ip string) (*Location, error) {
 	var result struct {
 		City        string  `json:"city"`
 		Country     string  `json:"country"`
-		CountryCode string  `json:"countryCode"`
-		IP          string  `json:"query"` // Note: IP field is named "query" in ip-api.com response.
+		CountryCode string  `json:"countryCode"` //nolint:tagliatelle
+		IP          string  `json:"query"`       // Note: IP field is named "query" in ip-api.com response.
 		Latitude    float64 `json:"lat"`
 		Longitude   float64 `json:"lon"`
 	}
