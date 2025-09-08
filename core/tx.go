@@ -15,6 +15,8 @@ import (
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
+
+	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // calculateFees computes transaction fees based on the provided gas prices and gas limit.
@@ -262,6 +264,11 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 
 	// retryIfFunc determines whether a retry should occur based on the error.
 	retryIfFunc := func(err error) bool {
+		// Retry if the error is due to a context deadline being exceeded.
+		if utils.ErrorIs(err, context.DeadlineExceeded) {
+			return true
+		}
+
 		// Retry if the error is an account sequence mismatch.
 		if IsWrongSequenceErr(err) {
 			return true
