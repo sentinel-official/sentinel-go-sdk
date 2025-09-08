@@ -25,8 +25,8 @@ func (c *Client) Balance(ctx context.Context, accAddr cosmossdk.AccAddress, deno
 		}
 	)
 
-	// Perform the gRPC query to fetch the account balance.
-	if err := c.QueryGRPC(ctx, methodQueryBalance, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the account balance.
+	if err := c.QueryABCI(ctx, methodQueryBalance, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -44,8 +44,8 @@ func (c *Client) Balances(ctx context.Context, accAddr cosmossdk.AccAddress, pag
 		}
 	)
 
-	// Perform the gRPC query to fetch the account balances.
-	if err := c.QueryGRPC(ctx, methodQueryBalances, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the account balances.
+	if err := c.QueryABCI(ctx, methodQueryBalances, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 

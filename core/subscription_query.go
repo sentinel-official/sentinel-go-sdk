@@ -28,8 +28,8 @@ func (c *Client) Subscription(ctx context.Context, id uint64) (res *v3.Subscript
 		req  = &v3.QuerySubscriptionRequest{Id: id}
 	)
 
-	// Perform the gRPC query to fetch the subscription details.
-	if err := c.QueryGRPC(ctx, methodQuerySubscription, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the subscription details.
+	if err := c.QueryABCI(ctx, methodQuerySubscription, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -47,8 +47,8 @@ func (c *Client) SubscriptionAllocation(ctx context.Context, id uint64, accAddr 
 		}
 	)
 
-	// Perform the gRPC query to fetch the allocation details.
-	if err := c.QueryGRPC(ctx, methodQuerySubscriptionAllocation, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the allocation details.
+	if err := c.QueryABCI(ctx, methodQuerySubscriptionAllocation, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -66,8 +66,8 @@ func (c *Client) SubscriptionAllocations(ctx context.Context, id uint64, pageReq
 		}
 	)
 
-	// Perform the gRPC query to fetch the allocations.
-	if err := c.QueryGRPC(ctx, methodQuerySubscriptionAllocations, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the allocations.
+	if err := c.QueryABCI(ctx, methodQuerySubscriptionAllocations, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -82,8 +82,8 @@ func (c *Client) SubscriptionParams(ctx context.Context) (res *v3.Params, err er
 		req  = &v3.QueryParamsRequest{}
 	)
 
-	// Perform the gRPC query to fetch the subscription module parameters.
-	if err := c.QueryGRPC(ctx, methodQuerySubscriptionParams, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the subscription module parameters.
+	if err := c.QueryABCI(ctx, methodQuerySubscriptionParams, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -98,8 +98,8 @@ func (c *Client) Subscriptions(ctx context.Context, pageReq *query.PageRequest) 
 		req  = &v3.QuerySubscriptionsRequest{Pagination: pageReq}
 	)
 
-	// Perform the gRPC query to fetch the subscriptions.
-	if err := c.QueryGRPC(ctx, methodQuerySubscriptions, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the subscriptions.
+	if err := c.QueryABCI(ctx, methodQuerySubscriptions, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -117,8 +117,8 @@ func (c *Client) SubscriptionsForAccount(ctx context.Context, accAddr cosmossdk.
 		}
 	)
 
-	// Perform the gRPC query to fetch subscriptions for the given account.
-	if err := c.QueryGRPC(ctx, methodQuerySubscriptionsForAccount, req, &resp); err != nil {
+	// Perform the ABCI query to fetch subscriptions for the given account.
+	if err := c.QueryABCI(ctx, methodQuerySubscriptionsForAccount, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -136,8 +136,8 @@ func (c *Client) SubscriptionsForPlan(ctx context.Context, id uint64, pageReq *q
 		}
 	)
 
-	// Perform the gRPC query to fetch subscriptions for the given plan.
-	if err := c.QueryGRPC(ctx, methodQuerySubscriptionsForPlan, req, &resp); err != nil {
+	// Perform the ABCI query to fetch subscriptions for the given plan.
+	if err := c.QueryABCI(ctx, methodQuerySubscriptionsForPlan, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 

@@ -25,8 +25,8 @@ func (c *Client) Node(ctx context.Context, nodeAddr types.NodeAddress) (res *v3.
 		req  = &v3.QueryNodeRequest{Address: nodeAddr.String()}
 	)
 
-	// Perform the gRPC query to fetch the node details.
-	if err := c.QueryGRPC(ctx, methodQueryNode, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the node details.
+	if err := c.QueryABCI(ctx, methodQueryNode, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -41,8 +41,8 @@ func (c *Client) NodeParams(ctx context.Context) (res *v3.Params, err error) {
 		req  = &v3.QueryParamsRequest{}
 	)
 
-	// Perform the gRPC query to fetch the node module parameters.
-	if err := c.QueryGRPC(ctx, methodQueryNodeParams, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the node module parameters.
+	if err := c.QueryABCI(ctx, methodQueryNodeParams, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -60,8 +60,8 @@ func (c *Client) Nodes(ctx context.Context, status v1.Status, pageReq *query.Pag
 		}
 	)
 
-	// Perform the gRPC query to fetch the nodes.
-	if err := c.QueryGRPC(ctx, methodQueryNodes, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the nodes.
+	if err := c.QueryABCI(ctx, methodQueryNodes, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -81,8 +81,8 @@ func (c *Client) NodesForPlan(ctx context.Context, id uint64, status v1.Status, 
 		}
 	)
 
-	// Perform the gRPC query to fetch nodes for the given plan.
-	if err := c.QueryGRPC(ctx, methodQueryNodesForPlan, req, &resp); err != nil {
+	// Perform the ABCI query to fetch nodes for the given plan.
+	if err := c.QueryABCI(ctx, methodQueryNodesForPlan, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 

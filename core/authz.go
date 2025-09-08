@@ -26,8 +26,8 @@ func (c *Client) AuthzGranteeGrants(ctx context.Context, grantee types.AccAddres
 		}
 	)
 
-	// Perform the gRPC query to fetch the grants assigned to the specified grantee.
-	if err := c.QueryGRPC(ctx, methodQueryAuthzGranteeGrants, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the grants assigned to the specified grantee.
+	if err := c.QueryABCI(ctx, methodQueryAuthzGranteeGrants, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -45,8 +45,8 @@ func (c *Client) AuthzGranterGrants(ctx context.Context, granter types.AccAddres
 		}
 	)
 
-	// Perform the gRPC query to fetch the grants issued by the specified granter.
-	if err := c.QueryGRPC(ctx, methodQueryAuthzGranterGrants, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the grants issued by the specified granter.
+	if err := c.QueryABCI(ctx, methodQueryAuthzGranterGrants, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -66,8 +66,8 @@ func (c *Client) AuthzGrants(ctx context.Context, granter, grantee types.AccAddr
 		}
 	)
 
-	// Perform the gRPC query to fetch the grants for the specified granter and grantee.
-	if err := c.QueryGRPC(ctx, methodQueryAuthzGrants, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the grants for the specified granter and grantee.
+	if err := c.QueryABCI(ctx, methodQueryAuthzGrants, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 

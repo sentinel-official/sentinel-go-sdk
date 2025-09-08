@@ -26,8 +26,8 @@ func (c *Client) FeegrantAllowance(ctx context.Context, granter, grantee types.A
 		}
 	)
 
-	// Perform the gRPC query to fetch the fee grant allowance.
-	if err := c.QueryGRPC(ctx, methodQueryFeegrantAllowance, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the fee grant allowance.
+	if err := c.QueryABCI(ctx, methodQueryFeegrantAllowance, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -45,8 +45,8 @@ func (c *Client) FeegrantAllowances(ctx context.Context, grantee types.AccAddres
 		}
 	)
 
-	// Perform the gRPC query to fetch the fee grants for the given grantee.
-	if err := c.QueryGRPC(ctx, methodQueryFeegrantAllowances, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the fee grants for the given grantee.
+	if err := c.QueryABCI(ctx, methodQueryFeegrantAllowances, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -64,8 +64,8 @@ func (c *Client) FeegrantAllowancesByGranter(ctx context.Context, granter types.
 		}
 	)
 
-	// Perform the gRPC query to fetch the fee grants issued by the specified granter.
-	if err := c.QueryGRPC(ctx, methodQueryFeegrantAllowancesByGranter, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the fee grants issued by the specified granter.
+	if err := c.QueryABCI(ctx, methodQueryFeegrantAllowancesByGranter, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 

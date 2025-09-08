@@ -19,8 +19,8 @@ func (c *Client) Simulate(ctx context.Context, buf []byte) (*tx.SimulateResponse
 		req  = &tx.SimulateRequest{TxBytes: buf}
 	)
 
-	// Perform a gRPC query to simulate the transaction.
-	if err := c.QueryGRPC(ctx, methodSimulate, req, &resp); err != nil {
+	// Perform an ABCI query to simulate the transaction.
+	if err := c.QueryABCI(ctx, methodSimulate, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 

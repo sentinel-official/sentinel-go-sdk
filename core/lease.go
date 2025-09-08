@@ -25,8 +25,8 @@ func (c *Client) Lease(ctx context.Context, id uint64) (res *v1.Lease, err error
 		req  = &v1.QueryLeaseRequest{Id: id}
 	)
 
-	// Perform the gRPC query to fetch the lease details.
-	if err := c.QueryGRPC(ctx, methodQueryLease, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the lease details.
+	if err := c.QueryABCI(ctx, methodQueryLease, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -41,8 +41,8 @@ func (c *Client) LeaseParams(ctx context.Context) (res *v1.Params, err error) {
 		req  = &v1.QueryParamsRequest{}
 	)
 
-	// Perform the gRPC query to fetch the lease module parameters.
-	if err := c.QueryGRPC(ctx, methodQueryLeaseParams, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the lease module parameters.
+	if err := c.QueryABCI(ctx, methodQueryLeaseParams, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -57,8 +57,8 @@ func (c *Client) Leases(ctx context.Context, pageReq *query.PageRequest) (res []
 		req  = &v1.QueryLeasesRequest{Pagination: pageReq}
 	)
 
-	// Perform the gRPC query to fetch the leases.
-	if err := c.QueryGRPC(ctx, methodQueryLeases, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the leases.
+	if err := c.QueryABCI(ctx, methodQueryLeases, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -76,8 +76,8 @@ func (c *Client) LeasesForNode(ctx context.Context, nodeAddr types.NodeAddress, 
 		}
 	)
 
-	// Perform the gRPC query to fetch leases for the given node.
-	if err := c.QueryGRPC(ctx, methodQueryLeasesForNode, req, &resp); err != nil {
+	// Perform the ABCI query to fetch leases for the given node.
+	if err := c.QueryABCI(ctx, methodQueryLeasesForNode, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -95,8 +95,8 @@ func (c *Client) LeasesForProvider(ctx context.Context, provAddr types.ProvAddre
 		}
 	)
 
-	// Perform the gRPC query to fetch leases for the given provider.
-	if err := c.QueryGRPC(ctx, methodQueryLeasesForProvider, req, &resp); err != nil {
+	// Perform the ABCI query to fetch leases for the given provider.
+	if err := c.QueryABCI(ctx, methodQueryLeasesForProvider, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 

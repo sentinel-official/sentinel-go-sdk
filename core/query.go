@@ -100,25 +100,25 @@ func (c *Client) QuerySubspace(ctx context.Context, store string, data bytes.Hex
 	return reply, nil
 }
 
-// QueryGRPC performs a gRPC query using ABCI with configurable options.
+// QueryABCI performs an ABCI query with configurable options.
 // Marshals the request, queries via ABCI, and unmarshals the response.
 // Returns an error if any step fails.
-func (c *Client) QueryGRPC(ctx context.Context, method string, req, resp codec.ProtoMarshaler) error {
+func (c *Client) QueryABCI(ctx context.Context, method string, req, resp codec.ProtoMarshaler) error {
 	// Marshal the request into bytes.
 	data, err := c.ProtoCodec().Marshal(req)
 	if err != nil {
-		return fmt.Errorf("marshaling gRPC request: %w", err)
+		return fmt.Errorf("marshaling request: %w", err)
 	}
 
 	// Perform the query using ABCIQueryWithOptions.
 	reply, err := c.ABCIQueryWithOptions(ctx, method, data)
 	if err != nil {
-		return fmt.Errorf("performing gRPC query: %w", err)
+		return fmt.Errorf("performing query: %w", err)
 	}
 
 	// Check for a nil reply.
 	if reply == nil {
-		return errors.New("nil reply from gRPC query")
+		return errors.New("nil reply")
 	}
 
 	if reply.IsErr() {
@@ -127,7 +127,7 @@ func (c *Client) QueryGRPC(ctx context.Context, method string, req, resp codec.P
 
 	// Unmarshal the response value into the provided response object.
 	if err := c.ProtoCodec().Unmarshal(reply.Value, resp); err != nil {
-		return fmt.Errorf("unmarshaling gRPC response: %w", err)
+		return fmt.Errorf("unmarshaling response: %w", err)
 	}
 
 	return nil

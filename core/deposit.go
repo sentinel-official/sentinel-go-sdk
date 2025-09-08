@@ -22,8 +22,8 @@ func (c *Client) Deposit(ctx context.Context, accAddr types.AccAddress) (res *v1
 		req  = &v1.QueryDepositRequest{Address: accAddr.String()}
 	)
 
-	// Perform the gRPC query to fetch the deposit details.
-	if err := c.QueryGRPC(ctx, methodQueryDeposit, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the deposit details.
+	if err := c.QueryABCI(ctx, methodQueryDeposit, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -40,8 +40,8 @@ func (c *Client) Deposits(ctx context.Context, pageReq *query.PageRequest) (res 
 		}
 	)
 
-	// Perform the gRPC query to fetch the deposits.
-	if err := c.QueryGRPC(ctx, methodQueryDeposits, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the deposits.
+	if err := c.QueryABCI(ctx, methodQueryDeposits, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 

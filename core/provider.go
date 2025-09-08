@@ -25,8 +25,8 @@ func (c *Client) Provider(ctx context.Context, provAddr types.ProvAddress) (res 
 		req  = &v2.QueryProviderRequest{Address: provAddr.String()}
 	)
 
-	// Perform the gRPC query to fetch the provider details.
-	if err := c.QueryGRPC(ctx, methodQueryProvider, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the provider details.
+	if err := c.QueryABCI(ctx, methodQueryProvider, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -41,8 +41,8 @@ func (c *Client) ProviderParams(ctx context.Context) (res *v3.Params, err error)
 		req  = &v3.QueryParamsRequest{}
 	)
 
-	// Perform the gRPC query to fetch the provider module parameters.
-	if err := c.QueryGRPC(ctx, methodQueryProviderParams, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the provider module parameters.
+	if err := c.QueryABCI(ctx, methodQueryProviderParams, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -60,8 +60,8 @@ func (c *Client) Providers(ctx context.Context, status v1.Status, pageReq *query
 		}
 	)
 
-	// Perform the gRPC query to fetch the providers.
-	if err := c.QueryGRPC(ctx, methodQueryProviders, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the providers.
+	if err := c.QueryABCI(ctx, methodQueryProviders, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 

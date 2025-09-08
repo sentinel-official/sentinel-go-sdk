@@ -29,8 +29,8 @@ func (c *Client) Session(ctx context.Context, id uint64) (res v3.Session, err er
 		req  = &v3.QuerySessionRequest{Id: id}
 	)
 
-	// Perform the gRPC query to fetch the session details.
-	if err := c.QueryGRPC(ctx, methodQuerySession, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the session details.
+	if err := c.QueryABCI(ctx, methodQuerySession, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -50,8 +50,8 @@ func (c *Client) SessionParams(ctx context.Context) (res *v3.Params, err error) 
 		req  = &v3.QueryParamsRequest{}
 	)
 
-	// Perform the gRPC query to fetch the session module parameters.
-	if err := c.QueryGRPC(ctx, methodQuerySessionParams, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the session module parameters.
+	if err := c.QueryABCI(ctx, methodQuerySessionParams, req, &resp); err != nil {
 		return nil, HandleQueryErr(err)
 	}
 
@@ -66,8 +66,8 @@ func (c *Client) Sessions(ctx context.Context, pageReq *query.PageRequest) (res 
 		req  = &v3.QuerySessionsRequest{Pagination: pageReq}
 	)
 
-	// Perform the gRPC query to fetch the sessions.
-	if err := c.QueryGRPC(ctx, methodQuerySessions, req, &resp); err != nil {
+	// Perform the ABCI query to fetch the sessions.
+	if err := c.QueryABCI(ctx, methodQuerySessions, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -93,8 +93,8 @@ func (c *Client) SessionsForAccount(ctx context.Context, accAddr cosmossdk.AccAd
 		}
 	)
 
-	// Perform the gRPC query to fetch sessions for the given account.
-	if err := c.QueryGRPC(ctx, methodQuerySessionsForAccount, req, &resp); err != nil {
+	// Perform the ABCI query to fetch sessions for the given account.
+	if err := c.QueryABCI(ctx, methodQuerySessionsForAccount, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -120,8 +120,8 @@ func (c *Client) SessionsForNode(ctx context.Context, nodeAddr sentinelhub.NodeA
 		}
 	)
 
-	// Perform the gRPC query to fetch sessions for the given node.
-	if err := c.QueryGRPC(ctx, methodQuerySessionsForNode, req, &resp); err != nil {
+	// Perform the ABCI query to fetch sessions for the given node.
+	if err := c.QueryABCI(ctx, methodQuerySessionsForNode, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -147,8 +147,8 @@ func (c *Client) SessionsForSubscription(ctx context.Context, id uint64, pageReq
 		}
 	)
 
-	// Perform the gRPC query to fetch sessions for the given subscription.
-	if err := c.QueryGRPC(ctx, methodQuerySessionsForSubscription, req, &resp); err != nil {
+	// Perform the ABCI query to fetch sessions for the given subscription.
+	if err := c.QueryABCI(ctx, methodQuerySessionsForSubscription, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
@@ -175,8 +175,8 @@ func (c *Client) SessionsForSubscriptionAllocation(ctx context.Context, id uint6
 		}
 	)
 
-	// Perform the gRPC query to fetch sessions for the given subscription and account.
-	if err := c.QueryGRPC(ctx, methodQuerySessionsForSubscriptionAllocation, req, &resp); err != nil {
+	// Perform the ABCI query to fetch sessions for the given subscription and account.
+	if err := c.QueryABCI(ctx, methodQuerySessionsForSubscriptionAllocation, req, &resp); err != nil {
 		return nil, nil, HandleQueryErr(err)
 	}
 
