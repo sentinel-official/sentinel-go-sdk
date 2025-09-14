@@ -14,12 +14,12 @@ data-ciphers AES-256-GCM:AES-128-GCM
 tls-cipher TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384
 tls-server
 tls-version-min 1.2
-{{ if .ExtIPv4Addr -}}
+{{- if .ExtIPv4Addr }}
 server {{ .ExtIPv4Addr }}
-{{- end -}}
-{{- if .ExtIPv6Addr -}}
+{{- end }}
+{{- if .ExtIPv6Addr }}
 server-ipv6 {{ .ExtIPv6Addr }}
-{{ end -}}
+{{- end }}
 topology subnet
 explicit-exit-notify 1
 keepalive 10 60
@@ -27,3 +27,10 @@ persist-key
 persist-tun
 management 127.0.0.1 2323
 status "{{ .StatusFile }}" 1
+script-security 2
+{{- if .Down }}
+down "/bin/sh -c '{{ .Down }}'"
+{{- end }}
+{{- if .Up }}
+up "/bin/sh -c '{{ .Up }}'"
+{{- end }}

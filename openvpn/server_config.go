@@ -19,12 +19,13 @@ import (
 type ServerConfig struct {
 	viper *viper.Viper `mapstructure:"-"`
 
-	IPv4Addr   string `mapstructure:"ipv4_addr"` // IPv4 address in CIDR format (e.g., 10.8.0.1/24)
-	IPv6Addr   string `mapstructure:"ipv6_addr"` // IPv6 address in CIDR format (optional)
-	PKIDir     string `mapstructure:"-"`         // Path to the PKI directory used for certificates
-	Port       string `mapstructure:"port"`      // Server port (e.g., "1194")
-	Protocol   string `mapstructure:"protocol"`  // Transport protocol (either "tcp" or "udp")
-	StatusFile string `mapstructure:"-"`         // Path to OpenVPN status file
+	IPv4Addr     string `mapstructure:"ipv4_addr"`     // IPv4 address in CIDR format (e.g., 10.8.0.1/24)
+	IPv6Addr     string `mapstructure:"ipv6_addr"`     // IPv6 address in CIDR format (optional)
+	OutInterface string `mapstructure:"out_interface"` // OutInterface specifies the outbound interface.
+	PKIDir       string `mapstructure:"-"`             // Path to the PKI directory used for certificates
+	Port         string `mapstructure:"port"`          // Server port (e.g., "1194")
+	Protocol     string `mapstructure:"protocol"`      // Transport protocol (either "tcp" or "udp")
+	StatusFile   string `mapstructure:"-"`             // Path to OpenVPN status file
 }
 
 // ExtIPv4Addr returns the IPv4 address and netmask extracted from the CIDR.
@@ -38,7 +39,7 @@ func (c *ServerConfig) ExtIPv4Addr() string {
 	netmask := net.IP(ipNet.Mask)
 	network := ip.Mask(ipNet.Mask)
 
-	return fmt.Sprintf("%s %s\n", network, netmask)
+	return fmt.Sprintf("%s %s", network, netmask)
 }
 
 // ExtIPv6Addr returns the configured IPv6 address.
@@ -89,6 +90,11 @@ func (c *ServerConfig) Validate() error {
 		if ip == nil || ipNet == nil {
 			return errors.New("invalid ipv6_addr: ip or netmask is nil")
 		}
+	}
+
+	// Ensure OutInterface is not empty.
+	if c.OutInterface == "" {
+		return errors.New("out_interface is empty")
 	}
 
 	// PKI directory is mandatory
@@ -193,12 +199,13 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 // DefaultServerConfig returns a ServerConfig instance populated with randomly generated values.
 func DefaultServerConfig() *ServerConfig {
 	return &ServerConfig{
-		IPv4Addr:   fmt.Sprintf("10.%d.%d.1/24", rand.IntN(256), rand.IntN(256)),
-		IPv6Addr:   "",
-		PKIDir:     "",
-		Port:       strconv.FormatUint(uint64(utils.RandomPort()), 10),
-		Protocol:   randomProtocol(),
-		StatusFile: "",
+		IPv4Addr:     fmt.Sprintf("10.%d.%d.1/24", rand.IntN(256), rand.IntN(256)),
+		IPv6Addr:     "",
+		OutInterface: "eth0",
+		PKIDir:       "",
+		Port:         strconv.FormatUint(uint64(utils.RandomPort()), 10),
+		Protocol:     randomProtocol(),
+		StatusFile:   "",
 	}
 }
 
