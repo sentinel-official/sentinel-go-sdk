@@ -42,6 +42,12 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 		return nil
 	}
 
+	// Track the number of retry attempts.
+	attempts := 1
+	onRetryFunc := func(_ uint, _ error) {
+		attempts++
+	}
+
 	// retryIfFunc determines whether a retry should occur based on the error.
 	retryIfFunc := func(err error) bool {
 		return true
@@ -55,9 +61,10 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 		retry.Delay(c.queryRetryDelay),
 		retry.DelayType(retry.FixedDelay),
 		retry.LastErrorOnly(true),
+		retry.OnRetry(onRetryFunc),
 		retry.RetryIf(retryIfFunc),
 	); err != nil {
-		return nil, fmt.Errorf("ABCI query failed after %d attempt(s): %w", c.queryRetryAttempts, err)
+		return nil, fmt.Errorf("ABCI query failed after %d attempt(s): %w", attempts, err)
 	}
 
 	// Return nil if no result was produced.
@@ -68,10 +75,10 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 	return &result.Response, nil
 }
 
-// QueryKey performs an ABCI query for a specific key in a store.
+// QueryABCIKey performs an ABCI query for a specific key in a store.
 // Constructs the query path and delegates the query to ABCIQueryWithOptions.
 // Returns the query response or an error.
-func (c *Client) QueryKey(ctx context.Context, store string, data bytes.HexBytes) (*abci.ResponseQuery, error) {
+func (c *Client) QueryABCIKey(ctx context.Context, store string, data bytes.HexBytes) (*abci.ResponseQuery, error) {
 	// Construct the path for querying the key.
 	path := fmt.Sprintf("/store/%s/key", store)
 
@@ -84,10 +91,10 @@ func (c *Client) QueryKey(ctx context.Context, store string, data bytes.HexBytes
 	return reply, nil
 }
 
-// QuerySubspace performs an ABCI query for a subspace in a store.
+// QueryABCISubspace performs an ABCI query for a subspace in a store.
 // Constructs the query path and delegates the query to ABCIQueryWithOptions.
 // Returns the query response or an error.
-func (c *Client) QuerySubspace(ctx context.Context, store string, data bytes.HexBytes) (*abci.ResponseQuery, error) {
+func (c *Client) QueryABCISubspace(ctx context.Context, store string, data bytes.HexBytes) (*abci.ResponseQuery, error) {
 	// Construct the path for querying the subspace.
 	path := fmt.Sprintf("/store/%s/subspace", store)
 

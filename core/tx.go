@@ -262,6 +262,12 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 		return nil
 	}
 
+	// Track the number of retry attempts.
+	attempts := 1
+	onRetryFunc := func(_ uint, _ error) {
+		attempts++
+	}
+
 	// retryIfFunc determines whether a retry should occur based on the error.
 	retryIfFunc := func(err error) bool {
 		// Retry if the error is due to a context deadline being exceeded.
@@ -285,9 +291,10 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 		retry.Delay(c.txBroadcastRetryDelay),
 		retry.DelayType(retry.FixedDelay),
 		retry.LastErrorOnly(true),
+		retry.OnRetry(onRetryFunc),
 		retry.RetryIf(retryIfFunc),
 	); err != nil {
-		return nil, fmt.Errorf("broadcasting tx synchronously failed after %d attempt(s): %w", c.txBroadcastRetryAttempts, err)
+		return nil, fmt.Errorf("broadcasting tx synchronously failed after %d attempt(s): %w", attempts, err)
 	}
 
 	return resp, nil
@@ -327,6 +334,12 @@ func (c *Client) Tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, e
 		return nil
 	}
 
+	// Track the number of retry attempts.
+	attempts := 1
+	onRetryFunc := func(_ uint, _ error) {
+		attempts++
+	}
+
 	// retryIfFunc signals that a retry should occur on any error.
 	retryIfFunc := func(err error) bool {
 		return true
@@ -340,9 +353,10 @@ func (c *Client) Tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, e
 		retry.Delay(c.txQueryRetryDelay),
 		retry.DelayType(retry.FixedDelay),
 		retry.LastErrorOnly(true),
+		retry.OnRetry(onRetryFunc),
 		retry.RetryIf(retryIfFunc),
 	); err != nil {
-		return nil, fmt.Errorf("querying tx failed after %d attempt(s): %w", c.txQueryRetryAttempts, err)
+		return nil, fmt.Errorf("querying tx failed after %d attempt(s): %w", attempts, err)
 	}
 
 	return result, nil
