@@ -24,7 +24,7 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 		// Get the RPC client for querying.
 		http, err := c.HTTP()
 		if err != nil {
-			return fmt.Errorf("creating RPC client: %w", err)
+			return fmt.Errorf("creating HTTP client: %w", err)
 		}
 
 		// Configure the query options.

@@ -232,7 +232,7 @@ func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	// Get the HTTP client for broadcasting the transaction.
 	http, err := c.HTTP()
 	if err != nil {
-		return nil, fmt.Errorf("creating RPC client: %w", err)
+		return nil, fmt.Errorf("creating HTTP client: %w", err)
 	}
 
 	// Broadcast the transaction synchronously via the HTTP client.
@@ -305,7 +305,7 @@ func (c *Client) tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, e
 	// Get the HTTP client for querying the blockchain.
 	http, err := c.HTTP()
 	if err != nil {
-		return nil, fmt.Errorf("creating RPC client: %w", err)
+		return nil, fmt.Errorf("creating HTTP client: %w", err)
 	}
 
 	// Perform the query using the transaction hash.
