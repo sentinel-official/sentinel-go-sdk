@@ -110,7 +110,7 @@ func (c *Client) QueryABCISubspace(ctx context.Context, store string, data bytes
 // QueryABCI performs an ABCI query with configurable options.
 // Marshals the request, queries via ABCI, and unmarshals the response.
 // Returns an error if any step fails.
-func (c *Client) QueryABCI(ctx context.Context, method string, req, resp codec.ProtoMarshaler) error {
+func (c *Client) QueryABCI(ctx context.Context, path string, req, resp codec.ProtoMarshaler) error {
 	// Marshal the request into bytes.
 	data, err := c.ProtoCodec().Marshal(req)
 	if err != nil {
@@ -118,7 +118,7 @@ func (c *Client) QueryABCI(ctx context.Context, method string, req, resp codec.P
 	}
 
 	// Perform the query using ABCIQueryWithOptions.
-	reply, err := c.ABCIQueryWithOptions(ctx, method, data)
+	reply, err := c.ABCIQueryWithOptions(ctx, path, data)
 	if err != nil {
 		return fmt.Errorf("performing query: %w", err)
 	}

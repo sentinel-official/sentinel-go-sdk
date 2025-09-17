@@ -3,10 +3,11 @@ package core
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
-	"github.com/cometbft/cometbft/rpc/client/http"
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -104,18 +105,22 @@ func (c *Client) Seal() *Client {
 
 // HTTP creates an HTTP client for the given RPC address and timeout configuration.
 // Returns the HTTP client or an error if initialization fails.
-func (c *Client) HTTP() (*http.HTTP, error) {
+func (c *Client) HTTP() (*rpchttp.HTTP, error) {
 	c.fm.RLock()
 	defer c.fm.RUnlock()
 
-	timeout := uint(c.rpcTimeout / time.Second)
-
-	hc, err := http.NewWithTimeout(c.rpcAddr, "/websocket", timeout)
-	if err != nil {
-		return nil, fmt.Errorf("creating HTTP client with timeout %ds: %w", timeout, err)
+	// Create an HTTP client with the specified timeout
+	h := &http.Client{
+		Timeout: c.rpcTimeout,
 	}
 
-	return hc, nil
+	// Create an HTTP-based RPC client
+	v, err := rpchttp.NewWithClient(c.rpcAddr, "/websocket", h)
+	if err != nil {
+		return nil, fmt.Errorf("creating HTTP client with timeout %s: %w", c.rpcTimeout, err)
+	}
+
+	return v, nil
 }
 
 // MsgFromAddr returns the account address from which messages will be sent.
