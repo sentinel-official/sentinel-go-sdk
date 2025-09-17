@@ -3,11 +3,10 @@ package core
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	"github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -28,6 +27,7 @@ type Client struct {
 	queryRetryDelay          time.Duration             // Delay between query retries
 	rpcAddr                  string                    // RPC server address
 	rpcChainID               string                    // The chain ID used to identify the blockchain network
+	rpcHeaders               map[string]string         // Map to store custom RPC headers
 	rpcTimeout               time.Duration             // RPC timeout duration
 	txAuthzGranterAddr       cosmossdk.AccAddress      // Address that grants transaction authorization
 	txBroadcastRetryAttempts uint                      // Number of retry attempts for transaction broadcast
@@ -72,6 +72,7 @@ func NewClientFromConfig(cfg *config.Config) (*Client, error) {
 		WithQueryRetryDelay(cfg.Query.GetRetryDelay()).
 		WithRPCAddr(cfg.RPC.GetAddr()).
 		WithRPCChainID(cfg.RPC.GetChainID()).
+		WithRPCHeaders(cfg.RPC.GetHeaders()).
 		WithRPCTimeout(cfg.RPC.GetTimeout()).
 		WithTxAuthzGranterAddr(cfg.Tx.GetAuthzGranterAddr()).
 		WithTxBroadcastRetryAttempts(cfg.Tx.GetBroadcastRetryAttempts()).
@@ -105,19 +106,17 @@ func (c *Client) Seal() *Client {
 
 // HTTP creates an HTTP client for the given RPC address and timeout configuration.
 // Returns the HTTP client or an error if initialization fails.
-func (c *Client) HTTP() (*rpchttp.HTTP, error) {
+func (c *Client) HTTP() (*http.HTTP, error) {
 	c.fm.RLock()
 	defer c.fm.RUnlock()
 
-	// Create an HTTP client with the specified timeout
-	h := &http.Client{
-		Timeout: c.rpcTimeout,
-	}
+	// Create an HTTP client with the specified headers and timeout
+	httpClient := newHTTPClient(c.rpcHeaders, c.rpcTimeout)
 
 	// Create an HTTP-based RPC client
-	v, err := rpchttp.NewWithClient(c.rpcAddr, "/websocket", h)
+	v, err := http.NewWithClient(c.rpcAddr, "/websocket", httpClient)
 	if err != nil {
-		return nil, fmt.Errorf("creating HTTP client with timeout %s: %w", c.rpcTimeout, err)
+		return nil, fmt.Errorf("creating RPC client: %w", err)
 	}
 
 	return v, nil
@@ -207,6 +206,14 @@ func (c *Client) WithRPCAddr(rpcAddr string) *Client {
 func (c *Client) WithRPCChainID(chainID string) *Client {
 	c.checkSealed()
 	c.rpcChainID = chainID
+
+	return c
+}
+
+// WithRPCHeaders sets the custom RPC headers and returns the updated Client.
+func (c *Client) WithRPCHeaders(headers map[string]string) *Client {
+	c.checkSealed()
+	c.rpcHeaders = headers
 
 	return c
 }

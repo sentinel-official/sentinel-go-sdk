@@ -12,9 +12,10 @@ import (
 
 // RPCConfig defines the configuration for RPC.
 type RPCConfig struct {
-	Addrs   []string `mapstructure:"addrs"`    // Addrs is a list of RPC server addresses.
-	ChainID string   `mapstructure:"chain_id"` // ChainID is the identifier of the blockchain network.
-	Timeout string   `mapstructure:"timeout"`  // Timeout is the duration for RPC requests.
+	Addrs   []string          `mapstructure:"addrs"`    // Addrs is a list of RPC server addresses.
+	ChainID string            `mapstructure:"chain_id"` // ChainID is the identifier of the blockchain network.
+	Headers map[string]string `mapstructure:"-"`        // Headers for the RPC requests.
+	Timeout string            `mapstructure:"timeout"`  // Timeout is the duration for RPC requests.
 }
 
 // GetAddr returns the first RPC address from the list or an empty string if no addresses are available.
@@ -34,6 +35,11 @@ func (c *RPCConfig) GetAddrs() []string {
 // GetChainID returns the ChainID field.
 func (c *RPCConfig) GetChainID() string {
 	return c.ChainID
+}
+
+// GetHeaders returns the custom headers for the RPC requests.
+func (c *RPCConfig) GetHeaders() map[string]string {
+	return c.Headers
 }
 
 // GetTimeout returns the maximum duration for an RPC request.
@@ -68,6 +74,17 @@ func (c *RPCConfig) Validate() error {
 	// Validate that Timeout is a valid time.Duration.
 	if _, err := time.ParseDuration(c.Timeout); err != nil {
 		return fmt.Errorf("parsing timeout %q: %w", c.Timeout, err)
+	}
+
+	// Validate custom headers if any.
+	for key, value := range c.Headers {
+		if key == "" {
+			return errors.New("header has empty key")
+		}
+
+		if value == "" {
+			return fmt.Errorf("header %q has empty value", key)
+		}
 	}
 
 	return nil
