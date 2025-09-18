@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"context"
 	"math"
 	"net/http"
 	"strconv"
@@ -22,7 +23,7 @@ type RateLimiterOptions struct {
 
 // RateLimiter returns a Gin middleware that limits requests per IP.
 // limit = requests per second; burst = max tokens in bucket.
-func RateLimiter(opts *RateLimiterOptions) gin.HandlerFunc {
+func RateLimiter(ctx context.Context, opts *RateLimiterOptions) gin.HandlerFunc {
 	// Apply defaults if values are zero
 	if opts == nil {
 		opts = &RateLimiterOptions{}
@@ -56,10 +57,15 @@ func RateLimiter(opts *RateLimiterOptions) gin.HandlerFunc {
 		ticker := time.NewTicker(opts.CleanupInterval)
 		defer ticker.Stop()
 
-		for range ticker.C {
-			m.RangeDelete(func(_ string, v *Client) (bool, bool) {
-				return time.Since(v.timestamp) > opts.InactiveTimeout, false
-			})
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				m.RangeDelete(func(_ string, v *Client) (bool, bool) {
+					return time.Since(v.timestamp) > opts.InactiveTimeout, false
+				})
+			}
 		}
 	}()
 
