@@ -14,7 +14,7 @@ require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/mattn/go-isatty v0.0.20
 	github.com/rs/zerolog v1.34.0
-	github.com/sentinel-official/sentinelhub/v12 v12.0.0-rc.12.0.20250912055719-1f5a34c051d2
+	github.com/sentinel-official/sentinelhub/v12 v12.0.0-rc.13
 	github.com/shirou/gopsutil/v4 v4.25.8
 	github.com/showwin/speedtest-go v1.7.10
 	github.com/soheilhy/cmux v0.1.5
@@ -25,7 +25,7 @@ require (
 	golang.org/x/crypto v0.42.0
 	golang.org/x/sync v0.17.0
 	golang.org/x/time v0.13.0
-	google.golang.org/grpc v1.75.0
+	google.golang.org/grpc v1.75.1
 	google.golang.org/protobuf v1.36.9
 	gopkg.in/yaml.v3 v3.0.1
 )
