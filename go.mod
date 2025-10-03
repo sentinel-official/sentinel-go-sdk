@@ -1,6 +1,6 @@
 module github.com/sentinel-official/sentinel-go-sdk
 
-go 1.24.6
+go 1.24.0
 
 require (
 	cosmossdk.io/log v1.6.1
