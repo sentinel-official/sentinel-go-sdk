@@ -43,7 +43,7 @@ func (c *Client) ABCIQueryWithOptions(ctx context.Context, path string, data byt
 	}
 
 	// Track the number of retry attempts.
-	attempts := 1
+	attempts := 0
 	onRetryFunc := func(_ uint, _ error) {
 		attempts++
 	}

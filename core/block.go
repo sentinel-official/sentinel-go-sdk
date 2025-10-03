@@ -33,7 +33,7 @@ func (c *Client) Block(ctx context.Context, height int64) (*types.BlockID, *type
 	}
 
 	// Track the number of retry attempts.
-	attempts := 1
+	attempts := 0
 	onRetryFunc := func(_ uint, _ error) {
 		attempts++
 	}

@@ -263,7 +263,7 @@ func (c *Client) BroadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 	}
 
 	// Track the number of retry attempts.
-	attempts := 1
+	attempts := 0
 	onRetryFunc := func(_ uint, _ error) {
 		attempts++
 	}
@@ -335,7 +335,7 @@ func (c *Client) Tx(ctx context.Context, hash bytes.HexBytes) (*core.ResultTx, e
 	}
 
 	// Track the number of retry attempts.
-	attempts := 1
+	attempts := 0
 	onRetryFunc := func(_ uint, _ error) {
 		attempts++
 	}
