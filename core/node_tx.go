@@ -32,9 +32,9 @@ func (c *Client) NodeStartSession(ctx context.Context, nodeAddr types.NodeAddres
 	}
 
 	// Extract and return the session ID from the transaction events.
-	id, err := utils.IDFromEvents(res.TxResult.GetEvents(), &v3.EventCreateSession{})
+	id, err := utils.SessionIDFromEvents(res.TxResult.GetEvents(), &v3.EventCreateSession{})
 	if err != nil {
-		return 0, fmt.Errorf("failed to get id from events: %w", err)
+		return 0, fmt.Errorf("failed to get session ID from events: %w", err)
 	}
 
 	return id, nil

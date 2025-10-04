@@ -66,9 +66,9 @@ func AttributeValueFromEvents(items []types.Event, t interface{}, key string) (s
 	return value, nil
 }
 
-// IDFromEvents extracts the "id" attribute from an event of the given type in a list of events.
-func IDFromEvents(items []types.Event, t interface{}) (uint64, error) {
-	key := "id"
+// SessionIDFromEvents extracts the "session_id" attribute from an event of the given type in a list of events.
+func SessionIDFromEvents(items []types.Event, t interface{}) (uint64, error) {
+	key := "session_id"
 
 	// Retrieve the "id" attribute from the specified event type
 	value, err := AttributeValueFromEvents(items, t, key)
@@ -81,7 +81,7 @@ func IDFromEvents(items []types.Event, t interface{}) (uint64, error) {
 	// Convert the ID string to uint64
 	id, err := strconv.ParseUint(value, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("parsing ID %q: %w", value, err)
+		return 0, fmt.Errorf("parsing value %q: %w", value, err)
 	}
 
 	return id, nil
