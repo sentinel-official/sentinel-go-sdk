@@ -3,6 +3,7 @@ package oracle
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	"cosmossdk.io/math"
+	"github.com/cosmos/cosmos-sdk/types"
 )
 
 // Osmosis represents a client for interacting with the Osmosis API.
@@ -27,7 +29,8 @@ func NewOsmosis(apiAddr string) *Osmosis {
 	}
 }
 
-// ProtoRevPool queries the Osmosis ProtoRev module for the pool ID associated with a given base and quote denomination pair.
+// ProtoRevPool queries the Osmosis ProtoRev module for the pool ID
+// associated with a given base and quote denomination pair.
 func (o *Osmosis) ProtoRevPool(ctx context.Context, baseDenom, quoteDenom string) (uint64, error) {
 	path := "/osmosis/protorev/pool"
 	queries := []string{
@@ -54,14 +57,9 @@ func (o *Osmosis) ProtoRevPool(ctx context.Context, baseDenom, quoteDenom string
 	return poolID, nil
 }
 
-// SpotPrice fetches the current spot price between two denominations using the Osmosis pool determined by ProtoRevPool.
-func (o *Osmosis) SpotPrice(ctx context.Context, baseDenom, quoteDenom string) (math.LegacyDec, error) {
-	// Get the pool ID for the token pair.
-	poolID, err := o.ProtoRevPool(ctx, baseDenom, quoteDenom)
-	if err != nil {
-		return math.LegacyDec{}, fmt.Errorf("getting proto rev pool ID: %w", err)
-	}
-
+// SpotPrice fetches the current spot price between two denominations
+// using the Osmosis pool determined by ProtoRevPool.
+func (o *Osmosis) SpotPrice(ctx context.Context, poolID uint64, baseDenom, quoteDenom string) (math.LegacyDec, error) {
 	path := fmt.Sprintf("/osmosis/poolmanager/v2/pools/%d/prices", poolID)
 	queries := []string{
 		"base_asset_denom=" + baseDenom,
@@ -98,6 +96,43 @@ func (o *Osmosis) SpotPrice(ctx context.Context, baseDenom, quoteDenom string) (
 	}
 
 	return spotPrice, nil
+}
+
+// GetQuotePrice calculates the quote price of a given base asset using data from Osmosis pools.
+func (o *Osmosis) GetQuotePrice(ctx context.Context, basePrice types.DecCoin) (types.Coin, error) {
+	// Retrieve the client from context.
+	c, ok := ctx.Value(ClientKey{}).(Client)
+	if !ok {
+		return types.Coin{}, errors.New("client not set or invalid type")
+	}
+
+	// Look up the asset configuration for the given denom.
+	asset, err := c.Asset(ctx, basePrice.Denom)
+	if err != nil {
+		return types.Coin{}, fmt.Errorf("getting asset: %w", err)
+	}
+
+	if asset == nil {
+		return types.Coin{}, errors.New("asset does not exist")
+	}
+
+	// Get the ProtoRev pool ID for this asset.
+	poolID, err := o.ProtoRevPool(ctx, asset.ProtoRevPoolRequest.BaseDenom, asset.ProtoRevPoolRequest.OtherDenom)
+	if err != nil {
+		return types.Coin{}, fmt.Errorf("getting protorev pool ID: %w", err)
+	}
+
+	// Fetch the spot price from Osmosis.
+	spotPrice, err := o.SpotPrice(ctx, poolID, asset.SpotPriceRequest.BaseAssetDenom, asset.SpotPriceRequest.QuoteAssetDenom)
+	if err != nil {
+		return types.Coin{}, fmt.Errorf("getting spot price: %w", err)
+	}
+
+	// Adjust for multiplier and compute final quote amount.
+	asset.SpotPrice = spotPrice.MulInt(asset.Multiplier())
+	amount := basePrice.Amount.Mul(asset.SpotPrice).TruncateInt()
+
+	return types.Coin{Denom: basePrice.Denom, Amount: amount}, nil
 }
 
 // do executes an HTTP request to the Osmosis API and decodes the JSON response into the result.
