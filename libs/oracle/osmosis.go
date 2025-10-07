@@ -14,6 +14,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 )
 
+// Ensure Osmosis implements Client interface.
+var _ Client = (*Osmosis)(nil)
+
 // Osmosis represents a client for interacting with the Osmosis API.
 type Osmosis struct {
 	*http.Client
@@ -101,9 +104,9 @@ func (o *Osmosis) SpotPrice(ctx context.Context, poolID uint64, baseDenom, quote
 // GetQuotePrice calculates the quote price of a given base asset using data from Osmosis pools.
 func (o *Osmosis) GetQuotePrice(ctx context.Context, basePrice types.DecCoin) (types.Coin, error) {
 	// Retrieve the client from context.
-	c, ok := ctx.Value(ClientKey{}).(Client)
+	c, ok := ctx.Value(AssetQuerierKey{}).(AssetQuerier)
 	if !ok {
-		return types.Coin{}, errors.New("client not set or invalid type")
+		return types.Coin{}, errors.New("asset querier not set or invalid type")
 	}
 
 	// Look up the asset configuration for the given denom.
