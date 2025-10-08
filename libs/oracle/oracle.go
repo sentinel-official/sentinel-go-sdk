@@ -7,12 +7,8 @@ import (
 	"github.com/sentinel-official/sentinelhub/v12/x/oracle/types/v1"
 )
 
-// AssetQuerierKey is a context key used to store and retrieve an AssetQuerier
-// instance from a context.Context value.
-type AssetQuerierKey struct{}
-
-// AssetQuerier defines the interface required by the Osmosis oracle integration to fetch asset metadata.
-type AssetQuerier interface {
+// Querier defines the interface required for fetching asset metadata.
+type Querier interface {
 	Asset(ctx context.Context, denom string) (*v1.Asset, error)
 }
 

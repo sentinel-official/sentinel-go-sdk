@@ -21,14 +21,16 @@ var _ Client = (*Osmosis)(nil)
 type Osmosis struct {
 	*http.Client
 
-	apiAddr string // Base URL of the Osmosis API
+	apiAddr string  // Base URL of the Osmosis API
+	q       Querier // Client for fetching asset metadata
 }
 
 // NewOsmosis creates and returns a new Osmosis client instance.
-func NewOsmosis(apiAddr string) *Osmosis {
+func NewOsmosis(apiAddr string, q Querier) *Osmosis {
 	return &Osmosis{
 		Client:  &http.Client{},
 		apiAddr: apiAddr,
+		q:       q,
 	}
 }
 
@@ -103,14 +105,8 @@ func (o *Osmosis) SpotPrice(ctx context.Context, poolID uint64, baseDenom, quote
 
 // GetQuotePrice calculates the quote price of a given base asset using data from Osmosis pools.
 func (o *Osmosis) GetQuotePrice(ctx context.Context, basePrice types.DecCoin) (types.Coin, error) {
-	// Retrieve the client from context.
-	c, ok := ctx.Value(AssetQuerierKey{}).(AssetQuerier)
-	if !ok {
-		return types.Coin{}, errors.New("asset querier not set or invalid type")
-	}
-
 	// Look up the asset configuration for the given denom.
-	asset, err := c.Asset(ctx, basePrice.Denom)
+	asset, err := o.q.Asset(ctx, basePrice.Denom)
 	if err != nil {
 		return types.Coin{}, fmt.Errorf("getting asset: %w", err)
 	}
