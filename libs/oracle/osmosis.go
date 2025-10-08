@@ -2,11 +2,8 @@ package oracle
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -14,29 +11,24 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 )
 
-// Ensure Osmosis implements Client interface.
-var _ Client = (*Osmosis)(nil)
+// Ensure OsmosisClient implements Client interface.
+var _ Client = (*OsmosisClient)(nil)
 
-// Osmosis represents a client for interacting with the Osmosis API.
-type Osmosis struct {
-	*http.Client
-
-	apiAddr string  // Base URL of the Osmosis API
-	q       Querier // Client for fetching asset metadata
+// OsmosisClient represents a client for interacting with the Osmosis API.
+type OsmosisClient struct {
+	*baseClient
 }
 
-// NewOsmosis creates and returns a new Osmosis client instance.
-func NewOsmosis(apiAddr string, q Querier) *Osmosis {
-	return &Osmosis{
-		Client:  &http.Client{},
-		apiAddr: apiAddr,
-		q:       q,
+// NewOsmosisClient creates and returns a new Osmosis client instance.
+func NewOsmosisClient(apiAddr string) *OsmosisClient {
+	return &OsmosisClient{
+		baseClient: newBaseClient(apiAddr),
 	}
 }
 
 // ProtoRevPool queries the Osmosis ProtoRev module for the pool ID
 // associated with a given base and quote denomination pair.
-func (o *Osmosis) ProtoRevPool(ctx context.Context, baseDenom, quoteDenom string) (uint64, error) {
+func (o *OsmosisClient) ProtoRevPool(ctx context.Context, baseDenom, quoteDenom string) (uint64, error) {
 	path := "/osmosis/protorev/pool"
 	queries := []string{
 		"base_denom=" + baseDenom,
@@ -64,7 +56,7 @@ func (o *Osmosis) ProtoRevPool(ctx context.Context, baseDenom, quoteDenom string
 
 // SpotPrice fetches the current spot price between two denominations
 // using the Osmosis pool determined by ProtoRevPool.
-func (o *Osmosis) SpotPrice(ctx context.Context, poolID uint64, baseDenom, quoteDenom string) (math.LegacyDec, error) {
+func (o *OsmosisClient) SpotPrice(ctx context.Context, poolID uint64, baseDenom, quoteDenom string) (math.LegacyDec, error) {
 	path := fmt.Sprintf("/osmosis/poolmanager/v2/pools/%d/prices", poolID)
 	queries := []string{
 		"base_asset_denom=" + baseDenom,
@@ -104,15 +96,11 @@ func (o *Osmosis) SpotPrice(ctx context.Context, poolID uint64, baseDenom, quote
 }
 
 // GetQuotePrice calculates the quote price of a given base asset using data from Osmosis pools.
-func (o *Osmosis) GetQuotePrice(ctx context.Context, basePrice types.DecCoin) (types.Coin, error) {
+func (o *OsmosisClient) GetQuotePrice(ctx context.Context, basePrice types.DecCoin) (types.Coin, error) {
 	// Look up the asset configuration for the given denom.
-	asset, err := o.q.Asset(ctx, basePrice.Denom)
-	if err != nil {
-		return types.Coin{}, fmt.Errorf("getting asset: %w", err)
-	}
-
-	if asset == nil {
-		return types.Coin{}, errors.New("asset does not exist")
+	asset, ok := o.m[basePrice.Denom]
+	if !ok {
+		return types.Coin{}, fmt.Errorf("asset for deonm %q does not exist", basePrice.Denom)
 	}
 
 	// Get the ProtoRev pool ID for this asset.
@@ -132,45 +120,4 @@ func (o *Osmosis) GetQuotePrice(ctx context.Context, basePrice types.DecCoin) (t
 	amount := basePrice.Amount.Mul(asset.SpotPrice).TruncateInt()
 
 	return types.Coin{Denom: basePrice.Denom, Amount: amount}, nil
-}
-
-// do executes an HTTP request to the Osmosis API and decodes the JSON response into the result.
-func (o *Osmosis) do(ctx context.Context, method string, path string, queries []string, result interface{}) error {
-	// Construct the full URL path.
-	path, err := url.JoinPath(o.apiAddr, path)
-	if err != nil {
-		return fmt.Errorf("constructing URL: %w", err)
-	}
-
-	if len(queries) > 0 {
-		path = path + "?" + strings.Join(queries, "&")
-	}
-
-	// Create the HTTP request with context.
-	req, err := http.NewRequestWithContext(ctx, method, path, nil)
-	if err != nil {
-		return fmt.Errorf("creating request: %w", err)
-	}
-
-	// Execute the request.
-	resp, err := o.Do(req)
-	if err != nil {
-		return fmt.Errorf("sending request: %w", err)
-	}
-
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	// Check for non-OK status codes.
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("request failed with status %s", resp.Status)
-	}
-
-	// Decode the JSON response into the provided result.
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return fmt.Errorf("decoding response body: %w", err)
-	}
-
-	return nil
 }
