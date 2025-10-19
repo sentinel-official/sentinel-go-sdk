@@ -14,7 +14,7 @@ require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/rs/zerolog v1.34.0
-	github.com/sentinel-official/sentinelhub/v12 v12.0.0-rc.13.0.20251007075723-b5e9c41adcdd
+	github.com/sentinel-official/sentinelhub/v12 v12.0.0
 	github.com/shirou/gopsutil/v4 v4.25.9
 	github.com/showwin/speedtest-go v1.7.10
 	github.com/soheilhy/cmux v0.1.5

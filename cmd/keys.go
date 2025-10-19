@@ -66,6 +66,7 @@ func keysAddCmd(c *core.Client) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("checking if key %q exists: %w", args[0], err)
 			}
+
 			if ok {
 				return fmt.Errorf("key %q already exists", args[0])
 			}
@@ -157,6 +158,7 @@ func keysDeleteCmd(c *core.Client) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("checking if key %q exists: %w", args[0], err)
 			}
+
 			if !ok {
 				return fmt.Errorf("key %q does not exist", args[0])
 			}
@@ -169,6 +171,7 @@ func keysDeleteCmd(c *core.Client) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("getting key delete confirmation input: %w", err)
 			}
+
 			if !confirm {
 				return fmt.Errorf("key %q deletion aborted", args[0])
 			}
