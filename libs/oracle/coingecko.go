@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 
 	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -38,15 +37,15 @@ func (c *CoinGeckoClient) SpotPrice(ctx context.Context, id, currency string) (m
 	}
 
 	// Temporary map for JSON decoding.
-	var r map[string]map[string]float64
+	var body map[string]map[string]float64
 
 	// Send request to CoinGecko API.
-	if err := c.do(ctx, http.MethodGet, path, queries, &r); err != nil {
+	if err := c.Get(ctx, path, queries, &body); err != nil {
 		return math.LegacyDec{}, fmt.Errorf("requesting spot price: %w", err)
 	}
 
 	// Extract the nested price value.
-	v, ok := r[id][currency]
+	v, ok := body[id][currency]
 	if !ok {
 		return math.LegacyDec{}, errors.New("spot price does not exist")
 	}

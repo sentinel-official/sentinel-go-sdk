@@ -3,7 +3,6 @@ package oracle
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 
@@ -28,7 +27,7 @@ func NewOsmosisClient(apiAddr string) *OsmosisClient {
 
 // ProtoRevPool queries the Osmosis ProtoRev module for the pool ID
 // associated with a given base and quote denomination pair.
-func (o *OsmosisClient) ProtoRevPool(ctx context.Context, baseDenom, quoteDenom string) (uint64, error) {
+func (c *OsmosisClient) ProtoRevPool(ctx context.Context, baseDenom, quoteDenom string) (uint64, error) {
 	path := "/osmosis/protorev/pool"
 	queries := []string{
 		"base_denom=" + baseDenom,
@@ -36,17 +35,17 @@ func (o *OsmosisClient) ProtoRevPool(ctx context.Context, baseDenom, quoteDenom 
 	}
 
 	// Temporary struct to unmarshal the JSON response.
-	var r struct {
+	var body struct {
 		PoolID string `json:"pool_id"`
 	}
 
 	// Perform the API request.
-	if err := o.do(ctx, http.MethodGet, path, queries, &r); err != nil {
+	if err := c.Get(ctx, path, queries, &body); err != nil {
 		return 0, fmt.Errorf("requesting proto rev pool: %w", err)
 	}
 
 	// Convert the pool ID string to uint64.
-	poolID, err := strconv.ParseUint(r.PoolID, 10, 64)
+	poolID, err := strconv.ParseUint(body.PoolID, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("parsing pool ID: %w", err)
 	}
@@ -56,7 +55,7 @@ func (o *OsmosisClient) ProtoRevPool(ctx context.Context, baseDenom, quoteDenom 
 
 // SpotPrice fetches the current spot price between two denominations
 // using the Osmosis pool determined by ProtoRevPool.
-func (o *OsmosisClient) SpotPrice(ctx context.Context, poolID uint64, baseDenom, quoteDenom string) (math.LegacyDec, error) {
+func (c *OsmosisClient) SpotPrice(ctx context.Context, poolID uint64, baseDenom, quoteDenom string) (math.LegacyDec, error) {
 	path := fmt.Sprintf("/osmosis/poolmanager/v2/pools/%d/prices", poolID)
 	queries := []string{
 		"base_asset_denom=" + baseDenom,
@@ -64,17 +63,17 @@ func (o *OsmosisClient) SpotPrice(ctx context.Context, poolID uint64, baseDenom,
 	}
 
 	// Temporary struct to unmarshal the JSON response.
-	var r struct {
+	var body struct {
 		SpotPrice string `json:"spot_price"`
 	}
 
 	// Perform the API request.
-	if err := o.do(ctx, http.MethodGet, path, queries, &r); err != nil {
+	if err := c.Get(ctx, path, queries, &body); err != nil {
 		return math.LegacyDec{}, fmt.Errorf("requesting spot price: %w", err)
 	}
 
 	// Split the spot price string into integer and fractional parts.
-	parts := strings.SplitN(r.SpotPrice, ".", 2)
+	parts := strings.SplitN(body.SpotPrice, ".", 2)
 
 	i, d := parts[0], ""
 	if len(parts) == 2 {
@@ -96,21 +95,21 @@ func (o *OsmosisClient) SpotPrice(ctx context.Context, poolID uint64, baseDenom,
 }
 
 // GetQuotePrice calculates the quote price of a given base asset using data from Osmosis pools.
-func (o *OsmosisClient) GetQuotePrice(ctx context.Context, basePrice types.DecCoin) (types.Coin, error) {
+func (c *OsmosisClient) GetQuotePrice(ctx context.Context, basePrice types.DecCoin) (types.Coin, error) {
 	// Look up the asset configuration for the given denom.
-	asset, ok := o.m[basePrice.Denom]
+	asset, ok := c.m[basePrice.Denom]
 	if !ok {
 		return types.Coin{}, fmt.Errorf("asset for deonm %q does not exist", basePrice.Denom)
 	}
 
 	// Get the ProtoRev pool ID for this asset.
-	poolID, err := o.ProtoRevPool(ctx, asset.ProtoRevPoolRequest.BaseDenom, asset.ProtoRevPoolRequest.OtherDenom)
+	poolID, err := c.ProtoRevPool(ctx, asset.ProtoRevPoolRequest.BaseDenom, asset.ProtoRevPoolRequest.OtherDenom)
 	if err != nil {
 		return types.Coin{}, fmt.Errorf("getting protorev pool ID: %w", err)
 	}
 
 	// Fetch the spot price from Osmosis.
-	spotPrice, err := o.SpotPrice(ctx, poolID, asset.SpotPriceRequest.BaseAssetDenom, asset.SpotPriceRequest.QuoteAssetDenom)
+	spotPrice, err := c.SpotPrice(ctx, poolID, asset.SpotPriceRequest.BaseAssetDenom, asset.SpotPriceRequest.QuoteAssetDenom)
 	if err != nil {
 		return types.Coin{}, fmt.Errorf("getting spot price: %w", err)
 	}

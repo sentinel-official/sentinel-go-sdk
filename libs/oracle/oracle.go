@@ -41,8 +41,8 @@ func newBaseClient(url string) *baseClient {
 	}
 }
 
-// do executes an HTTP request and unmarshals the JSON response into result.
-func (c *baseClient) do(ctx context.Context, method string, path string, queries []string, result interface{}) error {
+// Get executes an HTTP GET request and unmarshals the JSON response into result.
+func (c *baseClient) Get(ctx context.Context, path string, queries []string, result interface{}) error {
 	// Build full request URL with base path and query parameters.
 	path, err := url.JoinPath(c.baseURL, path)
 	if err != nil {
@@ -54,7 +54,7 @@ func (c *baseClient) do(ctx context.Context, method string, path string, queries
 	}
 
 	// Create HTTP request with context for cancellation/timeouts.
-	req, err := http.NewRequestWithContext(ctx, method, path, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
@@ -65,11 +65,13 @@ func (c *baseClient) do(ctx context.Context, method string, path string, queries
 		return fmt.Errorf("sending request: %w", err)
 	}
 
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	// Check response status code.
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("request failed with status %s", resp.Status)
+		return fmt.Errorf("unexpected response status %s", resp.Status)
 	}
 
 	// Decode JSON body into the provided result object.
