@@ -1,0 +1,30 @@
+# Specifies the IPv4 address block for routing and networking.
+# Used to define the network range that clients will be assigned addresses from for VPN connectivity.
+# Allowed: Valid IPv4 CIDR notation
+# Example: "10.8.0.1/24"
+ipv4_addr = "{{ .IPv4Addr }}"
+
+# Specifies the IPv6 address block for routing and networking.
+# Used to define the IPv6 network range that clients will be assigned addresses from for VPN connectivity.
+# Allowed: Valid IPv6 CIDR notation
+# Example: "fd00::/64"
+ipv6_addr = "{{ .IPv6Addr }}"
+
+# Specifies the outbound network interface for NAT and routing.
+# Defines which network interface the VPN traffic should be routed through for internet access.
+# Allowed: Valid network interface name
+# Example: "eth0"
+out_interface = "{{ .OutInterface }}"
+
+# Port for incoming connections as a single port number or "in_port:out_port" mapping format.
+# The mapping format allows the server to run internally on in_port while being available to clients on out_port.
+# Typically, UDP or TCP for OpenVPN protocol.
+# Allowed: Single port or port mapping format
+# Example: "1194" or "1194:1194"
+port = "{{ .Port }}"
+
+# Specifies the transport protocol for communication.
+# Determines whether the service uses UDP for better performance or TCP for better reliability through firewalls.
+# Allowed: udp, tcp
+# Example: "udp"
+protocol = "{{ .Protocol }}"

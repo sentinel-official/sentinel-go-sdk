@@ -1,0 +1,119 @@
+package cron
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/avast/retry-go/v4"
+
+	"github.com/sentinel-official/sentinel-go-sdk/libs/log"
+	"github.com/sentinel-official/sentinel-go-sdk/process"
+	"github.com/sentinel-official/sentinel-go-sdk/utils"
+)
+
+// Scheduler manages the scheduling and execution of workers.
+type Scheduler struct {
+	*process.Manager // Embedded process manager for handling lifecycle.
+
+	workers map[string]Worker // Holds all workers registered with the scheduler.
+}
+
+// NewScheduler creates and initializes a new Scheduler instance.
+func NewScheduler(name string) *Scheduler {
+	return &Scheduler{
+		Manager: process.NewManager(name),
+		workers: make(map[string]Worker),
+	}
+}
+
+// Setup prepares the scheduler for operation.
+func (s *Scheduler) Setup(ctx context.Context) error {
+	return s.Manager.Setup(ctx, nil) //nolint:wrapcheck
+}
+
+// Start begins executing all registered workers concurrently.
+func (s *Scheduler) Start(parent context.Context) (context.Context, error) {
+	return s.Manager.Start(parent, func(ctx context.Context) error { //nolint:wrapcheck
+		for _, val := range s.workers {
+			worker := val
+
+			s.Go(ctx, func() error {
+				// Run the worker and log error if any
+				if err := s.runWorker(ctx, worker); err != nil {
+					if !utils.ErrorIs(err, context.Canceled) {
+						log.Error("Worker exited", "cause", err, "name", worker.Name())
+					}
+				}
+
+				return nil
+			})
+		}
+
+		return nil
+	})
+}
+
+// Wait blocks until all workers have exited or the manager is stopped.
+func (s *Scheduler) Wait(ctx context.Context) error {
+	return s.Manager.Wait(ctx, nil) //nolint:wrapcheck
+}
+
+// Stop gracefully halts the scheduler and cancels all running workers.
+func (s *Scheduler) Stop() error {
+	return s.Manager.Stop(nil) //nolint:wrapcheck
+}
+
+// Cleanup releases resources and finalizes the scheduler’s state after stopping.
+func (s *Scheduler) Cleanup() error {
+	return s.Manager.Cleanup(nil) //nolint:wrapcheck
+}
+
+// Register adds multiple workers to the scheduler.
+func (s *Scheduler) Register(workers ...Worker) error {
+	if s.IsRunning() {
+		return errors.New("scheduler is already running")
+	}
+
+	for _, w := range workers {
+		if _, ok := s.workers[w.Name()]; ok {
+			return fmt.Errorf("worker %q already exists", w.Name())
+		}
+
+		s.workers[w.Name()] = w
+	}
+
+	return nil
+}
+
+// runWorker continuously executes a worker's function and handles errors.
+func (s *Scheduler) runWorker(ctx context.Context, w Worker) error {
+	defer w.OnExit()
+
+	for c := uint(0); w.MaxRuns() == 0 || c < w.MaxRuns(); c++ {
+		// Attempt the worker's run function with retries
+		if err := retry.Do(
+			func() error { return w.Run(ctx) },
+			retry.Context(ctx),
+			retry.Attempts(w.RetryAttempts()),
+			retry.Delay(w.RetryDelay()),
+			retry.DelayType(retry.FixedDelay),
+			retry.OnRetry(w.OnRetry),
+			retry.LastErrorOnly(true),
+		); err != nil {
+			if exit := w.OnError(err); exit {
+				return fmt.Errorf("running worker: %w", err)
+			}
+		}
+
+		// Sleep for the interval—or stop early if the context is done
+		select {
+		case <-ctx.Done():
+			return ctx.Err() //nolint:wrapcheck
+		case <-time.After(w.Interval()):
+		}
+	}
+
+	return nil
+}

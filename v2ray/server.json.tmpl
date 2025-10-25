@@ -1,0 +1,88 @@
+{
+    "api": {
+        "services": [
+            "HandlerService",
+            "StatsService"
+        ],
+        "tag": "api"
+    },
+    "inbounds": [
+        {
+            "port": 2323,
+            "protocol": "dokodemo-door",
+            "settings": {
+                "address": "127.0.0.1"
+            },
+            "tag": "api"
+        },
+        {{- range $index, $inbound := .Inbounds }}
+        {
+            "port": "{{ $inbound.InPort }}",
+            "protocol": "{{ $inbound.ProxyProtocol }}",
+            {{- if eq $inbound.ProxyProtocol "vless" }}
+            "settings": {
+                "decryption": "none"
+            },
+            {{- end }}
+            "streamSettings": {
+                "network": "{{ $inbound.TransportProtocol }}",
+                "security": "{{ $inbound.TransportSecurity }}"
+                {{- if eq $inbound.TransportSecurity "tls" }},
+                "tlsSettings": {
+                    "certificates": [
+                        {
+                            "certificateFile": "{{ $.TLSCertFile }}",
+                            "keyFile": "{{ $.TLSKeyFile }}"
+                        }
+                    ]
+                }
+                {{- end }}
+            },
+            "tag": "{{ $inbound.Tag }}"
+        }
+        {{- if ne (sum $index 1) (len $.Inbounds) }},{{- end }}
+        {{- end }}
+    ],
+    "log": {
+        "access": "none",
+        "error": "none",
+        "loglevel": "none"
+    },
+    "outbounds": [
+        {
+            "protocol": "freedom"
+        }
+    ],
+    "policy": {
+        "levels": {
+            "0": {
+                "statsUserDownlink": true,
+                "statsUserUplink": true
+            }
+        }
+    },
+    "routing": {
+        "rules": [
+            {
+                "inboundTag": [
+                    "api"
+                ],
+                "outboundTag": "api",
+                "type": "field"
+            }
+        ]
+    },
+    "stats": {},
+    "transport": {
+        "dsSettings": {},
+        "grpcSettings": {},
+        "gunSettings": {},
+        "httpSettings": {},
+        "kcpSettings": {},
+        "quicSettings": {
+            "security": "chacha20-poly1305"
+        },
+        "tcpSettings": {},
+        "wsSettings": {}
+    }
+}
