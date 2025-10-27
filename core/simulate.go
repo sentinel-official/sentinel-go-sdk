@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/types/tx"
 )
@@ -21,7 +22,7 @@ func (c *Client) Simulate(ctx context.Context, buf []byte) (*tx.SimulateResponse
 
 	// Perform an ABCI query to simulate the transaction.
 	if err := c.QueryABCI(ctx, methodSimulate, req, &resp); err != nil {
-		return nil, HandleQueryErr(err)
+		return nil, fmt.Errorf("simulating request: %w", err)
 	}
 
 	return &resp, nil
