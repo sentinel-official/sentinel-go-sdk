@@ -255,9 +255,9 @@ func DefaultServerConfig() *ServerConfig {
 		Inbounds: []*InboundServerConfig{
 			{
 				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
-				ProxyProtocol:     randomProxyProtocol(),
-				TransportProtocol: randomTransportProtocol(),
-				TransportSecurity: randomTransportSecurity(),
+				ProxyProtocol:     ProxyProtocolVMess.String(),
+				TransportProtocol: TransportProtocolGRPC.String(),
+				TransportSecurity: TransportSecurityNone.String(),
 			},
 			{
 				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
