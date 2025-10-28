@@ -8,6 +8,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/bytes"
 	core "github.com/cometbft/cometbft/rpc/core/types"
+	"github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
@@ -237,8 +238,15 @@ func (c *Client) broadcastTxSync(ctx context.Context, msgs ...cosmossdk.Msg) (*c
 
 	// Broadcast the transaction synchronously via the HTTP client.
 	res, err := http.BroadcastTxSync(ctx, buf)
-	if err != nil {
+	if err != nil && !IsTxInCacheErr(err) {
 		return nil, fmt.Errorf("broadcasting tx synchronously: %w", err)
+	}
+
+	// Ensure we always have a result to return.
+	if res == nil {
+		res = &core.ResultBroadcastTx{
+			Hash: types.Tx(buf).Hash(),
+		}
 	}
 
 	return res, nil
