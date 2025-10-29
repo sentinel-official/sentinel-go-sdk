@@ -261,31 +261,39 @@ func DefaultServerConfig() *ServerConfig {
 			},
 			{
 				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
-				ProxyProtocol:     randomProxyProtocol(),
-				TransportProtocol: randomTransportProtocol(),
-				TransportSecurity: randomTransportSecurity(),
+				ProxyProtocol:     randomProxyProtocol().String(),
+				TransportProtocol: randomTransportProtocol().String(),
+				TransportSecurity: randomTransportSecurity().String(),
 			},
 		},
 	}
 }
 
 // randomProxyProtocol returns a random proxy protocol type (vless or vmess).
-func randomProxyProtocol() string {
-	return [...]string{
-		"vless", "vmess",
+func randomProxyProtocol() ProxyProtocol {
+	return [...]ProxyProtocol{
+		ProxyProtocolVLess,
+		ProxyProtocolVMess,
 	}[rand.IntN(2)]
 }
 
 // randomTransportProtocol returns a random transport protocol from available options.
-func randomTransportProtocol() string {
-	return [...]string{
-		"domainsocket", "gun", "grpc", "http", "mkcp", "quic", "tcp", "websocket",
-	}[rand.IntN(8)]
+func randomTransportProtocol() TransportProtocol {
+	return [...]TransportProtocol{
+		TransportProtocolGUN,
+		TransportProtocolGRPC,
+		TransportProtocolHTTP,
+		TransportProtocolMKCP,
+		TransportProtocolQUIC,
+		TransportProtocolTCP,
+		TransportProtocolWebSocket,
+	}[rand.IntN(7)]
 }
 
 // randomTransportSecurity returns a random security configuration (none or tls).
-func randomTransportSecurity() string {
-	return [...]string{
-		"none", "tls",
+func randomTransportSecurity() TransportSecurity {
+	return [...]TransportSecurity{
+		TransportSecurityNone,
+		TransportSecurityTLS,
 	}[rand.IntN(2)]
 }
