@@ -10,7 +10,7 @@ require (
 	github.com/cometbft/cometbft v0.37.15
 	github.com/cosmos/cosmos-sdk v0.47.17
 	github.com/cosmos/go-bip39 v1.0.0
-	github.com/cosmos/gogoproto v1.7.0
+	github.com/cosmos/gogoproto v1.7.2
 	github.com/gin-gonic/gin v1.11.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/rs/zerolog v1.34.0
