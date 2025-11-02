@@ -19,6 +19,11 @@ func (c *Client) BlockResults(ctx context.Context, height int64) (
 ) {
 	var result *core.ResultBlockResults
 
+	var heightP *int64 = nil
+	if height != 0 {
+		heightP = &height
+	}
+
 	// Define the function to perform the block results query.
 	retryFunc := func() error {
 		// Get the RPC client for querying.
@@ -28,7 +33,7 @@ func (c *Client) BlockResults(ctx context.Context, height int64) (
 		}
 
 		// Perform the query for block results at the specified height.
-		result, err = http.BlockResults(ctx, &height)
+		result, err = http.BlockResults(ctx, heightP)
 		if err != nil {
 			return fmt.Errorf("performing block results query: %w", err)
 		}
