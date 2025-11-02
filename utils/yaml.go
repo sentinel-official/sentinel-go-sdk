@@ -8,8 +8,8 @@ import (
 )
 
 // YAMLFromJSON converts an input (JSON-encoded bytes, string, or struct) to YAML format.
-func YAMLFromJSON(i interface{}) ([]byte, error) {
-	var in interface{}
+func YAMLFromJSON(i any) ([]byte, error) {
+	var in any
 
 	switch v := i.(type) {
 	case []byte:

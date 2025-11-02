@@ -78,18 +78,18 @@ type ClientService interface {
 
 // ServerService defines the interface for server-side service operations.
 type ServerService interface {
-	BaseService                                                                           // Embed the common base service
-	AddPeer(ctx context.Context, req interface{}) (id string, res interface{}, err error) // AddPeer adds a peer and returns its ID, the peer object, and an error if any.
-	HasPeer(ctx context.Context, id string) (bool, error)                                 // HasPeer checks if a peer exists in the server service.
-	RemovePeer(ctx context.Context, id string) error                                      // RemovePeer removes a peer by ID and returns an error if any.
-	PeersLen() int                                                                        // PeersLen returns the number of peers currently configured.
-	PeerStatistics() (map[string]*PeerStatistics, error)                                  // PeerStatistics returns the statistics for all peers.
+	BaseService                                                           // Embed the common base service
+	AddPeer(ctx context.Context, req any) (id string, res any, err error) // AddPeer adds a peer and returns its ID, the peer object, and an error if any.
+	HasPeer(ctx context.Context, id string) (bool, error)                 // HasPeer checks if a peer exists in the server service.
+	RemovePeer(ctx context.Context, id string) error                      // RemovePeer removes a peer by ID and returns an error if any.
+	PeersLen() int                                                        // PeersLen returns the number of peers currently configured.
+	PeerStatistics() (map[string]*PeerStatistics, error)                  // PeerStatistics returns the statistics for all peers.
 }
 
 // PeerStatistics holds network usage metrics for a peer.
 type PeerStatistics struct {
-	CreatedAt time.Time `json:"created_at,omitempty"` // When this stats record was first created.
-	UpdatedAt time.Time `json:"updated_at,omitempty"` // When this stats record was last updated.
+	CreatedAt time.Time `json:"created_at,omitzero"` // When this stats record was first created.
+	UpdatedAt time.Time `json:"updated_at,omitzero"` // When this stats record was last updated.
 
 	RxBytes int64 `json:"rx_bytes,omitempty"` // Total uplink bytes received in this snapshot.
 	TxBytes int64 `json:"tx_bytes,omitempty"` // Total downlink bytes transmitted in this snapshot.

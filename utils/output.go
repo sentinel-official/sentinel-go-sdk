@@ -9,7 +9,7 @@ import (
 )
 
 // writeJSON formats the output as JSON and writes it to the provided writer.
-func writeJSON(w io.Writer, v interface{}) error {
+func writeJSON(w io.Writer, v any) error {
 	buf, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("marshaling to JSON: %w", err)
@@ -21,7 +21,7 @@ func writeJSON(w io.Writer, v interface{}) error {
 }
 
 // writeText formats the output as YAML and writes it to the provided writer.
-func writeText(w io.Writer, v interface{}) error {
+func writeText(w io.Writer, v any) error {
 	buf, err := YAMLFromJSON(v)
 	if err != nil {
 		return fmt.Errorf("converting JSON to YAML: %w", err)
@@ -33,7 +33,7 @@ func writeText(w io.Writer, v interface{}) error {
 }
 
 // Write formats the output according to the specified format and writes it to the provided writer.
-func Write(w io.Writer, v interface{}, format string) error {
+func Write(w io.Writer, v any, format string) error {
 	switch format {
 	case types.FormatJSON:
 		return writeJSON(w, v)
@@ -45,7 +45,7 @@ func Write(w io.Writer, v interface{}, format string) error {
 }
 
 // Writeln writes the formatted output to the writer and adds a newline.
-func Writeln(w io.Writer, v interface{}, format string) error {
+func Writeln(w io.Writer, v any, format string) error {
 	if err := Write(w, v, format); err != nil {
 		return fmt.Errorf("writing %s output: %w", format, err)
 	}

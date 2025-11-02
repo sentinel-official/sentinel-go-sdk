@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"slices"
 	"sync"
 )
 
@@ -52,12 +53,10 @@ func (s *State) SetIf(code StateCode, olds ...StateCode) (old StateCode, changed
 	old = s.code
 
 	// Check if the current state matches any of the 'olds'
-	for _, v := range olds {
-		if old == v {
-			s.code = code
+	if slices.Contains(olds, old) {
+		s.code = code
 
-			return old, true
-		}
+		return old, true
 	}
 
 	// No change if no match
@@ -73,11 +72,9 @@ func (s *State) SetIfNot(code StateCode, olds ...StateCode) (old StateCode, chan
 	old = s.code
 
 	// Check if the current state matches any of the 'olds'
-	for _, v := range olds {
-		if old == v {
-			// No change if there's a match
-			return old, false
-		}
+	if slices.Contains(olds, old) {
+		// No change if there's a match
+		return old, false
 	}
 
 	// Set the new state if no match is found
@@ -91,11 +88,5 @@ func (s *State) Is(states ...StateCode) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	for _, v := range states {
-		if s.code == v {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(states, s.code)
 }

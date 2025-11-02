@@ -322,7 +322,7 @@ func (s *Server) Cleanup() error {
 }
 
 // AddPeer adds a new peer to the V2Ray server.
-func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interface{}, error) {
+func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {
@@ -344,6 +344,7 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	defer release()
 
 	client := proxymancommand.NewHandlerServiceClient(conn)
+
 	for tag, proxy := range s.proxies {
 		// Prepare gRPC request to add a new user to the handler.
 		in := &proxymancommand.AlterInboundRequest{
@@ -393,6 +394,7 @@ func (s *Server) RemovePeer(ctx context.Context, id string) error {
 	defer release()
 
 	client := proxymancommand.NewHandlerServiceClient(conn)
+
 	for tag := range s.proxies {
 		// Prepare gRPC request to remove a user from the handler.
 		in := &proxymancommand.AlterInboundRequest{

@@ -235,7 +235,7 @@ func (s *Server) Cleanup() error {
 }
 
 // AddPeer adds a new peer to the WireGuard server.
-func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interface{}, error) {
+func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {
@@ -391,8 +391,8 @@ func (s *Server) syncPeers(ctx context.Context) error {
 	}
 
 	// Split the command output into lines and process each line.
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(output), "\n")
+	for line := range lines {
 		columns := strings.Split(line, "\t")
 		if len(columns) != 3 {
 			continue

@@ -42,7 +42,7 @@ func newBaseClient(url string) *baseClient {
 }
 
 // Get executes an HTTP GET request and unmarshals the JSON response into result.
-func (c *baseClient) Get(ctx context.Context, path string, queries []string, result interface{}) error {
+func (c *baseClient) Get(ctx context.Context, path string, queries []string, result any) error {
 	// Build full request URL with base path and query parameters.
 	path, err := url.JoinPath(c.baseURL, path)
 	if err != nil {

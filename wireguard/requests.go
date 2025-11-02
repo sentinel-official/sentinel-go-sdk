@@ -37,7 +37,7 @@ func (r *PeerRequest) Validate() error {
 // - If input is []byte, it unmarshals it as JSON.
 // - If input is already a *PeerRequest, it returns it.
 // - Otherwise, it returns an error.
-func parsePeerRequest(input interface{}) (*PeerRequest, error) {
+func parsePeerRequest(input any) (*PeerRequest, error) {
 	switch v := input.(type) {
 	case []byte:
 		var req PeerRequest

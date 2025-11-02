@@ -310,7 +310,7 @@ func (s *Server) Cleanup() error {
 }
 
 // AddPeer creates and registers a new VPN peer by issuing a new certificate.
-func (s *Server) AddPeer(_ context.Context, req interface{}) (string, interface{}, error) {
+func (s *Server) AddPeer(_ context.Context, req any) (string, any, error) {
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {

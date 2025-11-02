@@ -202,8 +202,8 @@ func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 	}
 
 	// Split the command output into lines and process each line.
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(output), "\n")
+	for line := range lines {
 		columns := strings.Split(line, "\t")
 		if len(columns) != 3 {
 			continue
