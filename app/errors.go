@@ -11,8 +11,8 @@ var (
 	// ErrRun indicates a run-time failure.
 	ErrRun = errors.New("run")
 
-	// ErrShutdown indicates a shutdown failure.
-	ErrShutdown = errors.New("shutdown")
+	// ErrStop indicates a stop failure.
+	ErrStop = errors.New("stop")
 )
 
 // SignalError is returned when execution is interrupted by an OS signal.
@@ -37,9 +37,9 @@ func NewErrRun(err error) error {
 	return fmt.Errorf("%w: %w", ErrRun, err)
 }
 
-// NewErrShutdown wraps a shutdown error.
-func NewErrShutdown(err error) error {
-	return fmt.Errorf("%w: %w", ErrShutdown, err)
+// NewErrStop wraps a stop error.
+func NewErrStop(err error) error {
+	return fmt.Errorf("%w: %w", ErrStop, err)
 }
 
 // NewErrSignal creates a new SignalError.
