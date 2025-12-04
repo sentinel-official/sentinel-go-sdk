@@ -18,7 +18,7 @@ require (
 	github.com/shirou/gopsutil/v4 v4.25.11
 	github.com/showwin/speedtest-go v1.7.10
 	github.com/soheilhy/cmux v0.1.5
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/v2fly/v2ray-core/v5 v5.42.0
