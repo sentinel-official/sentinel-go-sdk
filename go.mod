@@ -12,7 +12,7 @@ require (
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/cosmos/gogoproto v1.7.2
 	github.com/gin-gonic/gin v1.12.0
-	github.com/mattn/go-isatty v0.0.20
+	github.com/mattn/go-isatty v0.0.21
 	github.com/rs/zerolog v1.35.0
 	github.com/sentinel-official/sentinelhub/v12 v12.0.2
 	github.com/shirou/gopsutil/v4 v4.26.3
