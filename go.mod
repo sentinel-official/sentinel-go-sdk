@@ -15,7 +15,7 @@ require (
 	github.com/mattn/go-isatty v0.0.22
 	github.com/rs/zerolog v1.35.1
 	github.com/sentinel-official/sentinelhub/v12 v12.0.2
-	github.com/shirou/gopsutil/v4 v4.26.4
+	github.com/shirou/gopsutil/v4 v4.26.5
 	github.com/showwin/speedtest-go v1.7.10
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cobra v1.10.2
