@@ -60,6 +60,9 @@ func (s *Server) Type() types.ServiceType {
 	return types.ServiceTypeV2Ray
 }
 
+// Metadata returns the service metadata of the server.
+func (s *Server) Metadata() any { return s.metadata }
+
 // IsRunning checks if the V2Ray server process is running.
 func (s *Server) IsRunning() (bool, error) {
 	// Read PID from file.

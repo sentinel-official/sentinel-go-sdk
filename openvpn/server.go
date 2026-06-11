@@ -55,6 +55,9 @@ func (s *Server) Type() types.ServiceType {
 	return types.ServiceTypeOpenVPN
 }
 
+// Metadata returns the service metadata of the server.
+func (s *Server) Metadata() any { return s.metadata }
+
 // IsRunning checks if the OpenVPN server process is running.
 func (s *Server) IsRunning() (bool, error) {
 	// Read PID from file.

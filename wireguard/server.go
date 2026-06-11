@@ -57,6 +57,9 @@ func (s *Server) Type() types.ServiceType {
 	return types.ServiceTypeWireGuard
 }
 
+// Metadata returns the service metadata of the server.
+func (s *Server) Metadata() any { return s.metadata }
+
 // IsRunning checks if the WireGuard interface is up and active.
 func (s *Server) IsRunning() (bool, error) {
 	// Executes the 'wg show' command to check the interface status.
