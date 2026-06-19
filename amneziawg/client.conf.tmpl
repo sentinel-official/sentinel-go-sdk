@@ -1,0 +1,29 @@
+[Interface]
+Address = {{ stringsJoin .Addrs "," }}
+DNS = {{ stringsJoin .DNSAddrs "," }}
+ListenPort = {{ .Port }}
+MTU = {{ .MTU }}
+PrivateKey = {{ .PrivateKey }}
+Jc = {{ .Obfs.Jc }}
+Jmin = {{ .Obfs.Jmin }}
+Jmax = {{ .Obfs.Jmax }}
+S1 = {{ .Obfs.S1 }}
+S2 = {{ .Obfs.S2 }}
+H1 = {{ .Obfs.H1 }}
+H2 = {{ .Obfs.H2 }}
+H3 = {{ .Obfs.H3 }}
+H4 = {{ .Obfs.H4 }}
+
+{{- range $rule := .PostUp }}
+PostUp = {{ $rule }}
+{{- end }}
+
+{{- range $rule := .PreDown }}
+PreDown = {{ $rule }}
+{{- end }}
+
+[Peer]
+AllowedIPs = {{ stringsJoin .Peer.AllowAddrs "," }}
+Endpoint = {{ .Peer.Endpoint }}
+PersistentKeepalive = {{ .Peer.PersistentKeepalive }}
+PublicKey = {{ .Peer.PublicKey }}
