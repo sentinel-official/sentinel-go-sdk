@@ -11,10 +11,10 @@ import (
 	"strings"
 
 	procutils "github.com/shirou/gopsutil/v4/process"
-	statscommand "github.com/v2fly/v2ray-core/v5/app/stats/command"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/sentinel-official/sentinel-go-sdk/libs/proxycmd"
 	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
 	"github.com/sentinel-official/sentinel-go-sdk/process"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
@@ -262,8 +262,7 @@ func (c *Client) Cleanup() error {
 
 // Statistics retrieves the download and upload statistics from the V2Ray client.
 func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
-	// Prepare the response
-	resp := &statscommand.QueryStatsResponse{}
+	var rawStats []proxycmd.Stat
 
 	// Perform the gRPC call to fetch traffic stats
 	fn := func() (err error) {
@@ -274,10 +273,8 @@ func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 
 		defer release()
 
-		client := statscommand.NewStatsServiceClient(conn)
-
 		// Send the request to get traffic stats
-		resp, err = client.QueryStats(ctx, &statscommand.QueryStatsRequest{})
+		rawStats, err = proxycmd.QueryStats(ctx, conn, dialect, "", false)
 		if err != nil {
 			return fmt.Errorf("querying stats: %w", err)
 		}
@@ -293,8 +290,8 @@ func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 	var download, upload int64
 
 	// Iterate over every stat entry
-	for _, stat := range resp.GetStat() {
-		name := stat.GetName()
+	for _, stat := range rawStats {
+		name := stat.Name
 
 		// Split the name into 4 parts
 		parts := strings.SplitN(name, ">>>", 4)
@@ -305,9 +302,9 @@ func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 		// Accumulate Rx/Tx values based on direction
 		switch parts[3] {
 		case "uplink":
-			upload += stat.GetValue()
+			upload += stat.Value
 		case "downlink":
-			download += stat.GetValue()
+			download += stat.Value
 		default:
 			continue
 		}

@@ -1,12 +1,9 @@
 package v2ray
 
 import (
-	"github.com/v2fly/v2ray-core/v5/common/serial"
-	"github.com/v2fly/v2ray-core/v5/common/uuid"
-	"github.com/v2fly/v2ray-core/v5/proxy/vless"
-	"github.com/v2fly/v2ray-core/v5/proxy/vmess"
-	"google.golang.org/protobuf/types/known/anypb"
+	"github.com/google/uuid"
 
+	"github.com/sentinel-official/sentinel-go-sdk/libs/proxycmd"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
 
@@ -19,6 +16,22 @@ const (
 	ProxyProtocolVLess                            // ProxyProtocolVLess represents the VLess protocol
 	ProxyProtocolVMess                            // ProxyProtocolVMess represents the VMess protocol
 )
+
+// v2ray type URL header and per-protocol account type URLs.
+const v2rayTypeURLHeader = "types.v2fly.org/"
+
+const (
+	typeVLESSAccount = v2rayTypeURLHeader + "v2ray.core.proxy.vless.Account"
+	typeVMessAccount = v2rayTypeURLHeader + "v2ray.core.proxy.vmess.Account"
+)
+
+// dialect holds the v2ray-specific gRPC method paths and operation type URLs.
+var dialect = proxycmd.Dialect{ //nolint:gochecknoglobals
+	AlterInboundMethod:      "/v2ray.core.app.proxyman.command.HandlerService/AlterInbound",
+	QueryStatsMethod:        "/v2ray.core.app.stats.command.StatsService/QueryStats",
+	AddUserOperationType:    v2rayTypeURLHeader + "v2ray.core.app.proxyman.command.AddUserOperation",
+	RemoveUserOperationType: v2rayTypeURLHeader + "v2ray.core.app.proxyman.command.RemoveUserOperation",
+}
 
 // NewProxyProtocolFromString converts a string to a ProxyProtocol type.
 func NewProxyProtocolFromString(v string) ProxyProtocol {
@@ -51,24 +64,16 @@ func (p ProxyProtocol) IsValid() bool {
 	return p.String() != ""
 }
 
-// Account generates an account message based on the ProxyProtocol.
-func (p ProxyProtocol) Account(uid uuid.UUID) *anypb.Any {
+// Account returns the type URL and encoded account bytes for the given UUID.
+func (p ProxyProtocol) Account(uid uuid.UUID) (string, []byte) {
 	switch p {
 	case ProxyProtocolVLess:
-		return serial.ToTypedMessage(
-			&vless.Account{
-				Id: uid.String(),
-			},
-		)
+		return typeVLESSAccount, proxycmd.VLESSAccount(uid.String(), "")
 	case ProxyProtocolVMess:
-		return serial.ToTypedMessage(
-			&vmess.Account{
-				Id: uid.String(),
-			},
-		)
+		return typeVMessAccount, proxycmd.VMessAccount(uid.String())
 	case ProxyProtocolUnspecified:
-		return nil
+		return "", nil
 	default:
-		return nil
+		return "", nil
 	}
 }
