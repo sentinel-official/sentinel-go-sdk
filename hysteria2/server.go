@@ -35,18 +35,20 @@ type Server struct {
 	cfg     *ServerConfig // Configuration settings for the service.
 	homeDir string        // Home directory of the service.
 
-	cmd      *exec.Cmd               // Command to run the Hysteria2 server.
-	metadata []*ServerMetadata       // Metadata containing server-specific details.
-	peers    *safe.Map[string, Peer] // Thread-safe map to manage peers connected to the server.
+	cmd        *exec.Cmd               // Command to run the Hysteria2 server.
+	httpClient *http.Client            // HTTP client for loopback API calls (auth, stats, kick).
+	metadata   []*ServerMetadata       // Metadata containing server-specific details.
+	peers      *safe.Map[string, Peer] // Thread-safe map to manage peers connected to the server.
 }
 
 // NewServer creates a new Server instance.
 func NewServer(name, appDir string, cfg *ServerConfig) *Server {
 	return &Server{
-		Manager: process.NewManager(name),
-		cfg:     cfg,
-		homeDir: filepath.Join(appDir, hysteria2),
-		peers:   safe.NewMap[string, Peer](),
+		Manager:    process.NewManager(name),
+		cfg:        cfg,
+		homeDir:    filepath.Join(appDir, hysteria2),
+		httpClient: &http.Client{Timeout: 5 * time.Second},
+		peers:      safe.NewMap[string, Peer](),
 	}
 }
 
@@ -228,6 +230,8 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 			Addr:              authAddr,
 			Handler:           newAuthHandler(s.peers),
 			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       5 * time.Second,
+			WriteTimeout:      5 * time.Second,
 		}
 
 		s.Go(ctx, func() error {
@@ -481,12 +485,17 @@ func (s *Server) kickPeer(ctx context.Context, id string) error {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Send the request.
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("sending kick request: %w", err)
 	}
 
 	defer func() { _ = resp.Body.Close() }()
+
+	// Tolerate 404 (peer already gone); any other non-200 is an error.
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
+		return fmt.Errorf("kick request returned status %d", resp.StatusCode)
+	}
 
 	return nil
 }
@@ -512,12 +521,16 @@ func (s *Server) syncPeers(ctx context.Context) error {
 	req.Header.Set("Authorization", s.cfg.StatsSecret)
 
 	// Send the request.
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("sending traffic request: %w", err)
 	}
 
 	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("traffic request returned status %d", resp.StatusCode)
+	}
 
 	// Decode the response: map of id → {tx, rx}.
 	var traffic map[string]trafficEntry

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	netutils "github.com/shirou/gopsutil/v4/net"
 	procutils "github.com/shirou/gopsutil/v4/process"
 
 	"github.com/sentinel-official/sentinel-go-sdk/process"
@@ -241,6 +242,27 @@ func (c *Client) Cleanup() error {
 // Statistics returns the download and upload byte counts for the TUN interface.
 func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 	return c.ifaceStats(ctx, c.cfg.TUNIface)
+}
+
+// ifaceStats reads the TUN interface rx/tx byte counters using OS network I/O counters.
+// Host RX maps to download (BytesRecv), host TX maps to upload (BytesSent).
+func (c *Client) ifaceStats(ctx context.Context, iface string) (int64, int64, error) {
+	// Retrieve per-interface I/O counters.
+	counters, err := netutils.IOCountersWithContext(ctx, true)
+	if err != nil {
+		return 0, 0, fmt.Errorf("reading interface counters: %w", err)
+	}
+
+	// Find the entry matching the TUN interface name.
+	for _, counter := range counters {
+		if counter.Name != iface {
+			continue
+		}
+
+		return int64(counter.BytesRecv), int64(counter.BytesSent), nil
+	}
+
+	return 0, 0, fmt.Errorf("interface %q not found", iface)
 }
 
 func (c *Client) appConfigFile() string     { return filepath.Join(c.homeDir, "config.toml") }

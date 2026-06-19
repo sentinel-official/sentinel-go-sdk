@@ -8,5 +8,3 @@ import (
 //
 //go:embed *.tmpl
 var fs embed.FS
-
-const hysteria2 = "hysteria2"
