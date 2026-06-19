@@ -1,0 +1,22 @@
+listen: ":{{.Port}}"
+
+tls:
+  cert: "{{.TLSCertFile}}"
+  key: "{{.TLSKeyFile}}"
+
+auth:
+  type: http
+  http:
+    url: "http://127.0.0.1:{{.AuthPort}}/"
+    insecure: false
+
+trafficStats:
+  listen: "127.0.0.1:{{.StatsPort}}"
+  secret: "{{.StatsSecret}}"
+{{- if .ObfsPassword}}
+
+obfs:
+  type: salamander
+  salamander:
+    password: "{{.ObfsPassword}}"
+{{- end}}

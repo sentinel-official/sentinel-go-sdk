@@ -1,0 +1,9 @@
+server: "{{.ServerAddr}}"
+auth: "{{.Auth}}"
+
+tls:
+  insecure: true
+  pinSHA256: "{{.TLSPin}}"
+
+tun:
+  name: "{{.TUNIface}}"
