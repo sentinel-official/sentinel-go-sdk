@@ -47,8 +47,13 @@ func (c *Reality) Validate() error {
 
 	// Validate each shortId is a valid hex value.
 	for _, shortID := range c.ShortIds {
-		if _, err := hex.DecodeString(shortID); err != nil {
+		b, err := hex.DecodeString(shortID)
+		if err != nil {
 			return fmt.Errorf("parsing short_id %q: %w", shortID, err)
+		}
+
+		if len(b) > shortIDLength {
+			return fmt.Errorf("short_id %q exceeds %d bytes", shortID, shortIDLength)
 		}
 	}
 
