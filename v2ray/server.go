@@ -2,6 +2,9 @@ package v2ray
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -173,8 +176,14 @@ func (s *Server) Setup(ctx context.Context) error {
 			return fmt.Errorf("initializing PKI: %w", err)
 		}
 
-		if _, _, err := pki.Issue("tls"); err != nil {
+		_, certDER, err := pki.Issue("tls")
+		if err != nil {
 			return fmt.Errorf("issuing TLS certificate and key: %w", err)
+		}
+
+		tlsPin, err := certPin(certDER)
+		if err != nil {
+			return fmt.Errorf("computing TLS pin: %w", err)
 		}
 
 		// Set the server metadata.
@@ -184,6 +193,10 @@ func (s *Server) Setup(ctx context.Context) error {
 				ProxyProtocol:     inbound.GetProxyProtocol(),
 				TransportProtocol: inbound.GetTransportProtocol(),
 				TransportSecurity: inbound.GetTransportSecurity(),
+			}
+
+			if inbound.GetTransportSecurity() == TransportSecurityTLS {
+				metadata.TLSPin = tlsPin
 			}
 
 			s.metadata = append(s.metadata, metadata)
@@ -601,4 +614,16 @@ func (s *Server) syncPeers(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// certPin returns the base64-encoded SHA-256 pin of the given DER certificate.
+func certPin(certDER []byte) (string, error) {
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		return "", fmt.Errorf("parsing certificate: %w", err)
+	}
+
+	sum := sha256.Sum256(cert.Raw)
+
+	return base64.StdEncoding.EncodeToString(sum[:]), nil
 }
