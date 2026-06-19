@@ -541,18 +541,28 @@ func (s *Server) setupReality(inbound *InboundServerConfig) error {
 	return nil
 }
 
-// setupShadowsocks fills in the Shadowsocks 2022 method default and generates the server-level key.
+// setupShadowsocks fills in the Shadowsocks 2022 method default and generates the keys.
 func (s *Server) setupShadowsocks(inbound *InboundServerConfig) error {
 	// Apply the method default.
 	inbound.Method = inbound.GetMethod()
 
-	// Generate the server-level key.
+	// Generate the server-level key (iPSK).
 	key, err := newKey()
 	if err != nil {
 		return fmt.Errorf("generating key: %w", err)
 	}
 
 	inbound.Key = key
+
+	// Generate a distinct throwaway key for the inert seed user. The seed user only
+	// exists to force the multi-user inbound; its key must differ from the iPSK, which
+	// is client-distributed via metadata, so knowing the iPSK alone never grants access.
+	seedKey, err := newKey()
+	if err != nil {
+		return fmt.Errorf("generating seed key: %w", err)
+	}
+
+	inbound.SeedKey = seedKey
 
 	return nil
 }

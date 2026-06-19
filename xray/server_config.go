@@ -23,7 +23,8 @@ type InboundServerConfig struct {
 	TransportSecurity string   `mapstructure:"transport_security"` // TransportSecurity specifies the encryption method.
 	Flow              string   `mapstructure:"flow"`               // Flow specifies the VLESS flow control setting.
 	Method            string   `mapstructure:"method"`             // Method specifies the Shadowsocks 2022 method.
-	Key               string   `mapstructure:"-"`                  // Key is the generated Shadowsocks 2022 server-level key.
+	Key               string   `mapstructure:"-"`                  // Key is the generated Shadowsocks 2022 server-level key (iPSK).
+	SeedKey           string   `mapstructure:"-"`                  // SeedKey is the throwaway Shadowsocks 2022 seed-user key.
 	Reality           *Reality `mapstructure:"reality"`            // Reality specifies the Reality security configuration.
 }
 
