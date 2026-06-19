@@ -8,13 +8,12 @@ import (
 )
 
 const (
-	obfsHMin  = 5     // minimum value for H1–H4 magic headers (exclusive of 4)
-	obfsHMax  = 65535 // maximum value for H1–H4 magic headers
-	obfsSMax  = 65535 // maximum value for S1–S4
-	obfsIMax  = 65535 // maximum value for I1–I5
-	obfsJcMax = 128   // maximum value for Jc (junk packet count)
-	obfsJMin  = 1     // minimum value for Jmin
-	obfsJMax  = 1280  // maximum value for Jmax
+	obfsHMin  = 5    // minimum value for H1–H4 magic headers (exclusive of 4)
+	obfsJcMax = 10   // maximum value for Jc (junk packet count)
+	obfsJMin  = 64   // minimum value for Jmin/Jmax (bytes)
+	obfsJMax  = 1024 // maximum value for Jmax (bytes)
+	obfsS123Max = 64 // maximum value for S1, S2, S3 (junk-prefix byte sizes)
+	obfsS4Max   = 32 // maximum value for S4 (junk-prefix byte size)
 )
 
 // Obfs holds the AmneziaWG interface-level obfuscation parameters.
@@ -26,26 +25,29 @@ const (
 // AdvancedSecurity is a per-peer flag enabling additional handshake protection.
 type Obfs struct {
 	// Junk packet parameters — local only, need not match the remote peer.
-	Jc   uint8  `mapstructure:"jc"`   // Jc is the number of junk packets to send (0–128).
-	Jmin uint16 `mapstructure:"jmin"` // Jmin is the minimum junk packet size in bytes.
-	Jmax uint16 `mapstructure:"jmax"` // Jmax is the maximum junk packet size in bytes.
+	Jc   uint8  `mapstructure:"jc"`   // Jc is the number of junk packets to send (0–10).
+	Jmin uint16 `mapstructure:"jmin"` // Jmin is the minimum junk packet size in bytes (64–1024).
+	Jmax uint16 `mapstructure:"jmax"` // Jmax is the maximum junk packet size in bytes (64–1024).
 
 	// Handshake parameters — must match on both endpoints.
-	S1 uint16 `mapstructure:"s1"` // S1 is the first handshake obfuscation size.
-	S2 uint16 `mapstructure:"s2"` // S2 is the second handshake obfuscation size.
-	S3 uint16 `mapstructure:"s3"` // S3 is the third handshake obfuscation size.
-	S4 uint16 `mapstructure:"s4"` // S4 is the fourth handshake obfuscation size.
+	S1 uint16 `mapstructure:"s1"` // S1 is the first handshake obfuscation size (0–64).
+	S2 uint16 `mapstructure:"s2"` // S2 is the second handshake obfuscation size (0–64).
+	S3 uint16 `mapstructure:"s3"` // S3 is the third handshake obfuscation size (0–64).
+	S4 uint16 `mapstructure:"s4"` // S4 is the fourth handshake obfuscation size (0–32).
 
 	H1 uint32 `mapstructure:"h1"` // H1 is the first magic header (distinct, > 4).
 	H2 uint32 `mapstructure:"h2"` // H2 is the second magic header (distinct, > 4).
 	H3 uint32 `mapstructure:"h3"` // H3 is the third magic header (distinct, > 4).
 	H4 uint32 `mapstructure:"h4"` // H4 is the fourth magic header (distinct, > 4).
 
-	I1 uint32 `mapstructure:"i1"` // I1 is the first imitation/signature packet value.
-	I2 uint32 `mapstructure:"i2"` // I2 is the second imitation/signature packet value.
-	I3 uint32 `mapstructure:"i3"` // I3 is the third imitation/signature packet value.
-	I4 uint32 `mapstructure:"i4"` // I4 is the fourth imitation/signature packet value.
-	I5 uint32 `mapstructure:"i5"` // I5 is the fifth imitation/signature packet value.
+	// I1–I5 are optional Custom Protocol Signature strings. When non-empty they
+	// must match on both endpoints. Valid values are hex-blob strings with tags
+	// such as <b>, <t>, <r>, <rc>, <rd> as defined by amneziawg-tools/src/config.c.
+	I1 string `mapstructure:"i1"` // I1 is the first custom protocol signature string.
+	I2 string `mapstructure:"i2"` // I2 is the second custom protocol signature string.
+	I3 string `mapstructure:"i3"` // I3 is the third custom protocol signature string.
+	I4 string `mapstructure:"i4"` // I4 is the fourth custom protocol signature string.
+	I5 string `mapstructure:"i5"` // I5 is the fifth custom protocol signature string.
 
 	// Per-peer flag.
 	AdvancedSecurity bool `mapstructure:"advanced_security"` // AdvancedSecurity enables additional handshake protection.
@@ -61,21 +63,23 @@ func randUint32() (uint32, error) {
 	return binary.LittleEndian.Uint32(b[:]), nil
 }
 
-// randUint16 returns a cryptographically random uint16.
-func randUint16() (uint16, error) {
+// randUint16n returns a cryptographically random uint16 in [0, n].
+func randUint16n(n uint16) (uint16, error) {
 	var b [2]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return 0, fmt.Errorf("reading random bytes: %w", err)
 	}
 
-	return binary.LittleEndian.Uint16(b[:]), nil
+	return binary.LittleEndian.Uint16(b[:]) % (n + 1), nil
 }
 
 // Generate randomizes a new Obfs profile.
 //
 // H1–H4 are generated as distinct uint32 values each greater than 4.
-// S1–S4 and I1–I5 are randomized uint16/uint32 values.
-// Jc/Jmin/Jmax are set to sensible defaults (7, 50, 1000).
+// S1–S3 are randomized in [0, 64]; S4 in [0, 32].
+// Jc/Jmin/Jmax are set to sensible defaults (7, 64, 1024).
+// I1–I5 are left empty — valid CPS signatures cannot be meaningfully randomized.
+// AdvancedSecurity defaults to false.
 func (o *Obfs) Generate() error {
 	// Generate H1–H4 as distinct values each > 4.
 	seen := make(map[uint32]bool, 4)
@@ -89,7 +93,10 @@ func (o *Obfs) Generate() error {
 			}
 
 			// Ensure value is > 4 and not already used.
-			v = v%(obfsHMax-obfsHMin) + obfsHMin + 1
+			if v <= 4 {
+				continue
+			}
+
 			if !seen[v] {
 				*h = v
 				seen[v] = true
@@ -99,10 +106,9 @@ func (o *Obfs) Generate() error {
 		}
 	}
 
-	// Generate S1–S4 (any uint16 value is valid).
-	sFields := []*uint16{&o.S1, &o.S2, &o.S3, &o.S4}
-	for _, s := range sFields {
-		v, err := randUint16()
+	// Generate S1–S3 in [0, 64].
+	for _, s := range []*uint16{&o.S1, &o.S2, &o.S3} {
+		v, err := randUint16n(obfsS123Max)
 		if err != nil {
 			return fmt.Errorf("generating S parameter: %w", err)
 		}
@@ -110,40 +116,43 @@ func (o *Obfs) Generate() error {
 		*s = v
 	}
 
-	// Generate I1–I5 (values in range 0–65535).
-	iFields := []*uint32{&o.I1, &o.I2, &o.I3, &o.I4, &o.I5}
-	for _, i := range iFields {
-		v, err := randUint32()
-		if err != nil {
-			return fmt.Errorf("generating I parameter: %w", err)
-		}
-
-		*i = v % (obfsIMax + 1)
+	// Generate S4 in [0, 32].
+	v, err := randUint16n(obfsS4Max)
+	if err != nil {
+		return fmt.Errorf("generating S4 parameter: %w", err)
 	}
+
+	o.S4 = v
 
 	// Set sensible junk defaults.
 	o.Jc = 7
-	o.Jmin = 50
-	o.Jmax = 1000
+	o.Jmin = 64
+	o.Jmax = 1024
 
-	o.AdvancedSecurity = true
+	// I1–I5 are left empty (CPS strings are not auto-generated).
+	o.I1 = ""
+	o.I2 = ""
+	o.I3 = ""
+	o.I4 = ""
+	o.I5 = ""
+
+	o.AdvancedSecurity = false
 
 	return nil
 }
 
-// Validate checks that all Obfs fields satisfy the constraints from amneziawg-tools/src/config.c.
+// Validate checks that all Obfs fields satisfy the constraints from amneziawg-tools/src/config.c
+// and the documented parameter ranges at docs.amnezia.org.
 //
-//   - H1–H4 must be distinct and each > 4.
-//   - Jmin < Jmax.
+//   - Jc: 0–10.
+//   - Jmin and Jmax: 64–1024; Jmin < Jmax.
+//   - S1, S2, S3: 0–64; S4: 0–32.
+//   - H1–H4: distinct and each > 4.
+//   - I1–I5: optional strings, no numeric constraints.
 func (o *Obfs) Validate() error {
 	// Validate Jc.
 	if o.Jc > obfsJcMax {
 		return fmt.Errorf("jc %d exceeds maximum %d", o.Jc, obfsJcMax)
-	}
-
-	// Validate Jmin < Jmax.
-	if o.Jmin >= o.Jmax {
-		return errors.New("jmin must be less than jmax")
 	}
 
 	// Validate Jmin and Jmax bounds.
@@ -155,15 +164,28 @@ func (o *Obfs) Validate() error {
 		return fmt.Errorf("jmax %d exceeds maximum %d", o.Jmax, obfsJMax)
 	}
 
+	// Validate Jmin < Jmax.
+	if o.Jmin >= o.Jmax {
+		return errors.New("jmin must be less than jmax")
+	}
+
+	// Validate S1–S3 (0–64).
+	for i, s := range [3]uint16{o.S1, o.S2, o.S3} {
+		if s > obfsS123Max {
+			return fmt.Errorf("s%d %d exceeds maximum %d", i+1, s, obfsS123Max)
+		}
+	}
+
+	// Validate S4 (0–32).
+	if o.S4 > obfsS4Max {
+		return fmt.Errorf("s4 %d exceeds maximum %d", o.S4, obfsS4Max)
+	}
+
 	// Validate H1–H4: each must be > 4 and all must be distinct.
 	hs := [4]uint32{o.H1, o.H2, o.H3, o.H4}
 	for i, h := range hs {
 		if h <= 4 {
 			return fmt.Errorf("h%d must be greater than 4", i+1)
-		}
-
-		if h > obfsHMax {
-			return fmt.Errorf("h%d %d exceeds maximum %d", i+1, h, obfsHMax)
 		}
 	}
 

@@ -21,9 +21,10 @@ type ServerMetadata struct {
 	H3 uint32 `json:"h3"` // H3 is the third magic header.
 	H4 uint32 `json:"h4"` // H4 is the fourth magic header.
 
-	I1 uint32 `json:"i1"` // I1 is the first imitation/signature packet value.
-	I2 uint32 `json:"i2"` // I2 is the second imitation/signature packet value.
-	I3 uint32 `json:"i3"` // I3 is the third imitation/signature packet value.
-	I4 uint32 `json:"i4"` // I4 is the fourth imitation/signature packet value.
-	I5 uint32 `json:"i5"` // I5 is the fifth imitation/signature packet value.
+	// I1–I5 are optional Custom Protocol Signature strings (non-empty when configured).
+	I1 string `json:"i1,omitempty"` // I1 is the first custom protocol signature string.
+	I2 string `json:"i2,omitempty"` // I2 is the second custom protocol signature string.
+	I3 string `json:"i3,omitempty"` // I3 is the third custom protocol signature string.
+	I4 string `json:"i4,omitempty"` // I4 is the fourth custom protocol signature string.
+	I5 string `json:"i5,omitempty"` // I5 is the fifth custom protocol signature string.
 }
