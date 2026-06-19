@@ -92,7 +92,8 @@
                 "security": "{{ $outbound.TransportSecurity }}"
                 {{- if eq $outbound.TransportSecurity "tls" }},
                 "tlsSettings": {
-                    "allowInsecure": true
+                    "allowInsecure": true,
+                    "pinnedPeerCertSha256": "{{ $outbound.TLSPin }}"
                 }
                 {{- end }}
                 {{- if eq $outbound.TransportSecurity "reality" }},

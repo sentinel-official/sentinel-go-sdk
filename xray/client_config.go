@@ -44,6 +44,7 @@ type OutboundClientConfig struct {
 	ProxyProtocol     string `mapstructure:"-"` // ProxyProtocol specifies the proxy protocol to use.
 	TransportProtocol string `mapstructure:"-"` // TransportProtocol specifies the transport protocol to use.
 	TransportSecurity string `mapstructure:"-"` // TransportSecurity specifies the transport security type.
+	TLSPin            string `mapstructure:"-"` // TLSPin is the SHA-256 pin of the server's TLS certificate.
 	Flow              string `mapstructure:"-"` // Flow specifies the VLESS flow control setting.
 
 	Method    string `mapstructure:"-"` // Method specifies the Shadowsocks 2022 method.

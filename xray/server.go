@@ -2,6 +2,9 @@ package xray
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -196,8 +199,14 @@ func (s *Server) Setup(ctx context.Context) error {
 			return fmt.Errorf("initializing PKI: %w", err)
 		}
 
-		if _, _, err := pki.Issue("tls"); err != nil {
+		_, certDER, err := pki.Issue("tls")
+		if err != nil {
 			return fmt.Errorf("issuing TLS certificate and key: %w", err)
+		}
+
+		tlsPin, err := certPin(certDER)
+		if err != nil {
+			return fmt.Errorf("computing TLS pin: %w", err)
 		}
 
 		// Set the server metadata.
@@ -220,6 +229,10 @@ func (s *Server) Setup(ctx context.Context) error {
 				metadata.RealityShortId = inbound.Reality.ShortIds[0]
 				metadata.RealityPublicKey = inbound.Reality.PublicKey
 				metadata.RealityFingerprint = inbound.Reality.Fingerprint
+			}
+
+			if inbound.GetTransportSecurity() == TransportSecurityTLS {
+				metadata.TLSPin = tlsPin
 			}
 
 			s.metadata = append(s.metadata, metadata)
@@ -710,4 +723,16 @@ func (s *Server) syncPeers(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// certPin returns the hex-encoded SHA-256 pin of the given DER certificate.
+func certPin(certDER []byte) (string, error) {
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		return "", fmt.Errorf("parsing certificate: %w", err)
+	}
+
+	sum := sha256.Sum256(cert.Raw)
+
+	return hex.EncodeToString(sum[:]), nil
 }

@@ -13,6 +13,7 @@ type ServerMetadata struct {
 	Flow              Flow              `json:"flow"`               // Flow specifies the VLESS flow control setting.
 	Method            string            `json:"method"`             // Method specifies the Shadowsocks 2022 method.
 	Key               string            `json:"key"`                // Key specifies the Shadowsocks 2022 server-level key (iPSK).
+	TLSPin            string            `json:"tls_pin"`            // TLSPin specifies the SHA-256 pin of the server's TLS certificate.
 
 	RealityServerName  string `json:"reality_server_name"` // RealityServerName specifies the Reality SNI value.
 	RealityShortId     string `json:"reality_short_id"`    // RealityShortId specifies the Reality shortId value.
