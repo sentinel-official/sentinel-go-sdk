@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/v2fly/v2ray-core/v5/common/uuid"
+	"github.com/google/uuid"
 )
 
 // PeerRequest represents a OpenVPN peer request.
