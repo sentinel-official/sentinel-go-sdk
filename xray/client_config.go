@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"github.com/xtls/xray-core/common/uuid"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
@@ -190,7 +190,7 @@ type ClientConfig struct {
 // GetID parses and returns the UUID from the ClientConfig's ID field.
 // It panics if the ID is not a valid UUID string.
 func (c *ClientConfig) GetID() uuid.UUID {
-	id, err := uuid.ParseString(c.ID)
+	id, err := uuid.Parse(c.ID)
 	if err != nil {
 		panic(err)
 	}

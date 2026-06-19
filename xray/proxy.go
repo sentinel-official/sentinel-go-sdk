@@ -6,13 +6,9 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/xtls/xray-core/common/serial"
-	"github.com/xtls/xray-core/common/uuid"
-	"github.com/xtls/xray-core/proxy/shadowsocks_2022"
-	"github.com/xtls/xray-core/proxy/trojan"
-	"github.com/xtls/xray-core/proxy/vless"
-	"github.com/xtls/xray-core/proxy/vmess"
+	"github.com/google/uuid"
 
+	"github.com/sentinel-official/sentinel-go-sdk/libs/proxycmd"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
 
@@ -34,6 +30,22 @@ const (
 	ProxyProtocolTrojan                               // ProxyProtocolTrojan represents the Trojan protocol
 	ProxyProtocolShadowsocks2022                      // ProxyProtocolShadowsocks2022 represents the Shadowsocks 2022 protocol
 )
+
+// Type URL constants for xray-core protobuf account messages.
+const (
+	typeVLESSAccount       = "xray.proxy.vless.Account"
+	typeVMessAccount       = "xray.proxy.vmess.Account"
+	typeTrojanAccount      = "xray.proxy.trojan.Account"
+	typeShadowsocksAccount = "xray.proxy.shadowsocks_2022.Account"
+)
+
+// dialect holds the xray-core gRPC method paths and operation type URLs.
+var dialect = proxycmd.Dialect{ //nolint:gochecknoglobals
+	AlterInboundMethod:      "/xray.app.proxyman.command.HandlerService/AlterInbound",
+	QueryStatsMethod:        "/xray.app.stats.command.StatsService/QueryStats",
+	AddUserOperationType:    "xray.app.proxyman.command.AddUserOperation",
+	RemoveUserOperationType: "xray.app.proxyman.command.RemoveUserOperation",
+}
 
 // NewProxyProtocolFromString converts a string to a ProxyProtocol type.
 func NewProxyProtocolFromString(v string) ProxyProtocol {
@@ -74,38 +86,21 @@ func (p ProxyProtocol) IsValid() bool {
 	return p.String() != ""
 }
 
-// Account generates an account message based on the ProxyProtocol.
-func (p ProxyProtocol) Account(uid uuid.UUID, flow Flow) *serial.TypedMessage {
+// Account returns the type URL and encoded account bytes for the given UUID and flow.
+func (p ProxyProtocol) Account(uid uuid.UUID, flow Flow) (string, []byte) {
 	switch p {
 	case ProxyProtocolVLess:
-		return serial.ToTypedMessage(
-			&vless.Account{
-				Id:   uid.String(),
-				Flow: flowString(flow),
-			},
-		)
+		return typeVLESSAccount, proxycmd.VLESSAccount(uid.String(), flowString(flow))
 	case ProxyProtocolVMess:
-		return serial.ToTypedMessage(
-			&vmess.Account{
-				Id: uid.String(),
-			},
-		)
+		return typeVMessAccount, proxycmd.VMessAccount(uid.String())
 	case ProxyProtocolTrojan:
-		return serial.ToTypedMessage(
-			&trojan.Account{
-				Password: derivePassword(uid),
-			},
-		)
+		return typeTrojanAccount, proxycmd.TrojanAccount(derivePassword(uid))
 	case ProxyProtocolShadowsocks2022:
-		return serial.ToTypedMessage(
-			&shadowsocks_2022.Account{
-				Key: deriveKey(uid),
-			},
-		)
+		return typeShadowsocksAccount, proxycmd.ShadowsocksAccount(deriveKey(uid))
 	case ProxyProtocolUnspecified:
-		return nil
+		return "", nil
 	default:
-		return nil
+		return "", nil
 	}
 }
 
@@ -125,7 +120,7 @@ func derivePassword(uid uuid.UUID) string {
 
 // deriveKey deterministically derives a Shadowsocks 2022 user PSK from the UUID.
 func deriveKey(uid uuid.UUID) string {
-	sum := sha256.Sum256(uid.Bytes())
+	sum := sha256.Sum256(uid[:])
 
 	return base64.StdEncoding.EncodeToString(sum[:])
 }

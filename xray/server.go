@@ -16,14 +16,11 @@ import (
 	"time"
 
 	procutils "github.com/shirou/gopsutil/v4/process"
-	proxymancommand "github.com/xtls/xray-core/app/proxyman/command"
-	statscommand "github.com/xtls/xray-core/app/stats/command"
-	"github.com/xtls/xray-core/common/protocol"
-	"github.com/xtls/xray-core/common/serial"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/crypto"
+	"github.com/sentinel-official/sentinel-go-sdk/libs/proxycmd"
 	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
 	"github.com/sentinel-official/sentinel-go-sdk/process"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
@@ -398,24 +395,9 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 
 	defer release()
 
-	client := proxymancommand.NewHandlerServiceClient(conn)
-
 	for tag, p := range s.proxies {
-		// Prepare gRPC request to add a new user to the handler.
-		in := &proxymancommand.AlterInboundRequest{
-			Tag: tag,
-			Operation: serial.ToTypedMessage(
-				&proxymancommand.AddUserOperation{
-					User: &protocol.User{
-						Email:   id,
-						Account: p.Protocol.Account(r.UUID, p.Flow),
-					},
-				},
-			),
-		}
-
-		// Send the request to add a user to the handler.
-		if _, err := client.AlterInbound(ctx, in); err != nil {
+		acctType, acctValue := p.Protocol.Account(r.UUID, p.Flow)
+		if err := proxycmd.AddUser(ctx, conn, dialect, tag, id, acctType, acctValue); err != nil {
 			return "", nil, fmt.Errorf("altering peer %q inbound: %w", id, err)
 		}
 	}
@@ -448,21 +430,8 @@ func (s *Server) RemovePeer(ctx context.Context, id string) error {
 
 	defer release()
 
-	client := proxymancommand.NewHandlerServiceClient(conn)
-
 	for tag := range s.proxies {
-		// Prepare gRPC request to remove a user from the handler.
-		in := &proxymancommand.AlterInboundRequest{
-			Tag: tag,
-			Operation: serial.ToTypedMessage(
-				&proxymancommand.RemoveUserOperation{
-					Email: id,
-				},
-			),
-		}
-
-		// Send the request to remove a user from the handler.
-		if _, err := client.AlterInbound(ctx, in); err != nil {
+		if err := proxycmd.RemoveUser(ctx, conn, dialect, tag, id); err != nil {
 			// If the user is not found, continue without error.
 			if !strings.Contains(err.Error(), "not found") {
 				return fmt.Errorf("altering peer %q inbound: %w", id, err)
@@ -626,40 +595,24 @@ func (s *Server) setupShadowsocks(inbound *InboundServerConfig) error {
 // syncPeers retrieves the latest peer transfer statistics from the stats service
 // and updates the in-memory peer data accordingly.
 func (s *Server) syncPeers(ctx context.Context) error {
-	// Prepare the response
-	resp := &statscommand.QueryStatsResponse{}
-
-	// Perform the gRPC call to fetch traffic stats
-	fn := func() (err error) {
-		conn, release := s.conn.Acquire()
-		if conn == nil {
-			return errors.New("acquiring connection: nil conn")
-		}
-
-		defer release()
-
-		client := statscommand.NewStatsServiceClient(conn)
-
-		// Send the request to get traffic stats
-		resp, err = client.QueryStats(ctx, &statscommand.QueryStatsRequest{})
-		if err != nil {
-			return fmt.Errorf("querying peer stats: %w", err)
-		}
-
-		return nil
+	conn, release := s.conn.Acquire()
+	if conn == nil {
+		return errors.New("acquiring connection: nil conn")
 	}
 
-	// Execute stats query
-	if err := fn(); err != nil {
-		return err
+	defer release()
+
+	rawStats, err := proxycmd.QueryStats(ctx, conn, dialect, "", false)
+	if err != nil {
+		return fmt.Errorf("querying peer stats: %w", err)
 	}
 
 	// Temporary map to collect per-user traffic stats
 	stats := make(map[string]*types.PeerStatistics)
 
 	// Iterate over every stat entry
-	for _, stat := range resp.GetStat() {
-		name := stat.GetName()
+	for _, stat := range rawStats {
+		name := stat.Name
 
 		// Split the name into 4 parts
 		parts := strings.SplitN(name, ">>>", 4)
@@ -684,9 +637,9 @@ func (s *Server) syncPeers(ctx context.Context) error {
 		// Assign Rx/Tx values based on direction
 		switch parts[3] {
 		case "uplink":
-			pt.RxBytes = stat.GetValue()
+			pt.RxBytes = stat.Value
 		case "downlink":
-			pt.TxBytes = stat.GetValue()
+			pt.TxBytes = stat.Value
 		default:
 			continue
 		}

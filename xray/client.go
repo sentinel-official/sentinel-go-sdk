@@ -11,10 +11,10 @@ import (
 	"strings"
 
 	procutils "github.com/shirou/gopsutil/v4/process"
-	statscommand "github.com/xtls/xray-core/app/stats/command"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/sentinel-official/sentinel-go-sdk/libs/proxycmd"
 	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
 	"github.com/sentinel-official/sentinel-go-sdk/process"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
@@ -268,39 +268,23 @@ func (c *Client) Cleanup() error {
 
 // Statistics retrieves the download and upload statistics from the Xray client.
 func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
-	// Prepare the response
-	resp := &statscommand.QueryStatsResponse{}
-
-	// Perform the gRPC call to fetch traffic stats
-	fn := func() (err error) {
-		conn, release := c.conn.Acquire()
-		if conn == nil {
-			return errors.New("acquiring connection: nil conn")
-		}
-
-		defer release()
-
-		client := statscommand.NewStatsServiceClient(conn)
-
-		// Send the request to get traffic stats
-		resp, err = client.QueryStats(ctx, &statscommand.QueryStatsRequest{})
-		if err != nil {
-			return fmt.Errorf("querying stats: %w", err)
-		}
-
-		return nil
+	conn, release := c.conn.Acquire()
+	if conn == nil {
+		return 0, 0, errors.New("acquiring connection: nil conn")
 	}
 
-	// Execute stats query
-	if err := fn(); err != nil {
-		return 0, 0, err
+	defer release()
+
+	stats, err := proxycmd.QueryStats(ctx, conn, dialect, "", false)
+	if err != nil {
+		return 0, 0, fmt.Errorf("querying stats: %w", err)
 	}
 
 	var download, upload int64
 
 	// Iterate over every stat entry
-	for _, stat := range resp.GetStat() {
-		name := stat.GetName()
+	for _, stat := range stats {
+		name := stat.Name
 
 		// Split the name into 4 parts
 		parts := strings.SplitN(name, ">>>", 4)
@@ -311,9 +295,9 @@ func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 		// Accumulate Rx/Tx values based on direction
 		switch parts[3] {
 		case "uplink":
-			upload += stat.GetValue()
+			upload += stat.Value
 		case "downlink":
-			download += stat.GetValue()
+			download += stat.Value
 		default:
 			continue
 		}

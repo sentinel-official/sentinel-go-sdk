@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/xtls/xray-core/common/uuid"
+	"github.com/google/uuid"
 )
 
 // PeerRequest represents an Xray peer request.
