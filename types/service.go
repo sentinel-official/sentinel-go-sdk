@@ -16,6 +16,7 @@ const (
 	ServiceTypeV2Ray                                 // ServiceTypeV2Ray represents the V2Ray service type.
 	ServiceTypeOpenVPN                               // ServiceTypeOpenVPN represents the OpenVPN service type.
 	ServiceTypeXray                                  // ServiceTypeXray represents the Xray service type.
+	ServiceTypeAmneziaWG                             // ServiceTypeAmneziaWG represents the AmneziaWG service type.
 )
 
 // String returns the string representation of the ServiceType.
@@ -29,6 +30,8 @@ func (s ServiceType) String() string {
 		return "openvpn"
 	case ServiceTypeXray:
 		return "xray"
+	case ServiceTypeAmneziaWG:
+		return "amneziawg"
 	case ServiceTypeUnspecified:
 		return StringUnspecified
 	default:
@@ -48,6 +51,8 @@ func ServiceTypeFromString(s string) ServiceType {
 		return ServiceTypeOpenVPN
 	case "xray":
 		return ServiceTypeXray
+	case "amneziawg":
+		return ServiceTypeAmneziaWG
 	default:
 		return ServiceTypeUnspecified
 	}
