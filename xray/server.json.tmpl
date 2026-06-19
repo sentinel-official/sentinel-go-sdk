@@ -26,7 +26,14 @@
             {{- end }}
             {{- if eq $inbound.ProxyProtocol "shadowsocks-2022" }}
             "settings": {
-                "method": "{{ $inbound.Method }}"
+                "clients": [
+                    {
+                        "email": "seed",
+                        "password": "{{ $inbound.Key }}"
+                    }
+                ],
+                "method": "{{ $inbound.Method }}",
+                "password": "{{ $inbound.Key }}"
             },
             {{- end }}
             "streamSettings": {

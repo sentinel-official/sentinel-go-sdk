@@ -11,6 +11,7 @@ type ServerMetadata struct {
 	TransportProtocol TransportProtocol `json:"transport_protocol"` // TransportProtocol specifies the transport protocol type.
 	TransportSecurity TransportSecurity `json:"transport_security"` // TransportSecurity specifies the transport security type.
 	Flow              Flow              `json:"flow"`               // Flow specifies the VLESS flow control setting.
+	Method            string            `json:"method"`             // Method specifies the Shadowsocks 2022 method.
 
 	RealityServerName  string `json:"reality_server_name"` // RealityServerName specifies the Reality SNI value.
 	RealityShortId     string `json:"reality_short_id"`    // RealityShortId specifies the Reality shortId value.

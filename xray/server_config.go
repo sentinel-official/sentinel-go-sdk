@@ -23,6 +23,7 @@ type InboundServerConfig struct {
 	TransportSecurity string   `mapstructure:"transport_security"` // TransportSecurity specifies the encryption method.
 	Flow              string   `mapstructure:"flow"`               // Flow specifies the VLESS flow control setting.
 	Method            string   `mapstructure:"method"`             // Method specifies the Shadowsocks 2022 method.
+	Key               string   `mapstructure:"-"`                  // Key is the generated Shadowsocks 2022 server-level key.
 	Reality           *Reality `mapstructure:"reality"`            // Reality specifies the Reality security configuration.
 }
 
@@ -58,6 +59,15 @@ func (c *InboundServerConfig) GetTransportSecurity() TransportSecurity {
 // GetFlow parses and returns the flow configuration.
 func (c *InboundServerConfig) GetFlow() Flow {
 	return NewFlowFromString(c.Flow)
+}
+
+// GetMethod returns the Shadowsocks 2022 method, defaulting when empty.
+func (c *InboundServerConfig) GetMethod() string {
+	if c.Method == "" {
+		return ShadowsocksMethod
+	}
+
+	return c.Method
 }
 
 // InPort returns the inbound port range.
@@ -117,6 +127,13 @@ func (c *InboundServerConfig) Validate() error {
 	if c.Flow != "" {
 		if v := NewFlowFromString(c.Flow); !v.IsValid() {
 			return fmt.Errorf("invalid flow %q", v)
+		}
+	}
+
+	// Validate the Method for Shadowsocks 2022 inbounds.
+	if c.GetProxyProtocol() == ProxyProtocolShadowsocks2022 {
+		if c.Method != "" && c.Method != ShadowsocksMethod {
+			return fmt.Errorf("invalid method %q, only %q is supported", c.Method, ShadowsocksMethod)
 		}
 	}
 

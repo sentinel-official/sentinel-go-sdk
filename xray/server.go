@@ -37,11 +37,17 @@ type Server struct {
 	cfg     *ServerConfig // Configuration settings for the service.
 	homeDir string        // Home directory of the service.
 
-	cmd      *exec.Cmd                // Command to run the Xray server.
-	conn     *safe.GRPCConn           // gRPC client connection to the service.
-	metadata []*ServerMetadata        // Metadata containing server-specific details.
-	peers    *safe.Map[string, Peer]  // Thread-safe map to manage peers connected to the server.
-	proxies  map[string]ProxyProtocol // Proxy protocols used by the server.
+	cmd      *exec.Cmd               // Command to run the Xray server.
+	conn     *safe.GRPCConn          // gRPC client connection to the service.
+	metadata []*ServerMetadata       // Metadata containing server-specific details.
+	peers    *safe.Map[string, Peer] // Thread-safe map to manage peers connected to the server.
+	proxies  map[string]proxy        // Proxy protocols used by the server, keyed by inbound tag.
+}
+
+// proxy holds the per-inbound parameters needed to add a user over gRPC.
+type proxy struct {
+	Protocol ProxyProtocol // Protocol is the inbound proxy protocol.
+	Flow     Flow          // Flow is the inbound VLESS flow control setting.
 }
 
 // NewServer creates a new Server instance.
@@ -52,7 +58,7 @@ func NewServer(name, appDir string, cfg *ServerConfig) *Server {
 		conn:    &safe.GRPCConn{},
 		homeDir: filepath.Join(appDir, "xray"),
 		peers:   safe.NewMap[string, Peer](),
-		proxies: make(map[string]ProxyProtocol),
+		proxies: make(map[string]proxy),
 	}
 }
 
@@ -168,6 +174,17 @@ func (s *Server) Setup(ctx context.Context) error {
 			}
 		}
 
+		// Generate the server-level key for Shadowsocks 2022 inbounds.
+		for _, inbound := range s.cfg.Inbounds {
+			if inbound.GetProxyProtocol() != ProxyProtocolShadowsocks2022 {
+				continue
+			}
+
+			if err := s.setupShadowsocks(inbound); err != nil {
+				return fmt.Errorf("setting up shadowsocks: %w", err)
+			}
+		}
+
 		// Validate the config
 		if err := s.cfg.Validate(); err != nil {
 			return fmt.Errorf("validating config: %w", err)
@@ -199,6 +216,10 @@ func (s *Server) Setup(ctx context.Context) error {
 				Flow:              inbound.GetFlow(),
 			}
 
+			if inbound.GetProxyProtocol() == ProxyProtocolShadowsocks2022 {
+				metadata.Method = inbound.GetMethod()
+			}
+
 			if inbound.GetTransportSecurity() == TransportSecurityReality {
 				metadata.RealityServerName = inbound.Reality.ServerNames[0]
 				metadata.RealityShortId = inbound.Reality.ShortIds[0]
@@ -207,7 +228,10 @@ func (s *Server) Setup(ctx context.Context) error {
 			}
 
 			s.metadata = append(s.metadata, metadata)
-			s.proxies[inbound.Tag()] = inbound.GetProxyProtocol()
+			s.proxies[inbound.Tag()] = proxy{
+				Protocol: inbound.GetProxyProtocol(),
+				Flow:     inbound.GetFlow(),
+			}
 		}
 
 		return nil
@@ -368,7 +392,7 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 
 	client := proxymancommand.NewHandlerServiceClient(conn)
 
-	for tag, proxy := range s.proxies {
+	for tag, p := range s.proxies {
 		// Prepare gRPC request to add a new user to the handler.
 		in := &proxymancommand.AlterInboundRequest{
 			Tag: tag,
@@ -376,7 +400,7 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 				&proxymancommand.AddUserOperation{
 					User: &protocol.User{
 						Email:   id,
-						Account: proxy.Account(r.UUID),
+						Account: p.Protocol.Account(r.UUID, p.Flow),
 					},
 				},
 			),
@@ -513,6 +537,22 @@ func (s *Server) setupReality(inbound *InboundServerConfig) error {
 	if err := reality.generateKeys(); err != nil {
 		return fmt.Errorf("generating keys: %w", err)
 	}
+
+	return nil
+}
+
+// setupShadowsocks fills in the Shadowsocks 2022 method default and generates the server-level key.
+func (s *Server) setupShadowsocks(inbound *InboundServerConfig) error {
+	// Apply the method default.
+	inbound.Method = inbound.GetMethod()
+
+	// Generate the server-level key.
+	key, err := newKey()
+	if err != nil {
+		return fmt.Errorf("generating key: %w", err)
+	}
+
+	inbound.Key = key
 
 	return nil
 }

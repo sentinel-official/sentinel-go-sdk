@@ -1,8 +1,10 @@
 package xray
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 
 	"github.com/xtls/xray-core/common/serial"
 	"github.com/xtls/xray-core/common/uuid"
@@ -13,6 +15,13 @@ import (
 
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 )
+
+// ShadowsocksMethod is the Shadowsocks 2022 method used for multi-user inbounds.
+// Only blake3-aes-*-gcm methods support multiple users; aes-256-gcm needs 32-byte keys.
+const ShadowsocksMethod = "2022-blake3-aes-256-gcm"
+
+// shadowsocksKeyLength is the byte length of a Shadowsocks 2022 aes-256-gcm key.
+const shadowsocksKeyLength = 32
 
 // ProxyProtocol is a custom type used to represent different proxy protocols.
 type ProxyProtocol byte
@@ -66,12 +75,13 @@ func (p ProxyProtocol) IsValid() bool {
 }
 
 // Account generates an account message based on the ProxyProtocol.
-func (p ProxyProtocol) Account(uid uuid.UUID) *serial.TypedMessage {
+func (p ProxyProtocol) Account(uid uuid.UUID, flow Flow) *serial.TypedMessage {
 	switch p {
 	case ProxyProtocolVLess:
 		return serial.ToTypedMessage(
 			&vless.Account{
-				Id: uid.String(),
+				Id:   uid.String(),
+				Flow: flowString(flow),
 			},
 		)
 	case ProxyProtocolVMess:
@@ -99,6 +109,15 @@ func (p ProxyProtocol) Account(uid uuid.UUID) *serial.TypedMessage {
 	}
 }
 
+// flowString returns the VLESS flow string sent to xray-core, empty unless Vision.
+func flowString(flow Flow) string {
+	if flow == FlowVision {
+		return FlowVision.String()
+	}
+
+	return ""
+}
+
 // derivePassword deterministically derives a Trojan password from the UUID.
 func derivePassword(uid uuid.UUID) string {
 	return uid.String()
@@ -109,4 +128,14 @@ func deriveKey(uid uuid.UUID) string {
 	sum := sha256.Sum256(uid.Bytes())
 
 	return base64.StdEncoding.EncodeToString(sum[:])
+}
+
+// newKey generates a new random Shadowsocks 2022 server-level key.
+func newKey() (string, error) {
+	buf := make([]byte, shadowsocksKeyLength)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("generating key: %w", err)
+	}
+
+	return base64.StdEncoding.EncodeToString(buf), nil
 }
