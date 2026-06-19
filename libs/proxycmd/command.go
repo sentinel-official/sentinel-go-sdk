@@ -35,7 +35,10 @@ func AddUser(ctx context.Context, conn *grpc.ClientConn, d Dialect, tag, email, 
 		user = appendString(user, 2, email)
 	}
 
-	user = appendMessage(user, 3, accountWrapper)
+	// Omit the account field when empty so an unset account is absent rather than present-but-empty.
+	if len(accountWrapper) > 0 {
+		user = appendMessage(user, 3, accountWrapper)
+	}
 
 	// Encode AddUserOperation{ user field1 }.
 	var addOp []byte
