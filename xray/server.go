@@ -289,7 +289,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 					// Check if server is up before syncing peers.
 					ok, err := s.IsRunning()
 					if err != nil {
-						return fmt.Errorf("checking serivce status: %w", err)
+						return fmt.Errorf("checking service status: %w", err)
 					}
 
 					if !ok {

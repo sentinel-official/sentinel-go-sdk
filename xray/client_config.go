@@ -201,7 +201,7 @@ func (c *ClientConfig) GetID() uuid.UUID {
 func (c *ClientConfig) Validate() error {
 	// Validate the API client configuration.
 	if err := c.API.Validate(); err != nil {
-		return fmt.Errorf("validation API config: %w", err)
+		return fmt.Errorf("validating API config: %w", err)
 	}
 
 	// Ensure the ID is not empty.
