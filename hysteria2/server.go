@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -502,7 +503,10 @@ func (s *Server) kickPeer(ctx context.Context, id string) error {
 		return fmt.Errorf("sending kick request: %w", err)
 	}
 
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
 
 	// Tolerate 404 (peer already gone); any other non-200 is an error.
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
