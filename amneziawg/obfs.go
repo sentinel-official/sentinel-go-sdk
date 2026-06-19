@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	obfsJcMax   = 10   // maximum value for Jc (junk packet count)
-	obfsJMin    = 64   // minimum value for Jmin/Jmax (bytes)
-	obfsJMax    = 1024 // maximum value for Jmax (bytes)
-	obfsS123Max = 64   // maximum value for S1, S2, S3 (junk-prefix byte sizes)
-	obfsS4Max   = 32   // maximum value for S4 (junk-prefix byte size)
+	obfsJcMax    = 10   // maximum value for Jc (junk packet count)
+	obfsJSizeMin = 64   // minimum value for Jmin/Jmax (bytes)
+	obfsJSizeMax = 1024 // maximum value for Jmin/Jmax (bytes)
+	obfsS123Max  = 64   // maximum value for S1, S2, S3 (junk-prefix byte sizes)
+	obfsS4Max    = 32   // maximum value for S4 (junk-prefix byte size)
 )
 
 // Obfs holds the AmneziaWG interface-level obfuscation parameters.
@@ -155,12 +155,12 @@ func (o *Obfs) Validate() error {
 	}
 
 	// Validate Jmin and Jmax bounds.
-	if o.Jmin < obfsJMin {
-		return fmt.Errorf("jmin %d is below minimum %d", o.Jmin, obfsJMin)
+	if o.Jmin < obfsJSizeMin {
+		return fmt.Errorf("jmin %d is below minimum %d", o.Jmin, obfsJSizeMin)
 	}
 
-	if o.Jmax > obfsJMax {
-		return fmt.Errorf("jmax %d exceeds maximum %d", o.Jmax, obfsJMax)
+	if o.Jmax > obfsJSizeMax {
+		return fmt.Errorf("jmax %d exceeds maximum %d", o.Jmax, obfsJSizeMax)
 	}
 
 	// Validate Jmin < Jmax.

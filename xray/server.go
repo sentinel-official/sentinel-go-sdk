@@ -44,12 +44,6 @@ type Server struct {
 	proxies  map[string]proxy        // Proxy protocols used by the server, keyed by inbound tag.
 }
 
-// proxy holds the per-inbound parameters needed to add a user over gRPC.
-type proxy struct {
-	Protocol ProxyProtocol // Protocol is the inbound proxy protocol.
-	Flow     Flow          // Flow is the inbound VLESS flow control setting.
-}
-
 // NewServer creates a new Server instance.
 func NewServer(name, appDir string, cfg *ServerConfig) *Server {
 	return &Server{
@@ -498,6 +492,54 @@ func (s *Server) appConfigFile() string     { return filepath.Join(s.homeDir, "c
 func (s *Server) pidFile() string           { return filepath.Join(s.homeDir, "server.pid") }
 func (s *Server) serviceConfigFile() string { return filepath.Join(s.homeDir, "server.json") }
 
+// readPID reads the PID from the server's PID file.
+func (s *Server) readPID() (int32, error) {
+	// Get the full path to the PID file
+	pidFile := filepath.Clean(s.pidFile())
+
+	// Check if the PID file exists
+	exists, err := utils.IsFileExists(pidFile)
+	if err != nil {
+		return 0, fmt.Errorf("checking if PID file %q exists: %w", pidFile, err)
+	}
+
+	if !exists {
+		return 0, nil
+	}
+
+	// Read PID from the PID file.
+	data, err := os.ReadFile(pidFile)
+	if err != nil {
+		return 0, fmt.Errorf("reading PID file %q: %w", pidFile, err)
+	}
+
+	// Convert PID data to integer.
+	pid, err := strconv.ParseInt(string(data), 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("parsing PID: %w", err)
+	}
+
+	if pid <= 0 {
+		return 0, fmt.Errorf("invalid PID %d", pid)
+	}
+
+	return int32(pid), nil
+}
+
+// writePID writes the given PID to the server's PID file.
+func (s *Server) writePID(pid int) error {
+	// Convert PID to byte slice.
+	data := []byte(strconv.Itoa(pid))
+
+	// Write PID to file with appropriate permissions.
+	pidFile := s.pidFile()
+	if err := os.WriteFile(pidFile, data, 0600); err != nil {
+		return fmt.Errorf("writing PID file %q: %w", pidFile, err)
+	}
+
+	return nil
+}
+
 // setupReality fills in the Reality defaults and generates the keypair and shortIds.
 func (s *Server) setupReality(inbound *InboundServerConfig) error {
 	if inbound.Reality == nil {
@@ -564,54 +606,6 @@ func (s *Server) setupShadowsocks(inbound *InboundServerConfig) error {
 	}
 
 	inbound.SeedKey = seedKey
-
-	return nil
-}
-
-// readPID reads the PID from the server's PID file.
-func (s *Server) readPID() (int32, error) {
-	// Get the full path to the PID file
-	pidFile := filepath.Clean(s.pidFile())
-
-	// Check if the PID file exists
-	exists, err := utils.IsFileExists(pidFile)
-	if err != nil {
-		return 0, fmt.Errorf("checking if PID file %q exists: %w", pidFile, err)
-	}
-
-	if !exists {
-		return 0, nil
-	}
-
-	// Read PID from the PID file.
-	data, err := os.ReadFile(pidFile)
-	if err != nil {
-		return 0, fmt.Errorf("reading PID file %q: %w", pidFile, err)
-	}
-
-	// Convert PID data to integer.
-	pid, err := strconv.ParseInt(string(data), 10, 32)
-	if err != nil {
-		return 0, fmt.Errorf("parsing PID: %w", err)
-	}
-
-	if pid <= 0 {
-		return 0, fmt.Errorf("invalid PID %d", pid)
-	}
-
-	return int32(pid), nil
-}
-
-// writePID writes the given PID to the server's PID file.
-func (s *Server) writePID(pid int) error {
-	// Convert PID to byte slice.
-	data := []byte(strconv.Itoa(pid))
-
-	// Write PID to file with appropriate permissions.
-	pidFile := s.pidFile()
-	if err := os.WriteFile(pidFile, data, 0600); err != nil {
-		return fmt.Errorf("writing PID file %q: %w", pidFile, err)
-	}
 
 	return nil
 }

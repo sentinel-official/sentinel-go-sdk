@@ -330,15 +330,19 @@ func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 
 			switch key {
 			case "bytesin":
-				rxBytes, err = strconv.ParseInt(value, 10, 64)
+				v, err := strconv.ParseInt(value, 10, 64)
 				if err != nil {
 					return 0, 0, fmt.Errorf("parsing bytesin %q: %w", value, err)
 				}
+
+				rxBytes = v
 			case "bytesout":
-				txBytes, err = strconv.ParseInt(value, 10, 64)
+				v, err := strconv.ParseInt(value, 10, 64)
 				if err != nil {
 					return 0, 0, fmt.Errorf("parsing bytesout %q: %w", value, err)
 				}
+
+				txBytes = v
 			}
 		}
 

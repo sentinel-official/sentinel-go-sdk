@@ -139,3 +139,9 @@ func newKey() (string, error) {
 
 	return base64.StdEncoding.EncodeToString(buf), nil
 }
+
+// proxy holds the per-inbound parameters needed to add a user over gRPC.
+type proxy struct {
+	Protocol ProxyProtocol // The inbound proxy protocol.
+	Flow     Flow          // The inbound VLESS flow control setting.
+}
