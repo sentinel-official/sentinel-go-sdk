@@ -1,0 +1,45 @@
+# Port for incoming connections as a single port number or "in_port:out_port" mapping format.
+# The mapping format allows the Xray service to run internally on in_port while being available to clients on out_port.
+# Must be unique and not conflict with other services on the same machine.
+# Allowed: Single port or port mapping format
+# Example: "10086" or "10086:10086"
+
+# Proxy protocol type for communication on the inbound connection.
+# Determines the protocol used for establishing connections with clients connecting to this Xray instance.
+# Allowed: vless, vmess, trojan, shadowsocks-2022
+# Example: "vless"
+
+# Transport protocol type for handling incoming requests and data transmission.
+# Determines the underlying transport mechanism used for communication between client and server.
+# Allowed: tcp, websocket, grpc, httpupgrade, xhttp
+# Example: "tcp"
+
+# Transport Security setting for the inbound connection encryption.
+# Determines whether the connection uses encryption and what type of security protocol is applied.
+# Allowed: none, tls, reality
+# Example: "reality"
+
+# Flow control setting for the inbound connection (VLESS only).
+# Allowed: none, xtls-rprx-vision
+# Example: "xtls-rprx-vision"
+
+# Method setting for the Shadowsocks 2022 inbound connection.
+# Example: "2022-blake3-aes-128-gcm"
+
+# Reality dial-out target consulted only when transport_security is "reality".
+# Example: "www.microsoft.com:443"
+
+# Reality uTLS fingerprint consulted only when transport_security is "reality".
+# Example: "chrome"
+
+{{- range $index, $inbound := .Inbounds }}
+
+[[inbounds]]
+port = "{{ $inbound.Port }}"
+proxy_protocol = "{{ $inbound.ProxyProtocol }}"
+transport_protocol = "{{ $inbound.TransportProtocol }}"
+transport_security = "{{ $inbound.TransportSecurity }}"
+flow = "{{ $inbound.Flow }}"
+method = "{{ $inbound.Method }}"
+
+{{- end }}
