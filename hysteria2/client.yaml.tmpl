@@ -1,9 +1,9 @@
-server: "{{.ServerAddr}}"
-auth: "{{.Auth}}"
+server: "{{ .ServerAddr }}"
+auth: "{{ .Auth }}"
 
 tls:
   insecure: true
-  pinSHA256: "{{.TLSPin}}"
+  pinSHA256: "{{ .TLSPin }}"
 
 tun:
-  name: "{{.TUNIface}}"
+  name: "{{ .TUNIface }}"

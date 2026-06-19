@@ -1,4 +1,23 @@
-server_addr = "{{.ServerAddr}}"
-auth = "{{.Auth}}"
-tls_pin = "{{.TLSPin}}"
-tun_iface = "{{.TUNIface}}"
+# Address of the Hysteria2 server to connect to.
+# The host:port of the remote Hysteria2 server the client establishes a connection with.
+# Allowed: Valid host:port
+# Example: "example.com:36712"
+server_addr = "{{ .ServerAddr }}"
+
+# Credential used to authenticate with the server.
+# The UUID presented to the server's authentication backend to authorize the connection.
+# Allowed: Valid UUID
+# Example: "123e4567-e89b-12d3-a456-426614174000"
+auth = "{{ .Auth }}"
+
+# SHA-256 certificate fingerprint used to pin the server's TLS certificate.
+# Lets the client trust the server's self-signed certificate by matching this hex-encoded pin.
+# Allowed: Hex-encoded SHA-256 fingerprint (colons optional)
+# Example: "8a2b3c4d..."
+tls_pin = "{{ .TLSPin }}"
+
+# Name of the TUN network interface created by the client.
+# The local virtual network interface through which the client routes tunneled traffic.
+# Allowed: Valid network interface name
+# Example: "hyst0"
+tun_iface = "{{ .TUNIface }}"
