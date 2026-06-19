@@ -21,3 +21,9 @@ tls_pin = "{{ .TLSPin }}"
 # Allowed: Valid network interface name
 # Example: "hyst0"
 tun_iface = "{{ .TUNIface }}"
+
+# Salamander obfuscation password for masking QUIC traffic.
+# Must match the server's obfs password; an empty value disables obfuscation.
+# Allowed: Any string, or empty to disable
+# Example: "a-strong-obfs-password"
+obfs_password = "{{ .ObfsPassword }}"

@@ -7,3 +7,10 @@ tls:
 
 tun:
   name: "{{ .TUNIface }}"
+{{- if .ObfsPassword }}
+
+obfs:
+  type: salamander
+  salamander:
+    password: "{{ .ObfsPassword }}"
+{{- end }}

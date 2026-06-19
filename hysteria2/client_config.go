@@ -16,10 +16,11 @@ import (
 type ClientConfig struct {
 	viper *viper.Viper `mapstructure:"-"`
 
-	ServerAddr string `mapstructure:"server_addr"` // ServerAddr is the server address (host:port).
-	Auth       string `mapstructure:"auth"`        // Auth is the UUID used to authenticate with the server.
-	TLSPin     string `mapstructure:"tls_pin"`     // TLSPin is the SHA-256 certificate fingerprint (hex-encoded).
-	TUNIface   string `mapstructure:"tun_iface"`   // TUNIface is the name of the TUN network interface.
+	ServerAddr   string `mapstructure:"server_addr"`   // ServerAddr is the server address (host:port).
+	Auth         string `mapstructure:"auth"`          // Auth is the UUID used to authenticate with the server.
+	TLSPin       string `mapstructure:"tls_pin"`       // TLSPin is the SHA-256 certificate fingerprint (hex-encoded).
+	TUNIface     string `mapstructure:"tun_iface"`     // TUNIface is the name of the TUN network interface.
+	ObfsPassword string `mapstructure:"obfs_password"` // ObfsPassword is the Salamander obfuscation password (empty disables obfs).
 }
 
 // Validate validates the ClientConfig fields.
@@ -138,9 +139,10 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 // DefaultClientConfig creates a default ClientConfig with predefined values.
 func DefaultClientConfig() *ClientConfig {
 	return &ClientConfig{
-		ServerAddr: "",
-		Auth:       NewUUID(),
-		TLSPin:     "",
-		TUNIface:   "hyst0",
+		ServerAddr:   "",
+		Auth:         NewUUID(),
+		TLSPin:       "",
+		TUNIface:     "hyst0",
+		ObfsPassword: "",
 	}
 }
