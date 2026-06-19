@@ -25,6 +25,10 @@ type authResponse struct {
 // newAuthHandler returns an http.Handler that validates incoming Hysteria2 auth requests
 // against the provided peers map. A connection is accepted iff its auth field matches
 // a UUID present in the map.
+//
+// The handler carries no shared secret of its own: it is bound to the loopback interface
+// (127.0.0.1) so only the local Hysteria2 process can reach it, and the only acceptable
+// credential is a valid peer UUID.
 func newAuthHandler(peers *safe.Map[string, Peer]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() { _ = r.Body.Close() }()

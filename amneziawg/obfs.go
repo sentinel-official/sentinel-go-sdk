@@ -8,12 +8,11 @@ import (
 )
 
 const (
-	obfsHMin  = 5    // minimum value for H1–H4 magic headers (exclusive of 4)
-	obfsJcMax = 10   // maximum value for Jc (junk packet count)
-	obfsJMin  = 64   // minimum value for Jmin/Jmax (bytes)
-	obfsJMax  = 1024 // maximum value for Jmax (bytes)
-	obfsS123Max = 64 // maximum value for S1, S2, S3 (junk-prefix byte sizes)
-	obfsS4Max   = 32 // maximum value for S4 (junk-prefix byte size)
+	obfsJcMax   = 10   // maximum value for Jc (junk packet count)
+	obfsJMin    = 64   // minimum value for Jmin/Jmax (bytes)
+	obfsJMax    = 1024 // maximum value for Jmax (bytes)
+	obfsS123Max = 64   // maximum value for S1, S2, S3 (junk-prefix byte sizes)
+	obfsS4Max   = 32   // maximum value for S4 (junk-prefix byte size)
 )
 
 // Obfs holds the AmneziaWG interface-level obfuscation parameters.

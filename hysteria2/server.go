@@ -597,4 +597,3 @@ func certPin(certDER []byte) (string, error) {
 
 	return strings.Join(parts, ":"), nil
 }
-
