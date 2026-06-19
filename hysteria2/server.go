@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -197,6 +198,15 @@ func (s *Server) Setup(ctx context.Context) error {
 // Start starts the Hysteria2 server service.
 func (s *Server) Start(parent context.Context) (context.Context, error) {
 	return s.Manager.Start(parent, func(ctx context.Context) error { //nolint:wrapcheck
+		// Bind the loopback auth listener before starting the process so that
+		// Hysteria2 cannot race ahead and call the auth backend before it is up.
+		authAddr := fmt.Sprintf("127.0.0.1:%d", s.cfg.AuthPort)
+
+		authListener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", authAddr)
+		if err != nil {
+			return fmt.Errorf("listening on auth address %q: %w", authAddr, err)
+		}
+
 		// Constructs the command to start the Hysteria2 server.
 		cfgFile := s.serviceConfigFile()
 		s.cmd = exec.CommandContext(
@@ -207,11 +217,15 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 
 		// Starts the Hysteria2 server process.
 		if err := s.cmd.Start(); err != nil {
+			_ = authListener.Close()
+
 			return fmt.Errorf("starting command: %w", err)
 		}
 
 		// Write PID to file.
 		if err := s.writePID(s.cmd.Process.Pid); err != nil {
+			_ = authListener.Close()
+
 			return fmt.Errorf("writing PID: %w", err)
 		}
 
@@ -224,10 +238,8 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 			return fmt.Errorf("waiting command: %w", err)
 		})
 
-		// Start the loopback HTTP auth backend.
-		authAddr := fmt.Sprintf("127.0.0.1:%d", s.cfg.AuthPort)
+		// Start the loopback HTTP auth backend on the already-bound listener.
 		authSrv := &http.Server{
-			Addr:              authAddr,
 			Handler:           newAuthHandler(s.peers),
 			ReadHeaderTimeout: 5 * time.Second,
 			ReadTimeout:       5 * time.Second,
@@ -235,7 +247,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 		}
 
 		s.Go(ctx, func() error {
-			if err := authSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			if err := authSrv.Serve(authListener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				return fmt.Errorf("running auth server: %w", err)
 			}
 
