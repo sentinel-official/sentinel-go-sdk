@@ -61,7 +61,7 @@ func (p ProxyProtocol) String() string {
 
 // IsValid checks if the ProxyProtocol value is valid.
 func (p ProxyProtocol) IsValid() bool {
-	return p.String() != ""
+	return p != ProxyProtocolUnspecified && p.String() != ""
 }
 
 // Account returns the type URL and encoded account bytes for the given UUID.

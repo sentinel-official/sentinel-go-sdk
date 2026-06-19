@@ -72,7 +72,7 @@ func (t TransportProtocol) String() string {
 
 // IsValid checks if the TransportProtocol value is valid.
 func (t TransportProtocol) IsValid() bool {
-	return t.String() != ""
+	return t != TransportProtocolUnspecified && t.String() != ""
 }
 
 // TransportSecurity is a custom type used to represent different transport security settings.
@@ -113,5 +113,5 @@ func (t TransportSecurity) String() string {
 
 // IsValid checks if the TransportSecurity value is valid.
 func (t TransportSecurity) IsValid() bool {
-	return t.String() != ""
+	return t != TransportSecurityUnspecified && t.String() != ""
 }
