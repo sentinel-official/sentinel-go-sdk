@@ -12,6 +12,7 @@ type ServerMetadata struct {
 	TransportSecurity TransportSecurity `json:"transport_security"` // TransportSecurity specifies the transport security type.
 	Flow              Flow              `json:"flow"`               // Flow specifies the VLESS flow control setting.
 	Method            string            `json:"method"`             // Method specifies the Shadowsocks 2022 method.
+	Key               string            `json:"key"`                // Key specifies the Shadowsocks 2022 server-level key (iPSK).
 
 	RealityServerName  string `json:"reality_server_name"` // RealityServerName specifies the Reality SNI value.
 	RealityShortId     string `json:"reality_short_id"`    // RealityShortId specifies the Reality shortId value.

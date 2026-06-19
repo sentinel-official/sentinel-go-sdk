@@ -145,6 +145,12 @@ func (c *Client) Setup(ctx context.Context) error {
 			return fmt.Errorf("validating config: %w", err)
 		}
 
+		// Derive the per-protocol outbound credentials from the client identity.
+		id := c.cfg.GetID()
+		for _, outbound := range c.cfg.Outbounds {
+			outbound.setCredentials(id)
+		}
+
 		// Write configuration to file.
 		cfgFile = c.serviceConfigFile()
 		if err := c.cfg.WriteServiceConfig(cfgFile); err != nil {

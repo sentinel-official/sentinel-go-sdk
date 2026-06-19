@@ -218,6 +218,7 @@ func (s *Server) Setup(ctx context.Context) error {
 
 			if inbound.GetProxyProtocol() == ProxyProtocolShadowsocks2022 {
 				metadata.Method = inbound.GetMethod()
+				metadata.Key = inbound.Key
 			}
 
 			if inbound.GetTransportSecurity() == TransportSecurityReality {

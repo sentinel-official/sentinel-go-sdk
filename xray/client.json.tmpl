@@ -42,6 +42,7 @@
         {{- range $index, $outbound := .Outbounds }}
         {
             "protocol": "{{ $outbound.ProxyProtocol }}",
+            {{- if or (eq $outbound.ProxyProtocol "vless") (eq $outbound.ProxyProtocol "vmess") }}
             "settings": {
                 "vnext": [
                     {
@@ -52,7 +53,7 @@
                                 "id": "{{ $.ID }}"
                                 {{- if eq $outbound.ProxyProtocol "vless" }},
                                 "encryption": "none",
-                                "flow": "{{ $outbound.Flow }}"
+                                "flow": "{{ $outbound.FlowString }}"
                                 {{- end }}
                                 {{- if eq $outbound.ProxyProtocol "vmess" }},
                                 "alterId": 0
@@ -62,6 +63,30 @@
                     }
                 ]
             },
+            {{- end }}
+            {{- if eq $outbound.ProxyProtocol "trojan" }}
+            "settings": {
+                "servers": [
+                    {
+                        "address": "{{ $outbound.Addr }}",
+                        "password": "{{ $outbound.Password }}",
+                        "port": {{ $outbound.Port }}
+                    }
+                ]
+            },
+            {{- end }}
+            {{- if eq $outbound.ProxyProtocol "shadowsocks-2022" }}
+            "settings": {
+                "servers": [
+                    {
+                        "address": "{{ $outbound.Addr }}",
+                        "method": "{{ $outbound.Method }}",
+                        "password": "{{ $outbound.Password }}",
+                        "port": {{ $outbound.Port }}
+                    }
+                ]
+            },
+            {{- end }}
             "streamSettings": {
                 "network": "{{ $outbound.TransportProtocol }}",
                 "security": "{{ $outbound.TransportSecurity }}"

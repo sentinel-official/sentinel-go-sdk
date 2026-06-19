@@ -46,6 +46,10 @@ type OutboundClientConfig struct {
 	TransportSecurity string `mapstructure:"-"` // TransportSecurity specifies the transport security type.
 	Flow              string `mapstructure:"-"` // Flow specifies the VLESS flow control setting.
 
+	Method    string `mapstructure:"-"` // Method specifies the Shadowsocks 2022 method.
+	ServerKey string `mapstructure:"-"` // ServerKey specifies the Shadowsocks 2022 server-level key (iPSK).
+	Password  string `mapstructure:"-"` // Password is the credential rendered for trojan and shadowsocks-2022 outbounds.
+
 	RealityServerName  string `mapstructure:"-"` // RealityServerName specifies the Reality SNI value.
 	RealityShortId     string `mapstructure:"-"` // RealityShortId specifies the Reality shortId value.
 	RealityPublicKey   string `mapstructure:"-"` // RealityPublicKey specifies the Reality public key.
@@ -109,6 +113,11 @@ func (c *OutboundClientConfig) GetFlow() Flow {
 	return NewFlowFromString(c.Flow)
 }
 
+// FlowString returns the VLESS flow string sent to xray-core, empty unless Vision.
+func (c *OutboundClientConfig) FlowString() string {
+	return flowString(c.GetFlow())
+}
+
 // GetPort returns the parsed port configuration.
 func (c *OutboundClientConfig) GetPort() *netip.Port {
 	return &netip.Port{
@@ -130,6 +139,19 @@ func (c *OutboundClientConfig) Tag() string {
 	}
 
 	return strings.Join(items, "_")
+}
+
+// setCredentials derives the per-protocol credential for the outbound from the client UUID.
+// Trojan and Shadowsocks 2022 carry an explicit password symmetric with the server account;
+// for Shadowsocks 2022 it is the EIH "<iPSK>:<uPSK>" form. VLESS/VMess use the UUID directly.
+func (c *OutboundClientConfig) setCredentials(uid uuid.UUID) {
+	switch c.GetProxyProtocol() {
+	case ProxyProtocolTrojan:
+		c.Password = derivePassword(uid)
+	case ProxyProtocolShadowsocks2022:
+		c.Password = c.ServerKey + ":" + deriveKey(uid)
+	case ProxyProtocolVLess, ProxyProtocolVMess, ProxyProtocolUnspecified:
+	}
 }
 
 // ProxyClientConfig represents the proxy client configuration.
