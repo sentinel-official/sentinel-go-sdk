@@ -39,7 +39,7 @@ func NewServer(name, appDir string, cfg *ServerConfig) *Server {
 	return &Server{
 		Manager: process.NewManager(name),
 		cfg:     cfg,
-		device:  "wg0",
+		device:  defaultDevice,
 		homeDir: filepath.Join(appDir, "wireguard"),
 		peers:   safe.NewMap[string, Peer](),
 	}

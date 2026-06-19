@@ -300,7 +300,7 @@ func DefaultClientConfig() *ClientConfig {
 		DNSAddrs:     []string{"208.67.222.222", "208.67.220.220", "2620:119:35::35", "2620:119:53::53"},
 		ExcludeAddrs: []string{"127.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12", "10.0.0.0/8", "::1/128", "fe80::/10", "fd00::/8"},
 		MTU:          1420,
-		Name:         "wg0",
+		Name:         defaultDevice,
 		Peer:         DefaultPeerClientConfig(),
 		Port:         utils.RandomPort(),
 		PrivateKey:   privateKey.String(),

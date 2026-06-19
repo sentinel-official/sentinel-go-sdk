@@ -32,7 +32,7 @@ func NewClient(name, appDir string, cfg *ClientConfig) *Client {
 	return &Client{
 		Manager: process.NewManager(name),
 		cfg:     cfg,
-		device:  "wg0",
+		device:  defaultDevice,
 		homeDir: filepath.Join(appDir, "wireguard"),
 	}
 }
