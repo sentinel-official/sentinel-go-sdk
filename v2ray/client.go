@@ -8,9 +8,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	procutils "github.com/shirou/gopsutil/v4/process"
+	statscommand "github.com/v2fly/v2ray-core/v5/app/stats/command"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
 	"github.com/sentinel-official/sentinel-go-sdk/process"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
@@ -26,7 +31,8 @@ type Client struct {
 	cfg     *ClientConfig // Configuration settings for the service.
 	homeDir string        // Home directory of the service.
 
-	cmd *exec.Cmd // Command to run the V2Ray client.
+	cmd  *exec.Cmd      // Command to run the V2Ray client.
+	conn *safe.GRPCConn // gRPC client connection to the service.
 }
 
 // NewClient creates a new Client instance.
@@ -34,6 +40,7 @@ func NewClient(name, appDir string, cfg *ClientConfig) *Client {
 	return &Client{
 		Manager: process.NewManager(name),
 		cfg:     cfg,
+		conn:    &safe.GRPCConn{},
 		homeDir: filepath.Join(appDir, "v2ray"),
 	}
 }
@@ -169,6 +176,16 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 			return fmt.Errorf("writing PID: %w", err)
 		}
 
+		target := fmt.Sprintf("127.0.0.1:%d", c.cfg.API.Port)
+		opts := []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		}
+
+		// Establish a safe, concurrency-managed gRPC connection to the target.
+		if err := c.conn.Dial(target, opts...); err != nil {
+			return fmt.Errorf("gRPC dialing target %q: %w", target, err)
+		}
+
 		// Wait for the V2Ray process to finish in a separate goroutine.
 		c.Go(ctx, func() (err error) {
 			if err = c.cmd.Wait(); err == nil {
@@ -185,6 +202,11 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 // Stop stops the V2Ray client service.
 func (c *Client) Stop() error {
 	return c.Manager.Stop(func() error { //nolint:wrapcheck
+		// Close gRPC client connection.
+		if err := c.conn.Close(); err != nil {
+			return fmt.Errorf("closing gRPC client connection: %w", err)
+		}
+
 		// Read PID from file.
 		pid, err := c.readPID()
 		if err != nil {
@@ -238,9 +260,60 @@ func (c *Client) Cleanup() error {
 	})
 }
 
-// Statistics returns dummy statistics for now (to be implemented).
-func (c *Client) Statistics(_ context.Context) (int64, int64, error) {
-	return 0, 0, errors.New("not implemented")
+// Statistics retrieves the download and upload statistics from the V2Ray client.
+func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
+	// Prepare the response
+	resp := &statscommand.QueryStatsResponse{}
+
+	// Perform the gRPC call to fetch traffic stats
+	fn := func() (err error) {
+		conn, release := c.conn.Acquire()
+		if conn == nil {
+			return errors.New("acquiring connection: nil conn")
+		}
+
+		defer release()
+
+		client := statscommand.NewStatsServiceClient(conn)
+
+		// Send the request to get traffic stats
+		resp, err = client.QueryStats(ctx, &statscommand.QueryStatsRequest{})
+		if err != nil {
+			return fmt.Errorf("querying stats: %w", err)
+		}
+
+		return nil
+	}
+
+	// Execute stats query
+	if err := fn(); err != nil {
+		return 0, 0, err
+	}
+
+	var download, upload int64
+
+	// Iterate over every stat entry
+	for _, stat := range resp.GetStat() {
+		name := stat.GetName()
+
+		// Split the name into 4 parts
+		parts := strings.SplitN(name, ">>>", 4)
+		if len(parts) != 4 || parts[0] != "outbound" || parts[2] != "traffic" {
+			continue
+		}
+
+		// Accumulate Rx/Tx values based on direction
+		switch parts[3] {
+		case "uplink":
+			upload += stat.GetValue()
+		case "downlink":
+			download += stat.GetValue()
+		default:
+			continue
+		}
+	}
+
+	return download, upload, nil
 }
 
 func (c *Client) appConfigFile() string     { return filepath.Join(c.homeDir, "config.toml") }
