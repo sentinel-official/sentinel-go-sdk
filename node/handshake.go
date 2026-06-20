@@ -12,6 +12,19 @@ import (
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
+// PeerRequest wraps one protocol-specific peer request with a self-describing service type.
+type PeerRequest struct {
+	Data []byte `json:"data"` // JSON-marshaled protocol-specific peer request, must be non-empty.
+	Type string `json:"type"` // Service type (e.g. "wireguard", "amneziawg", "hysteria2").
+}
+
+// AddPeerResponse wraps one protocol-specific add-peer response with a self-describing service type.
+type AddPeerResponse struct {
+	Data []byte `json:"data"` // JSON-marshaled protocol-specific response on success; empty on failure.
+	Err  string `json:"err"`  // Non-empty error string on failure; empty on success.
+	Type string `json:"type"` // Service type matching the corresponding PeerRequest.
+}
+
 // InitHandshakeRequestBody represents the request payload for adding a session.
 type InitHandshakeRequestBody struct {
 	Data      []byte `binding:"required,gt=0"        json:"data"`      // JSON encoded session data, must be present and non-empty.
