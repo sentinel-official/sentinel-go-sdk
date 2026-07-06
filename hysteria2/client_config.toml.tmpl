@@ -40,6 +40,12 @@ route_addrs = [{{ range $i, $a := .RouteAddrs }}{{ if $i }}, {{ end }}"{{ $a }}"
 # Example: "192.168.0.0/16"
 exclude_addrs = [{{ range $i, $a := .ExcludeAddrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
 
+# DNS servers to use while connected to the VPN.
+# Set as the top-priority system resolver so DNS queries go through the tunnel.
+# Allowed: Valid IP addresses
+# Example: "208.67.222.222"
+dns_addrs = [{{ range $i, $a := .DNSAddrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
+
 # Maximum transmission unit size for the TUN interface.
 # The MTU applied to the virtual interface created by the client.
 # Allowed: Non-zero uint16

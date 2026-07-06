@@ -25,6 +25,7 @@ type ClientConfig struct {
 	Addrs        []string `mapstructure:"addrs"`         // Addrs contains the client's IPv4 and/or IPv6 addresses in CIDR notation for the TUN interface.
 	RouteAddrs   []string `mapstructure:"route_addrs"`   // RouteAddrs defines the IP ranges (CIDR notation) routed through the tunnel.
 	ExcludeAddrs []string `mapstructure:"exclude_addrs"` // ExcludeAddrs defines IP ranges that should not use the tunnel.
+	DNSAddrs     []string `mapstructure:"dns_addrs"`     // DNSAddrs is a list of DNS servers to be used by the client.
 	MTU          uint16   `mapstructure:"mtu"`           // MTU sets the maximum transmission unit size for the TUN interface.
 	ObfsPassword string   `mapstructure:"obfs_password"` // ObfsPassword is the Salamander obfuscation password (empty disables obfs).
 }
@@ -193,6 +194,13 @@ func (c *ClientConfig) Validate() error {
 		}
 	}
 
+	// Validate DNSAddrs (must be valid IP addresses).
+	for _, addr := range c.DNSAddrs {
+		if net.ParseIP(addr) == nil {
+			return fmt.Errorf("invalid DNS addr: parsing DNS addr %q", addr)
+		}
+	}
+
 	// Validate MTU (must be a non-zero value).
 	if c.MTU == 0 {
 		return errors.New("MTU is zero")
@@ -276,6 +284,7 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 	fs.StringArrayVar(&c.Addrs, prefix+"addrs", c.Addrs, "ip addresses assigned to the hysteria2 client tun interface")
 	fs.StringArrayVar(&c.RouteAddrs, prefix+"route-addrs", c.RouteAddrs, "ip ranges to route through the hysteria2 tunnel")
 	fs.StringArrayVar(&c.ExcludeAddrs, prefix+"exclude-addrs", c.ExcludeAddrs, "exclude ip addresses/subnets from the hysteria2 tunnel")
+	fs.StringArrayVar(&c.DNSAddrs, prefix+"dns-addrs", c.DNSAddrs, "dns servers to use while connected to the vpn")
 	fs.Uint16Var(&c.MTU, prefix+"mtu", c.MTU, "maximum transmission unit size for the hysteria2 tun interface")
 
 	// Initialize Viper if it hasn't been already.
@@ -303,6 +312,7 @@ func DefaultClientConfig() *ClientConfig {
 		Addrs:        []string{"100.100.100.101/30", "2001::ffff:ffff:ffff:fff1/126"},
 		RouteAddrs:   []string{"0.0.0.0/0", "::/0"},
 		ExcludeAddrs: []string{"127.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12", "10.0.0.0/8", "::1/128", "fe80::/10", "fd00::/8"},
+		DNSAddrs:     []string{"208.67.222.222", "208.67.220.220", "2620:119:35::35", "2620:119:53::53"},
 		MTU:          1420,
 		ObfsPassword: "",
 	}
