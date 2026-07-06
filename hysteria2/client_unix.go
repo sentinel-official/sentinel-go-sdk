@@ -3,10 +3,13 @@
 package hysteria2
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
+	"time"
 )
 
 // execFile returns the executable name.
@@ -48,6 +51,63 @@ func (c *Client) removeFirewall(ctx context.Context) error {
 		cmd.Stderr = os.Stderr
 		_ = cmd.Run()
 	}
+
+	return nil
+}
+
+// waitForInterface waits until the named network interface exists or ctx is done.
+func waitForInterface(ctx context.Context, name string) error {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		if _, err := net.InterfaceByName(name); err == nil {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
+// applyDNS sets the system DNS to the configured servers via resolvconf.
+func (c *Client) applyDNS(ctx context.Context) error {
+	if len(c.cfg.DNSAddrs) == 0 {
+		return nil
+	}
+
+	// Wait for the TUN interface to exist before configuring DNS on it.
+	if err := waitForInterface(ctx, c.cfg.TUNIface); err != nil {
+		return fmt.Errorf("waiting for interface %q: %w", c.cfg.TUNIface, err)
+	}
+
+	var stdin bytes.Buffer
+	for _, addr := range c.cfg.DNSAddrs {
+		fmt.Fprintf(&stdin, "nameserver %s\n", addr)
+	}
+
+	cmd := exec.CommandContext(ctx, "resolvconf", "-a", c.cfg.TUNIface, "-m", "0", "-x")
+	cmd.Stdin = &stdin
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("running resolvconf: %w", err)
+	}
+
+	return nil
+}
+
+// removeDNS reverts the resolvconf DNS entry for the interface (best-effort).
+func (c *Client) removeDNS(ctx context.Context) error {
+	if len(c.cfg.DNSAddrs) == 0 {
+		return nil
+	}
+
+	cmd := exec.CommandContext(ctx, "resolvconf", "-d", c.cfg.TUNIface, "-f")
+	cmd.Stderr = os.Stderr
+	_ = cmd.Run()
 
 	return nil
 }
