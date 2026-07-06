@@ -195,6 +195,7 @@ func (c *Client) Statistics(ctx context.Context) (int64, int64, error) {
 		c.execFile("awg"),
 		"show", c.device, "transfer",
 	)
+	cmd.Stderr = os.Stderr
 
 	output, err := cmd.Output()
 	if err != nil {

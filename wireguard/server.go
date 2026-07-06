@@ -293,6 +293,7 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 		s.execFile("wg"),
 		"set", s.device, "peer", id, "allowed-ips", strings.Join(allowedIPs, ","),
 	)
+	cmd.Stderr = os.Stderr
 
 	// Run the command and check for errors.
 	if err := cmd.Run(); err != nil {
@@ -327,6 +328,7 @@ func (s *Server) RemovePeer(ctx context.Context, id string) error {
 		s.execFile("wg"),
 		"set", s.device, "peer", id, "remove",
 	)
+	cmd.Stderr = os.Stderr
 
 	// Run the command and check for errors.
 	if err := cmd.Run(); err != nil {
@@ -387,6 +389,7 @@ func (s *Server) syncPeers(ctx context.Context) error {
 		s.execFile("wg"),
 		"show", s.device, "transfer",
 	)
+	cmd.Stderr = os.Stderr
 
 	output, err := cmd.Output()
 	if err != nil {

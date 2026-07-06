@@ -207,6 +207,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 			s.execFile(openVPN),
 			"--config", cfgFile,
 		)
+		s.cmd.Stderr = os.Stderr
 
 		// Starts the OpenVPN server process.
 		if err := s.cmd.Start(); err != nil {

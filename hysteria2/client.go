@@ -159,6 +159,7 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 			c.execFile(hysteria2),
 			"client", "-c", cfgFile,
 		)
+		c.cmd.Stderr = os.Stderr
 
 		// Starts the Hysteria2 client process.
 		if err := c.cmd.Start(); err != nil {
@@ -168,6 +169,13 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 		// Write PID to file.
 		if err := c.writePID(c.cmd.Process.Pid); err != nil {
 			return fmt.Errorf("writing PID: %w", err)
+		}
+
+		// Install the kill-switch firewall rules.
+		if err := c.applyFirewall(ctx); err != nil {
+			_ = c.cmd.Process.Kill()
+			_ = c.cmd.Wait()
+			return fmt.Errorf("applying firewall rules: %w", err)
 		}
 
 		// Wait for the Hysteria2 process to finish in a separate goroutine.
@@ -186,6 +194,11 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 // Stop stops the Hysteria2 client service.
 func (c *Client) Stop() error {
 	return c.Manager.Stop(func() error { //nolint:wrapcheck
+		// Remove the kill-switch firewall rules (best-effort).
+		if err := c.removeFirewall(context.Background()); err != nil {
+			return fmt.Errorf("removing firewall rules: %w", err)
+		}
+
 		// Read PID from file.
 		pid, err := c.readPID()
 		if err != nil {

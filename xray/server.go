@@ -253,6 +253,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 			s.execFile(xray),
 			"run", "--config", cfgFile,
 		)
+		s.cmd.Stderr = os.Stderr
 
 		// Starts the Xray server process.
 		if err := s.cmd.Start(); err != nil {

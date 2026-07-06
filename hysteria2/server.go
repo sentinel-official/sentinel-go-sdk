@@ -215,6 +215,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 			s.execFile(hysteria2),
 			"server", "-c", cfgFile,
 		)
+		s.cmd.Stderr = os.Stderr
 
 		// Starts the Hysteria2 server process.
 		if err := s.cmd.Start(); err != nil {

@@ -7,6 +7,31 @@ tls:
 
 tun:
   name: "{{ .TUNIface }}"
+  mtu: {{ .MTU }}
+  address:
+    {{- if .GetIPv4Addr }}
+    ipv4: "{{ .GetIPv4Addr }}"
+    {{- end }}
+    {{- if .GetIPv6Addr }}
+    ipv6: "{{ .GetIPv6Addr }}"
+    {{- end }}
+  route:
+    ipv4:
+      {{- range .GetRouteIPv4Addrs }}
+      - "{{ . }}"
+      {{- end }}
+    ipv6:
+      {{- range .GetRouteIPv6Addrs }}
+      - "{{ . }}"
+      {{- end }}
+    ipv4Exclude:
+      {{- range .GetRouteExcludeIPv4Addrs }}
+      - "{{ . }}"
+      {{- end }}
+    ipv6Exclude:
+      {{- range .GetRouteExcludeIPv6Addrs }}
+      - "{{ . }}"
+      {{- end }}
 {{- if .ObfsPassword }}
 
 obfs:

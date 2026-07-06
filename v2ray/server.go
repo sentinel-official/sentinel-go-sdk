@@ -214,6 +214,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 			s.execFile(v2ray),
 			"run", "--config", cfgFile,
 		)
+		s.cmd.Stderr = os.Stderr
 
 		// Starts the V2Ray server process.
 		if err := s.cmd.Start(); err != nil {

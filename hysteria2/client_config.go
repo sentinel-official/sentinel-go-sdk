@@ -3,6 +3,8 @@ package hysteria2
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/netip"
 	"os"
 	"strings"
 
@@ -16,11 +18,131 @@ import (
 type ClientConfig struct {
 	viper *viper.Viper `mapstructure:"-"`
 
-	ServerAddr   string `mapstructure:"server_addr"`   // ServerAddr is the server address (host:port).
-	Auth         string `mapstructure:"auth"`          // Auth is the UUID used to authenticate with the server.
-	TLSPin       string `mapstructure:"tls_pin"`       // TLSPin is the SHA-256 certificate fingerprint (hex-encoded).
-	TUNIface     string `mapstructure:"tun_iface"`     // TUNIface is the name of the TUN network interface.
-	ObfsPassword string `mapstructure:"obfs_password"` // ObfsPassword is the Salamander obfuscation password (empty disables obfs).
+	ServerAddr   string   `mapstructure:"server_addr"`   // ServerAddr is the server address (host:port).
+	Auth         string   `mapstructure:"auth"`          // Auth is the UUID used to authenticate with the server.
+	TLSPin       string   `mapstructure:"tls_pin"`       // TLSPin is the SHA-256 certificate fingerprint (hex-encoded).
+	TUNIface     string   `mapstructure:"tun_iface"`     // TUNIface is the name of the TUN network interface.
+	Addrs        []string `mapstructure:"addrs"`         // Addrs contains the client's IPv4 and/or IPv6 addresses in CIDR notation for the TUN interface.
+	RouteAddrs   []string `mapstructure:"route_addrs"`   // RouteAddrs defines the IP ranges (CIDR notation) routed through the tunnel.
+	ExcludeAddrs []string `mapstructure:"exclude_addrs"` // ExcludeAddrs defines IP ranges that should not use the tunnel.
+	MTU          uint16   `mapstructure:"mtu"`           // MTU sets the maximum transmission unit size for the TUN interface.
+	ObfsPassword string   `mapstructure:"obfs_password"` // ObfsPassword is the Salamander obfuscation password (empty disables obfs).
+}
+
+// ipv4Prefixes returns the subset of addrs that are IPv4 prefixes.
+func ipv4Prefixes(addrs []string) []string {
+	out := make([]string, 0, len(addrs))
+	for _, addr := range addrs {
+		prefix, err := netip.ParsePrefix(addr)
+		if err != nil {
+			panic(err)
+		}
+
+		if prefix.Addr().Is4() {
+			out = append(out, addr)
+		}
+	}
+
+	return out
+}
+
+// ipv6Prefixes returns the subset of addrs that are IPv6 prefixes.
+func ipv6Prefixes(addrs []string) []string {
+	out := make([]string, 0, len(addrs))
+	for _, addr := range addrs {
+		prefix, err := netip.ParsePrefix(addr)
+		if err != nil {
+			panic(err)
+		}
+
+		if prefix.Addr().Is6() {
+			out = append(out, addr)
+		}
+	}
+
+	return out
+}
+
+// GetIPv4Addr returns the first IPv4 address from Addrs, or an empty string if none.
+func (c *ClientConfig) GetIPv4Addr() string {
+	addrs := ipv4Prefixes(c.Addrs)
+	if len(addrs) == 0 {
+		return ""
+	}
+
+	return addrs[0]
+}
+
+// GetIPv6Addr returns the first IPv6 address from Addrs, or an empty string if none.
+func (c *ClientConfig) GetIPv6Addr() string {
+	addrs := ipv6Prefixes(c.Addrs)
+	if len(addrs) == 0 {
+		return ""
+	}
+
+	return addrs[0]
+}
+
+// GetRouteIPv4Addrs returns the IPv4 route addresses (RouteAddrs).
+func (c *ClientConfig) GetRouteIPv4Addrs() []string { return ipv4Prefixes(c.RouteAddrs) }
+
+// GetRouteIPv6Addrs returns the IPv6 route addresses (RouteAddrs).
+func (c *ClientConfig) GetRouteIPv6Addrs() []string { return ipv6Prefixes(c.RouteAddrs) }
+
+// GetExcludeIPv4Addrs returns the IPv4 exclude addresses (ExcludeAddrs).
+func (c *ClientConfig) GetExcludeIPv4Addrs() []string { return ipv4Prefixes(c.ExcludeAddrs) }
+
+// GetExcludeIPv6Addrs returns the IPv6 exclude addresses (ExcludeAddrs).
+func (c *ClientConfig) GetExcludeIPv6Addrs() []string { return ipv6Prefixes(c.ExcludeAddrs) }
+
+// serverIPs resolves the server address to its IP(s), using the host directly
+// if it is already an IP literal.
+func (c *ClientConfig) serverIPs() ([]net.IP, error) {
+	host, _, err := net.SplitHostPort(c.ServerAddr)
+	if err != nil {
+		return nil, fmt.Errorf("splitting server addr %q: %w", c.ServerAddr, err)
+	}
+
+	if ip := net.ParseIP(host); ip != nil {
+		return []net.IP{ip}, nil
+	}
+
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return nil, fmt.Errorf("resolving server host %q: %w", host, err)
+	}
+
+	return ips, nil
+}
+
+// GetRouteExcludeIPv4Addrs returns the IPv4 route excludes plus the server
+// address, so the client's connection to the server bypasses the tunnel.
+func (c *ClientConfig) GetRouteExcludeIPv4Addrs() []string {
+	addrs := c.GetExcludeIPv4Addrs()
+
+	ips, _ := c.serverIPs()
+	for _, ip := range ips {
+		if ip.To4() != nil {
+			addrs = append(addrs, ip.String()+"/32")
+		}
+	}
+
+	return addrs
+}
+
+// GetRouteExcludeIPv6Addrs returns the IPv6 route excludes plus the server
+// address, so the client's connection to the server bypasses the tunnel.
+func (c *ClientConfig) GetRouteExcludeIPv6Addrs() []string {
+	addrs := c.GetExcludeIPv6Addrs()
+
+	ips, _ := c.serverIPs()
+	for _, ip := range ips {
+		if ip.To4() == nil && ip.To16() != nil {
+			addrs = append(addrs, ip.String()+"/128")
+		}
+	}
+
+	return addrs
 }
 
 // Validate validates the ClientConfig fields.
@@ -43,6 +165,37 @@ func (c *ClientConfig) Validate() error {
 	// Ensure TUNIface is not empty.
 	if c.TUNIface == "" {
 		return errors.New("tun_iface is empty")
+	}
+
+	// Validate Addrs (at least one address must be provided).
+	if len(c.Addrs) == 0 {
+		return errors.New("addrs are empty")
+	}
+
+	// Validate that each address in Addrs is a valid network prefix in CIDR notation.
+	for _, addr := range c.Addrs {
+		if _, err := netip.ParsePrefix(addr); err != nil {
+			return fmt.Errorf("parsing addr prefix %q: %w", addr, err)
+		}
+	}
+
+	// Validate RouteAddrs (each must be a valid CIDR range).
+	for _, addr := range c.RouteAddrs {
+		if _, err := netip.ParsePrefix(addr); err != nil {
+			return fmt.Errorf("parsing route addr prefix %q: %w", addr, err)
+		}
+	}
+
+	// Validate ExcludeAddrs (each must be a valid CIDR range).
+	for _, addr := range c.ExcludeAddrs {
+		if _, err := netip.ParsePrefix(addr); err != nil {
+			return fmt.Errorf("parsing excluded addr prefix %q: %w", addr, err)
+		}
+	}
+
+	// Validate MTU (must be a non-zero value).
+	if c.MTU == 0 {
+		return errors.New("MTU is zero")
 	}
 
 	return nil
@@ -120,6 +273,10 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 	}
 
 	fs.StringVar(&c.TUNIface, prefix+"tun_iface", c.TUNIface, "name of the TUN network interface for the hysteria2 client")
+	fs.StringArrayVar(&c.Addrs, prefix+"addrs", c.Addrs, "ip addresses assigned to the hysteria2 client tun interface")
+	fs.StringArrayVar(&c.RouteAddrs, prefix+"route-addrs", c.RouteAddrs, "ip ranges to route through the hysteria2 tunnel")
+	fs.StringArrayVar(&c.ExcludeAddrs, prefix+"exclude-addrs", c.ExcludeAddrs, "exclude ip addresses/subnets from the hysteria2 tunnel")
+	fs.Uint16Var(&c.MTU, prefix+"mtu", c.MTU, "maximum transmission unit size for the hysteria2 tun interface")
 
 	// Initialize Viper if it hasn't been already.
 	if c.viper == nil {
@@ -143,6 +300,10 @@ func DefaultClientConfig() *ClientConfig {
 		Auth:         NewUUID(),
 		TLSPin:       "",
 		TUNIface:     "hyst0",
+		Addrs:        []string{"100.100.100.101/30", "2001::ffff:ffff:ffff:fff1/126"},
+		RouteAddrs:   []string{"0.0.0.0/0", "::/0"},
+		ExcludeAddrs: []string{"127.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12", "10.0.0.0/8", "::1/128", "fe80::/10", "fd00::/8"},
+		MTU:          1420,
 		ObfsPassword: "",
 	}
 }

@@ -4,6 +4,7 @@ package amneziawg
 
 import (
 	"context"
+	"os"
 	"os/exec"
 )
 
@@ -21,6 +22,7 @@ func (c *Client) startCmd(ctx context.Context) (*exec.Cmd, error) {
 		c.execFile("awg-quick"),
 		"up", cfgFile,
 	)
+	cmd.Stderr = os.Stderr
 
 	return cmd, nil
 }
@@ -34,6 +36,7 @@ func (c *Client) stopCmd() (*exec.Cmd, error) {
 		c.execFile("awg-quick"),
 		"down", cfgFile,
 	)
+	cmd.Stderr = os.Stderr
 
 	return cmd, nil
 }
