@@ -131,7 +131,7 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 func DefaultServerConfig() *ServerConfig {
 	return &ServerConfig{
 		Port:         utils.RandomPort(),
-		ObfsPassword: "",
+		ObfsPassword: NewUUID(),
 		AuthPort:     utils.RandomPort(),
 		StatsPort:    utils.RandomPort(),
 		StatsSecret:  NewUUID(),
