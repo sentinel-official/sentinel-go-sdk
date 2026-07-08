@@ -1,5 +1,6 @@
 client
-dev tun
+dev {{ .TUNIface }}
+dev-type tun
 proto {{ .Protocol }}
 remote {{ .Addr }} {{ .Port }}
 nobind
@@ -15,6 +16,7 @@ tls-cipher TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384
 tls-client
 tls-version-min 1.2
 remote-cert-tls server
+redirect-gateway def1 ipv6 bypass-dhcp
 topology subnet
 {{- if eq .Protocol "udp" }}
 explicit-exit-notify 1

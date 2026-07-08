@@ -3,6 +3,8 @@ package openvpn
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/netip"
 	"os"
 
 	"github.com/spf13/pflag"
@@ -21,14 +23,32 @@ const (
 type ClientConfig struct {
 	viper *viper.Viper `mapstructure:"-"`
 
-	Addr     string `mapstructure:"-"` // Addr specifies the server address to connect to.
-	CA       []byte `mapstructure:"-"` // CA is the Certificate Authority certificate in DER format.
-	Cert     []byte `mapstructure:"-"` // Cert is the client certificate in DER format.
-	Key      []byte `mapstructure:"-"` // Key is the client private key in DER format.
-	PKIDir   string `mapstructure:"-"` // PKIDir is the path to the PKI directory used for certificates.
-	Port     uint16 `mapstructure:"-"` // Port specifies the server port to connect to.
-	Protocol string `mapstructure:"-"` // Protocol specifies the transport protocol (either "tcp" or "udp").
-	TLS      []byte `mapstructure:"-"` // TLS is the static TLS key in raw bytes.
+	Addr         string   `mapstructure:"-"`             // Addr specifies the server address to connect to.
+	CA           []byte   `mapstructure:"-"`             // CA is the Certificate Authority certificate in DER format.
+	Cert         []byte   `mapstructure:"-"`             // Cert is the client certificate in DER format.
+	DNSAddrs     []string `mapstructure:"dns_addrs"`     // DNSAddrs is a list of DNS servers to be used by the client.
+	ExcludeAddrs []string `mapstructure:"exclude_addrs"` // ExcludeAddrs defines IP ranges that should not use the VPN tunnel.
+	Key          []byte   `mapstructure:"-"`             // Key is the client private key in DER format.
+	PKIDir       string   `mapstructure:"-"`             // PKIDir is the path to the PKI directory used for certificates.
+	Port         uint16   `mapstructure:"-"`             // Port specifies the server port to connect to.
+	Protocol     string   `mapstructure:"-"`             // Protocol specifies the transport protocol (either "tcp" or "udp").
+	TLS          []byte   `mapstructure:"-"`             // TLS is the static TLS key in raw bytes.
+	TUNIface     string   `mapstructure:"tun_iface"`     // TUNIface is the name of the TUN network interface.
+}
+
+// GetExcludeAddrs returns the list of exclude addresses (ExcludeAddrs) as netip.Prefixes.
+func (c *ClientConfig) GetExcludeAddrs() []netip.Prefix {
+	addrs := make([]netip.Prefix, 0, len(c.ExcludeAddrs))
+	for _, addr := range c.ExcludeAddrs {
+		addr, err := netip.ParsePrefix(addr)
+		if err != nil {
+			panic(err)
+		}
+
+		addrs = append(addrs, addr)
+	}
+
+	return addrs
 }
 
 // Validate checks the correctness of all configuration fields.
@@ -75,6 +95,25 @@ func (c *ClientConfig) Validate() error {
 	// TLS static key must be non-empty.
 	if len(c.TLS) == 0 {
 		return errors.New("tls is empty")
+	}
+
+	// Validate DNSAddrs (must be valid IP addresses).
+	for _, addr := range c.DNSAddrs {
+		if net.ParseIP(addr) == nil {
+			return fmt.Errorf("invalid DNS addr: parsing DNS addr %q", addr)
+		}
+	}
+
+	// Validate ExcludeAddrs (if provided, each address must be a valid CIDR range).
+	for _, addr := range c.ExcludeAddrs {
+		if _, err := netip.ParsePrefix(addr); err != nil {
+			return fmt.Errorf("parsing excluded addr prefix %q: %w", addr, err)
+		}
+	}
+
+	// Ensure TUNIface is a valid interface name (rejects shell metacharacters).
+	if !utils.IsValidInterfaceName(c.TUNIface) {
+		return fmt.Errorf("invalid tun_iface %q", c.TUNIface)
 	}
 
 	return nil
@@ -150,5 +189,9 @@ func (c *ClientConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 
 // DefaultClientConfig returns a ClientConfig instance with zero values.
 func DefaultClientConfig() *ClientConfig {
-	return &ClientConfig{}
+	return &ClientConfig{
+		DNSAddrs:     []string{"208.67.222.222", "208.67.220.220", "2620:119:35::35", "2620:119:53::53"},
+		ExcludeAddrs: []string{"127.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12", "10.0.0.0/8", "::1/128", "fe80::/10", "fd00::/8"},
+		TUNIface:     "ovpn0",
+	}
 }

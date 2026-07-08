@@ -206,6 +206,14 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 			return fmt.Errorf("writing PID: %w", err)
 		}
 
+		// Install the kill-switch firewall rules.
+		if err := c.applyFirewall(ctx); err != nil {
+			_ = c.cmd.Process.Kill()
+			_ = c.cmd.Wait()
+
+			return fmt.Errorf("applying firewall rules: %w", err)
+		}
+
 		// Wait for the OpenVPN process to finish in a separate goroutine.
 		c.Go(ctx, func() (err error) {
 			if err = c.cmd.Wait(); err == nil {
@@ -215,6 +223,15 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 			return fmt.Errorf("waiting command: %w", err)
 		})
 
+		// Set the system DNS once the TUN interface is up.
+		c.Go(ctx, func() error {
+			if err := c.applyDNS(ctx); err != nil && ctx.Err() == nil {
+				return fmt.Errorf("applying dns: %w", err)
+			}
+
+			return nil
+		})
+
 		return nil
 	})
 }
@@ -222,6 +239,16 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 // Stop stops the OpenVPN client service.
 func (c *Client) Stop() error {
 	return c.Manager.Stop(func() error { //nolint:wrapcheck
+		// Revert the system DNS (best-effort).
+		if err := c.removeDNS(context.Background()); err != nil {
+			return fmt.Errorf("removing dns: %w", err)
+		}
+
+		// Remove the kill-switch firewall rules (best-effort).
+		if err := c.removeFirewall(context.Background()); err != nil {
+			return fmt.Errorf("removing firewall rules: %w", err)
+		}
+
 		// Read PID from file.
 		pid, err := c.readPID()
 		if err != nil {
