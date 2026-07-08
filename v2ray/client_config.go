@@ -275,7 +275,7 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 func DefaultClientConfig() *ClientConfig {
 	return &ClientConfig{
 		API:       DefaultAPIClientConfig(),
-		ID:        NewStringUUID(),
+		ID:        uuid.NewString(),
 		Outbounds: []*OutboundClientConfig{},
 		Proxy:     DefaultProxyClientConfig(),
 	}

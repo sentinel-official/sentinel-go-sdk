@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
@@ -131,9 +132,9 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 func DefaultServerConfig() *ServerConfig {
 	return &ServerConfig{
 		Port:         utils.RandomPort(),
-		ObfsPassword: NewUUID(),
+		ObfsPassword: uuid.NewString(),
 		AuthPort:     utils.RandomPort(),
 		StatsPort:    utils.RandomPort(),
-		StatsSecret:  NewUUID(),
+		StatsSecret:  uuid.NewString(),
 	}
 }

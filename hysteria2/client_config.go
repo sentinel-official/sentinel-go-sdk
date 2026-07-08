@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
@@ -306,7 +307,7 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 func DefaultClientConfig() *ClientConfig {
 	return &ClientConfig{
 		ServerAddr:   "",
-		Auth:         NewUUID(),
+		Auth:         uuid.NewString(),
 		TLSPin:       "",
 		TUNIface:     "hyst0",
 		Addrs:        []string{"100.100.100.101/30", "2001::ffff:ffff:ffff:fff1/126"},
