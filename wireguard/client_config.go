@@ -19,7 +19,7 @@ import (
 type PeerClientConfig struct {
 	Addr                string   `mapstructure:"addr"`                 // Addr specifies the IP address or hostname of the peer.
 	AllowAddrs          []string `mapstructure:"allow_addrs"`          // AllowAddrs defines the IP ranges (CIDR notation) that are allowed through this peer.
-	PersistentKeepalive uint     `mapstructure:"persistent_keepalive"` // PersistentKeepalive defines the interval (in seconds).
+	PersistentKeepalive uint16   `mapstructure:"persistent_keepalive"` // PersistentKeepalive defines the interval (in seconds).
 	Port                uint16   `mapstructure:"port"`                 // Port is the listening port of the peer.
 	PublicKey           string   `mapstructure:"public_key"`           // PublicKey is the WireGuard public key for this peer.
 }
@@ -270,7 +270,7 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 	fs.Uint16Var(&c.MTU, prefix+"mtu", c.MTU, "maximum transmission unit size for the wireguard interface")
 	fs.StringVar(&c.Name, prefix+"name", c.Name, "name of the wireguard network interface")
 	fs.StringArrayVar(&c.Peer.AllowAddrs, prefix+"peer.allow-addrs", c.Peer.AllowAddrs, "list of allowed ip addresses to route through wireguard peer")
-	fs.UintVar(&c.Peer.PersistentKeepalive, prefix+"peer.persistent-keepalive", c.Peer.PersistentKeepalive, "interval for keepalive packets to maintain connection")
+	fs.Uint16Var(&c.Peer.PersistentKeepalive, prefix+"peer.persistent-keepalive", c.Peer.PersistentKeepalive, "interval for keepalive packets to maintain connection")
 	fs.Uint16Var(&c.Port, prefix+"port", c.Port, "port number for the wireguard interface")
 
 	// Initialize Viper if it hasn't been already.
