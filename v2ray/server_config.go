@@ -6,7 +6,6 @@ import (
 	"math/rand/v2"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -64,14 +63,7 @@ func (c *InboundServerConfig) OutPort() string {
 
 // Tag creates a Tag instance based on the InboundServerConfig configuration.
 func (c *InboundServerConfig) Tag() string {
-	items := []string{
-		c.InPort(),
-		c.GetProxyProtocol().String(),
-		c.GetTransportProtocol().String(),
-		c.GetTransportSecurity().String(),
-	}
-
-	return strings.Join(items, "_")
+	return c.InPort()
 }
 
 // Validate validates the InboundServerConfig fields.

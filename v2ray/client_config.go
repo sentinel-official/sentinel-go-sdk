@@ -107,9 +107,6 @@ func (c *OutboundClientConfig) Tag() string {
 	items := []string{
 		c.Addr,
 		strconv.Itoa(int(c.Port)),
-		c.GetProxyProtocol().String(),
-		c.GetTransportProtocol().String(),
-		c.GetTransportSecurity().String(),
 	}
 
 	return strings.Join(items, "_")
