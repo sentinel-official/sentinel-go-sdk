@@ -67,6 +67,7 @@
                 {{- if eq $outbound.TransportSecurity "tls" }},
                 "tlsSettings": {
                     "allowInsecure": true,
+                    "fingerprint": "chrome",
                     "pinnedPeerCertificateChainSha256": ["{{ $outbound.TLSPin }}"]
                 }
                 {{- end }}
@@ -121,17 +122,5 @@
             "statsOutboundUplink": true
         }
     },
-    "stats": {},
-    "transport": {
-        "dsSettings": {},
-        "grpcSettings": {},
-        "gunSettings": {},
-        "httpSettings": {},
-        "kcpSettings": {},
-        "quicSettings": {
-            "security": "chacha20-poly1305"
-        },
-        "tcpSettings": {},
-        "wsSettings": {}
-    }
+    "stats": {}
 }

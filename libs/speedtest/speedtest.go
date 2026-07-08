@@ -36,7 +36,7 @@ func performTests(ctx context.Context, s *speedtest.Server) error {
 
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return fmt.Errorf("context canceled during tests: %w", ctx.Err())
 	case err := <-done:
 		return err
 	}
@@ -63,14 +63,14 @@ func Run(ctx context.Context) (dlSpeed, ulSpeed math.Int, err error) {
 	for _, target := range targets {
 		// Stop if the context has been canceled.
 		if err := ctx.Err(); err != nil {
-			return math.Int{}, math.Int{}, err
+			return math.Int{}, math.Int{}, fmt.Errorf("context canceled: %w", err)
 		}
 
 		// Perform the tests on the target server
 		if err := performTests(ctx, target); err != nil {
 			// Abort on cancellation instead of trying the next server.
 			if ctx.Err() != nil {
-				return math.Int{}, math.Int{}, ctx.Err()
+				return math.Int{}, math.Int{}, err
 			}
 
 			target.Context.Reset()

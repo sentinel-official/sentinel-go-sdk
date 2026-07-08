@@ -243,10 +243,25 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 
 // DefaultServerConfig creates a default ServerConfig with predefined values.
 func DefaultServerConfig() *ServerConfig {
-	var inbounds []*InboundServerConfig
+	// Start with the two strongest inbounds (VLESS over TLS on WebSocket and on
+	// gRPC), then add three random ones.
+	inbounds := make([]*InboundServerConfig, 0, 5)
+	inbounds = append(inbounds,
+		&InboundServerConfig{
+			Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+			ProxyProtocol:     ProxyProtocolVLess.String(),
+			TransportProtocol: TransportProtocolWebSocket.String(),
+			TransportSecurity: TransportSecurityTLS.String(),
+		},
+		&InboundServerConfig{
+			Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+			ProxyProtocol:     ProxyProtocolVLess.String(),
+			TransportProtocol: TransportProtocolGRPC.String(),
+			TransportSecurity: TransportSecurityTLS.String(),
+		},
+	)
 
-	// Generate a random number of inbounds, from 2 to 5.
-	for range rand.IntN(4) + 2 {
+	for range 3 {
 		inbounds = append(inbounds, randomInboundServerConfig())
 	}
 
@@ -255,14 +270,14 @@ func DefaultServerConfig() *ServerConfig {
 	}
 }
 
-// randomInboundServerConfig builds an inbound with a random proxy protocol,
-// transport, and security.
+// randomInboundServerConfig builds an inbound with a random proxy protocol and
+// transport, always secured with TLS.
 func randomInboundServerConfig() *InboundServerConfig {
 	return &InboundServerConfig{
 		Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
 		ProxyProtocol:     randomProxyProtocol().String(),
 		TransportProtocol: randomTransportProtocol().String(),
-		TransportSecurity: randomTransportSecurity().String(),
+		TransportSecurity: TransportSecurityTLS.String(),
 	}
 }
 
@@ -285,12 +300,4 @@ func randomTransportProtocol() TransportProtocol {
 		TransportProtocolTCP,
 		TransportProtocolWebSocket,
 	}[rand.IntN(7)]
-}
-
-// randomTransportSecurity returns a random security configuration (none or tls).
-func randomTransportSecurity() TransportSecurity {
-	return [...]TransportSecurity{
-		TransportSecurityNone,
-		TransportSecurityTLS,
-	}[rand.IntN(2)]
 }

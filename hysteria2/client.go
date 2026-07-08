@@ -175,6 +175,7 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 		if err := c.applyFirewall(ctx); err != nil {
 			_ = c.cmd.Process.Kill()
 			_ = c.cmd.Wait()
+
 			return fmt.Errorf("applying firewall rules: %w", err)
 		}
 

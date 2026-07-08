@@ -93,6 +93,7 @@
                 {{- if eq $outbound.TransportSecurity "tls" }},
                 "tlsSettings": {
                     "allowInsecure": true,
+                    "fingerprint": "chrome",
                     "pinnedPeerCertSha256": "{{ $outbound.TLSPin }}"
                 }
                 {{- end }}
@@ -117,7 +118,7 @@
             {{- if ne (sum $index 1) (len $.Outbounds) }},{{- end }}
             {{- end }}
         ],
-        "probeUrl": "https://www.google.com/generate_204",
+        "probeUrl": "https://www.gstatic.com/generate_204",
         "probeInterval": "10s"
     },
     "routing": {

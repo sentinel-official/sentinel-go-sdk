@@ -1,6 +1,7 @@
 package hysteria2
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -97,32 +98,12 @@ func (c *ClientConfig) GetExcludeIPv4Addrs() []string { return ipv4Prefixes(c.Ex
 // GetExcludeIPv6Addrs returns the IPv6 exclude addresses (ExcludeAddrs).
 func (c *ClientConfig) GetExcludeIPv6Addrs() []string { return ipv6Prefixes(c.ExcludeAddrs) }
 
-// serverIPs resolves the server address to its IP(s), using the host directly
-// if it is already an IP literal.
-func (c *ClientConfig) serverIPs() ([]net.IP, error) {
-	host, _, err := net.SplitHostPort(c.ServerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("splitting server addr %q: %w", c.ServerAddr, err)
-	}
-
-	if ip := net.ParseIP(host); ip != nil {
-		return []net.IP{ip}, nil
-	}
-
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		return nil, fmt.Errorf("resolving server host %q: %w", host, err)
-	}
-
-	return ips, nil
-}
-
 // GetRouteExcludeIPv4Addrs returns the IPv4 route excludes plus the server
 // address, so the client's connection to the server bypasses the tunnel.
 func (c *ClientConfig) GetRouteExcludeIPv4Addrs() []string {
 	addrs := c.GetExcludeIPv4Addrs()
 
-	ips, _ := c.serverIPs()
+	ips, _ := c.serverIPs(context.Background())
 	for _, ip := range ips {
 		if ip.To4() != nil {
 			addrs = append(addrs, ip.String()+"/32")
@@ -137,7 +118,7 @@ func (c *ClientConfig) GetRouteExcludeIPv4Addrs() []string {
 func (c *ClientConfig) GetRouteExcludeIPv6Addrs() []string {
 	addrs := c.GetExcludeIPv6Addrs()
 
-	ips, _ := c.serverIPs()
+	ips, _ := c.serverIPs(context.Background())
 	for _, ip := range ips {
 		if ip.To4() == nil && ip.To16() != nil {
 			addrs = append(addrs, ip.String()+"/128")
@@ -301,6 +282,31 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 			_ = c.viper.BindPFlag(strings.TrimPrefix(r.Replace(f.Name), prefix), f)
 		}
 	})
+}
+
+// serverIPs resolves the server address to its IP(s), using the host directly
+// if it is already an IP literal.
+func (c *ClientConfig) serverIPs(ctx context.Context) ([]net.IP, error) {
+	host, _, err := net.SplitHostPort(c.ServerAddr)
+	if err != nil {
+		return nil, fmt.Errorf("splitting server addr %q: %w", c.ServerAddr, err)
+	}
+
+	if ip := net.ParseIP(host); ip != nil {
+		return []net.IP{ip}, nil
+	}
+
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("resolving server host %q: %w", host, err)
+	}
+
+	ips := make([]net.IP, 0, len(addrs))
+	for _, addr := range addrs {
+		ips = append(ips, addr.IP)
+	}
+
+	return ips, nil
 }
 
 // DefaultClientConfig creates a default ClientConfig with predefined values.

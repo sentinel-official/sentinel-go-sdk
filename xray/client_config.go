@@ -91,6 +91,13 @@ func (c *OutboundClientConfig) Validate() error {
 		}
 	}
 
+	// Reject values that could break out of a JSON string literal in the config.
+	for _, v := range []string{c.Addr, c.TLSPin, c.Method, c.ServerKey, c.RealityServerName, c.RealityShortId, c.RealityPublicKey, c.RealityFingerprint} {
+		if utils.HasJSONUnsafeChars(v) {
+			return fmt.Errorf("field contains unsafe characters: %q", v)
+		}
+	}
+
 	return nil
 }
 

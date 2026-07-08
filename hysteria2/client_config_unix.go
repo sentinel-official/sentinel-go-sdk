@@ -3,6 +3,7 @@
 package hysteria2
 
 import (
+	"context"
 	"fmt"
 	"net"
 )
@@ -10,7 +11,7 @@ import (
 // firewallRules builds the kill-switch rules: ACCEPT exceptions first
 // (acceptAction), then the DROP last (dropAction) so exceptions apply first.
 func (c *ClientConfig) firewallRules(acceptAction, dropAction string, ips []net.IP) [][]string {
-	rules := make([][]string, 0)
+	rules := make([][]string, 0, 4+len(c.GetExcludeIPv4Addrs())+len(c.GetExcludeIPv6Addrs())+len(ips))
 
 	// Allow loopback traffic.
 	rules = append(rules,
@@ -22,6 +23,7 @@ func (c *ClientConfig) firewallRules(acceptAction, dropAction string, ips []net.
 	for _, addr := range c.GetExcludeIPv4Addrs() {
 		rules = append(rules, []string{"iptables", acceptAction, "OUTPUT", "!", "-o", c.TUNIface, "-d", addr, "-j", "ACCEPT"})
 	}
+
 	for _, addr := range c.GetExcludeIPv6Addrs() {
 		rules = append(rules, []string{"ip6tables", acceptAction, "OUTPUT", "!", "-o", c.TUNIface, "-d", addr, "-j", "ACCEPT"})
 	}
@@ -47,8 +49,8 @@ func (c *ClientConfig) firewallRules(acceptAction, dropAction string, ips []net.
 }
 
 // PostUp generates the iptables kill-switch rules to install after the client starts.
-func (c *ClientConfig) PostUp() ([][]string, error) {
-	ips, err := c.serverIPs()
+func (c *ClientConfig) PostUp(ctx context.Context) ([][]string, error) {
+	ips, err := c.serverIPs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("resolving server ips: %w", err)
 	}
@@ -58,8 +60,8 @@ func (c *ClientConfig) PostUp() ([][]string, error) {
 
 // PreDown generates the iptables rules to remove the kill-switch. Server-IP
 // resolution is best-effort so teardown always proceeds.
-func (c *ClientConfig) PreDown() ([][]string, error) {
-	ips, _ := c.serverIPs()
+func (c *ClientConfig) PreDown(ctx context.Context) ([][]string, error) {
+	ips, _ := c.serverIPs(ctx)
 
 	return c.firewallRules("-D", "-D", ips), nil
 }

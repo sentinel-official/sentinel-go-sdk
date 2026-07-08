@@ -3,6 +3,7 @@ package hysteria2
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/google/uuid"
@@ -16,13 +17,14 @@ import (
 type ServerConfig struct {
 	viper *viper.Viper `mapstructure:"-"`
 
-	Port         uint16 `mapstructure:"port"`          // Port defines the server listening port.
-	TLSCertFile  string `mapstructure:"-"`             // TLSCertFile is the path to the TLS certificate file.
-	TLSKeyFile   string `mapstructure:"-"`             // TLSKeyFile is the path to the TLS private key file.
-	ObfsPassword string `mapstructure:"obfs_password"` // ObfsPassword is the Salamander obfuscation password (empty disables obfs).
-	AuthPort     uint16 `mapstructure:"auth_port"`     // AuthPort is the loopback port for the SDK-hosted HTTP auth backend.
-	StatsPort    uint16 `mapstructure:"stats_port"`    // StatsPort is the loopback port for Hysteria2's Traffic Stats API.
-	StatsSecret  string `mapstructure:"stats_secret"`  // StatsSecret is the authorization secret for the Traffic Stats API.
+	Port          uint16 `mapstructure:"port"`           // Port defines the server listening port.
+	TLSCertFile   string `mapstructure:"-"`              // TLSCertFile is the path to the TLS certificate file.
+	TLSKeyFile    string `mapstructure:"-"`              // TLSKeyFile is the path to the TLS private key file.
+	ObfsPassword  string `mapstructure:"obfs_password"`  // ObfsPassword is the Salamander obfuscation password (empty disables obfs).
+	MasqueradeURL string `mapstructure:"masquerade_url"` // MasqueradeURL, when set, reverse-proxies unauthenticated probes to it; empty serves a self-contained 404.
+	AuthPort      uint16 `mapstructure:"auth_port"`      // AuthPort is the loopback port for the SDK-hosted HTTP auth backend.
+	StatsPort     uint16 `mapstructure:"stats_port"`     // StatsPort is the loopback port for Hysteria2's Traffic Stats API.
+	StatsSecret   string `mapstructure:"stats_secret"`   // StatsSecret is the authorization secret for the Traffic Stats API.
 }
 
 // Validate validates the ServerConfig fields.
@@ -55,6 +57,18 @@ func (c *ServerConfig) Validate() error {
 	// Ensure StatsSecret is not empty.
 	if c.StatsSecret == "" {
 		return errors.New("stats_secret is empty")
+	}
+
+	// Validate MasqueradeURL when set.
+	if c.MasqueradeURL != "" {
+		u, err := url.Parse(c.MasqueradeURL)
+		if err != nil {
+			return fmt.Errorf("parsing masquerade_url %q: %w", c.MasqueradeURL, err)
+		}
+
+		if u.Scheme != "http" && u.Scheme != "https" {
+			return fmt.Errorf("invalid masquerade_url scheme %q", u.Scheme)
+		}
 	}
 
 	return nil
@@ -131,10 +145,11 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 // DefaultServerConfig creates a default ServerConfig with predefined values.
 func DefaultServerConfig() *ServerConfig {
 	return &ServerConfig{
-		Port:         utils.RandomPort(),
-		ObfsPassword: uuid.NewString(),
-		AuthPort:     utils.RandomPort(),
-		StatsPort:    utils.RandomPort(),
-		StatsSecret:  uuid.NewString(),
+		Port:          utils.RandomPort(),
+		ObfsPassword:  uuid.NewString(),
+		MasqueradeURL: "",
+		AuthPort:      utils.RandomPort(),
+		StatsPort:     utils.RandomPort(),
+		StatsSecret:   uuid.NewString(),
 	}
 }

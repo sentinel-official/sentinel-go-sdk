@@ -70,7 +70,7 @@ func DefaultPeerClientConfig() *PeerClientConfig {
 	return &PeerClientConfig{
 		Addr:                "",
 		AllowAddrs:          []string{"0.0.0.0/0", "::/0"},
-		PersistentKeepalive: 30,
+		PersistentKeepalive: 25,
 		Port:                0,
 		PublicKey:           "",
 	}
@@ -165,9 +165,9 @@ func (c *ClientConfig) Validate() error {
 		return errors.New("MTU is zero")
 	}
 
-	// Ensure Name is not empty.
-	if c.Name == "" {
-		return errors.New("name is empty")
+	// Ensure Name is a valid interface name (rejects shell metacharacters).
+	if !utils.IsValidInterfaceName(c.Name) {
+		return fmt.Errorf("invalid name %q", c.Name)
 	}
 
 	// Validate Peer (must be non-empty and a valid PeerClientConfig).

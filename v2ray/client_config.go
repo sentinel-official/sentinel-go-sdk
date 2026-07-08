@@ -74,6 +74,13 @@ func (c *OutboundClientConfig) Validate() error {
 		return fmt.Errorf("invalid transport_security %q", v)
 	}
 
+	// Reject values that could break out of a JSON string literal in the config.
+	for _, v := range []string{c.Addr, c.TLSPin} {
+		if utils.HasJSONUnsafeChars(v) {
+			return fmt.Errorf("field contains unsafe characters: %q", v)
+		}
+	}
+
 	return nil
 }
 

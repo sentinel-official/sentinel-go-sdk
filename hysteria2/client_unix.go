@@ -19,18 +19,20 @@ func (c *Client) execFile(name string) string {
 
 // applyFirewall installs the kill-switch iptables rules for the client.
 func (c *Client) applyFirewall(ctx context.Context) error {
-	rules, err := c.cfg.PostUp()
+	rules, err := c.cfg.PostUp(ctx)
 	if err != nil {
 		return fmt.Errorf("building firewall rules: %w", err)
 	}
 
 	for _, rule := range rules {
 		cmd := exec.CommandContext(ctx, rule[0], rule[1:]...)
+
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			// Roll back any rules already applied so a partial apply does not
 			// leave a dangling kill-switch that blocks host traffic.
 			_ = c.removeFirewall(ctx)
+
 			return fmt.Errorf("running firewall rule %v: %w", rule, err)
 		}
 	}
@@ -41,7 +43,7 @@ func (c *Client) applyFirewall(ctx context.Context) error {
 // removeFirewall removes the kill-switch iptables rules for the client.
 // Teardown is best-effort: individual delete failures are ignored.
 func (c *Client) removeFirewall(ctx context.Context) error {
-	rules, err := c.cfg.PreDown()
+	rules, err := c.cfg.PreDown(ctx)
 	if err != nil {
 		return fmt.Errorf("building firewall rules: %w", err)
 	}
@@ -67,7 +69,7 @@ func waitForInterface(ctx context.Context, name string) error {
 
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return fmt.Errorf("waiting for interface %q: %w", name, ctx.Err())
 		case <-ticker.C:
 		}
 	}
@@ -91,6 +93,7 @@ func (c *Client) applyDNS(ctx context.Context) error {
 
 	cmd := exec.CommandContext(ctx, "resolvconf", "-a", c.cfg.TUNIface, "-m", "0", "-x")
 	cmd.Stdin = &stdin
+
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("running resolvconf: %w", err)

@@ -120,9 +120,9 @@ func (c *ServerConfig) Validate() error {
 		}
 	}
 
-	// Ensure OutInterface is not empty.
-	if c.OutInterface == "" {
-		return errors.New("out_interface is empty")
+	// Ensure OutInterface is a valid interface name (rejects shell metacharacters).
+	if !utils.IsValidInterfaceName(c.OutInterface) {
+		return fmt.Errorf("invalid out_interface %q", c.OutInterface)
 	}
 
 	// Ensure Port is not empty and validate it.

@@ -287,10 +287,26 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 
 // DefaultServerConfig creates a default ServerConfig with predefined values.
 func DefaultServerConfig() *ServerConfig {
-	var inbounds []*InboundServerConfig
+	// Start with the two strongest inbounds (VLESS+Reality with Vision over raw
+	// TCP, and VLESS+Reality over XHTTP), then add three random ones.
+	inbounds := make([]*InboundServerConfig, 0, 5)
+	inbounds = append(inbounds,
+		&InboundServerConfig{
+			Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+			ProxyProtocol:     ProxyProtocolVLess.String(),
+			TransportProtocol: TransportProtocolTCP.String(),
+			TransportSecurity: TransportSecurityReality.String(),
+			Flow:              FlowVision.String(),
+		},
+		&InboundServerConfig{
+			Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+			ProxyProtocol:     ProxyProtocolVLess.String(),
+			TransportProtocol: TransportProtocolXHTTP.String(),
+			TransportSecurity: TransportSecurityReality.String(),
+		},
+	)
 
-	// Generate a random number of inbounds, from 2 to 5.
-	for range rand.IntN(4) + 2 {
+	for range 3 {
 		inbounds = append(inbounds, randomInboundServerConfig())
 	}
 
@@ -300,16 +316,16 @@ func DefaultServerConfig() *ServerConfig {
 }
 
 // randomInboundServerConfig builds an inbound with a random proxy protocol,
-// transport, and security, enabling Vision flow only for the vless+tcp+tls combo.
+// transport, and security, enabling Vision flow only for vless over raw TCP.
 func randomInboundServerConfig() *InboundServerConfig {
 	proxyProtocol := randomProxyProtocol()
 	transportProtocol := randomTransportProtocol()
-	transportSecurity := randomTransportSecurity()
+	transportSecurity := randomTransportSecurity(transportProtocol)
 
 	flow := ""
 	if proxyProtocol == ProxyProtocolVLess &&
 		transportProtocol == TransportProtocolTCP &&
-		transportSecurity == TransportSecurityTLS {
+		(transportSecurity == TransportSecurityTLS || transportSecurity == TransportSecurityReality) {
 		flow = FlowVision.String()
 	}
 
@@ -341,10 +357,14 @@ func randomTransportProtocol() TransportProtocol {
 	}[rand.IntN(5)]
 }
 
-// randomTransportSecurity returns a random security configuration (none or tls).
-func randomTransportSecurity() TransportSecurity {
-	return [...]TransportSecurity{
-		TransportSecurityNone,
-		TransportSecurityTLS,
-	}[rand.IntN(2)]
+// randomTransportSecurity returns tls, or reality when the transport supports it.
+func randomTransportSecurity(transport TransportProtocol) TransportSecurity {
+	options := []TransportSecurity{TransportSecurityTLS}
+	if transport == TransportProtocolTCP ||
+		transport == TransportProtocolGRPC ||
+		transport == TransportProtocolXHTTP {
+		options = append(options, TransportSecurityReality)
+	}
+
+	return options[rand.IntN(len(options))]
 }
