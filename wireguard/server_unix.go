@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"syscall"
 )
 
 // execFile returns the executable name.
@@ -23,6 +24,7 @@ func (s *Server) startCmd(ctx context.Context) (*exec.Cmd, error) {
 		"up", cfgFile,
 	)
 	cmd.Stderr = os.Stderr
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	return cmd, nil
 }
