@@ -38,6 +38,21 @@
                     ]
                 }
                 {{- end }}
+                {{- if eq $inbound.TransportProtocol "mkcp" }},
+                "kcpSettings": {
+                    "header": {
+                        "type": "none"
+                    }
+                }
+                {{- end }}
+                {{- if eq $inbound.TransportProtocol "quic" }},
+                "quicSettings": {
+                    "security": "none",
+                    "header": {
+                        "type": "none"
+                    }
+                }
+                {{- end }}
             },
             "tag": "{{ $inbound.Tag }}"
         }

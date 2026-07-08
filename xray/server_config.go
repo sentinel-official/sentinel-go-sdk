@@ -319,6 +319,18 @@ func DefaultServerConfig() *ServerConfig {
 // transport, and security, enabling Vision flow only for vless over raw TCP.
 func randomInboundServerConfig() *InboundServerConfig {
 	proxyProtocol := randomProxyProtocol()
+
+	// Shadowsocks 2022 encrypts at the proxy layer, so it runs over raw TCP with
+	// no stream-level security.
+	if proxyProtocol == ProxyProtocolShadowsocks2022 {
+		return &InboundServerConfig{
+			Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+			ProxyProtocol:     proxyProtocol.String(),
+			TransportProtocol: TransportProtocolTCP.String(),
+			TransportSecurity: TransportSecurityNone.String(),
+		}
+	}
+
 	transportProtocol := randomTransportProtocol()
 	transportSecurity := randomTransportSecurity(transportProtocol)
 
@@ -338,12 +350,14 @@ func randomInboundServerConfig() *InboundServerConfig {
 	}
 }
 
-// randomProxyProtocol returns a random proxy protocol type (vless or vmess).
+// randomProxyProtocol returns a random proxy protocol type.
 func randomProxyProtocol() ProxyProtocol {
 	return [...]ProxyProtocol{
 		ProxyProtocolVLess,
 		ProxyProtocolVMess,
-	}[rand.IntN(2)]
+		ProxyProtocolTrojan,
+		ProxyProtocolShadowsocks2022,
+	}[rand.IntN(4)]
 }
 
 // randomTransportProtocol returns a random transport protocol from available options.

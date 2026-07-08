@@ -71,6 +71,21 @@
                     "pinnedPeerCertificateChainSha256": ["{{ $outbound.TLSPin }}"]
                 }
                 {{- end }}
+                {{- if eq $outbound.TransportProtocol "mkcp" }},
+                "kcpSettings": {
+                    "header": {
+                        "type": "none"
+                    }
+                }
+                {{- end }}
+                {{- if eq $outbound.TransportProtocol "quic" }},
+                "quicSettings": {
+                    "security": "none",
+                    "header": {
+                        "type": "none"
+                    }
+                }
+                {{- end }}
             },
             "tag": "{{ $outbound.Tag }}"
         }

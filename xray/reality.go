@@ -11,8 +11,8 @@ import (
 
 // Default Reality configuration values.
 const (
-	DefaultRealityDest        = "www.microsoft.com:443" // DefaultRealityDest is the default Reality dial-out target.
-	DefaultRealityFingerprint = "chrome"                // DefaultRealityFingerprint is the default uTLS fingerprint.
+	DefaultRealityDest        = "www.apple.com:443" // DefaultRealityDest is the default Reality dial-out target.
+	DefaultRealityFingerprint = "chrome"            // DefaultRealityFingerprint is the default uTLS fingerprint.
 )
 
 // shortIDLength is the byte length of a Reality shortId.

@@ -19,7 +19,7 @@
         {{- range $index, $inbound := .Inbounds }}
         {
             "port": "{{ $inbound.InPort }}",
-            "protocol": "{{ $inbound.ProxyProtocol }}",
+            "protocol": "{{ $inbound.GetProxyProtocol.CoreName }}",
             {{- if eq $inbound.ProxyProtocol "vless" }}
             "settings": {
                 "decryption": "none"
