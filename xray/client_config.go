@@ -91,6 +91,11 @@ func (c *OutboundClientConfig) Validate() error {
 		}
 	}
 
+	// Ensure the TLS pin is set for TLS outbounds (an empty pin can never match).
+	if c.GetTransportSecurity() == TransportSecurityTLS && c.TLSPin == "" {
+		return errors.New("tls_pin is empty")
+	}
+
 	// Reject values that could break out of a JSON string literal in the config.
 	for _, v := range []string{c.Addr, c.TLSPin, c.Method, c.ServerKey, c.RealityServerName, c.RealityShortId, c.RealityPublicKey, c.RealityFingerprint} {
 		if utils.HasJSONUnsafeChars(v) {
