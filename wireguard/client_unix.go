@@ -4,7 +4,6 @@ package wireguard
 
 import (
 	"context"
-	"os"
 	"os/exec"
 	"syscall"
 )
@@ -23,7 +22,6 @@ func (c *Client) startCmd(ctx context.Context) (*exec.Cmd, error) {
 		c.execFile("wg-quick"),
 		"up", cfgFile,
 	)
-	cmd.Stderr = os.Stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	return cmd, nil
@@ -38,7 +36,6 @@ func (c *Client) stopCmd() (*exec.Cmd, error) {
 		c.execFile("wg-quick"),
 		"down", cfgFile,
 	)
-	cmd.Stderr = os.Stderr
 
 	return cmd, nil
 }

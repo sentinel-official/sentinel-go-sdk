@@ -159,7 +159,6 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 			c.execFile(hysteria2),
 			"client", "-c", cfgFile,
 		)
-		c.cmd.Stderr = os.Stderr
 
 		// Starts the Hysteria2 client process.
 		if err := c.cmd.Start(); err != nil {

@@ -194,7 +194,6 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 			c.execFile(openVPN),
 			"--config", cfgFile,
 		)
-		c.cmd.Stderr = os.Stderr
 
 		// Starts the OpenVPN client process.
 		if err := c.cmd.Start(); err != nil {

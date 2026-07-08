@@ -2,7 +2,6 @@ package amneziawg
 
 import (
 	"context"
-	"os"
 	"os/exec"
 	"path/filepath"
 )
@@ -21,7 +20,6 @@ func (c *Client) startCmd(ctx context.Context) (*exec.Cmd, error) {
 		c.execFile("amneziawg"),
 		"/installtunnelservice", cfgFile,
 	)
-	cmd.Stderr = os.Stderr
 
 	return cmd, nil
 }
@@ -34,7 +32,6 @@ func (c *Client) stopCmd() (*exec.Cmd, error) {
 		c.execFile("amneziawg"),
 		"/uninstalltunnelservice", c.device,
 	)
-	cmd.Stderr = os.Stderr
 
 	return cmd, nil
 }

@@ -171,7 +171,6 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 			c.execFile(xray),
 			"run", "--config", cfgFile,
 		)
-		c.cmd.Stderr = os.Stderr
 
 		// Starts the Xray client process.
 		if err := c.cmd.Start(); err != nil {

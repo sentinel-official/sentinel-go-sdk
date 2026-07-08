@@ -165,7 +165,6 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 			c.execFile(v2ray),
 			"run", "--config", cfgFile,
 		)
-		c.cmd.Stderr = os.Stderr
 
 		// Starts the V2Ray client process.
 		if err := c.cmd.Start(); err != nil {

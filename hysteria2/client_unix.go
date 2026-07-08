@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"time"
 )
@@ -27,7 +26,6 @@ func (c *Client) applyFirewall(ctx context.Context) error {
 	for _, rule := range rules {
 		cmd := exec.CommandContext(ctx, rule[0], rule[1:]...)
 
-		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			// Roll back any rules already applied so a partial apply does not
 			// leave a dangling kill-switch that blocks host traffic.
@@ -50,7 +48,6 @@ func (c *Client) removeFirewall(ctx context.Context) error {
 
 	for _, rule := range rules {
 		cmd := exec.CommandContext(ctx, rule[0], rule[1:]...)
-		cmd.Stderr = os.Stderr
 		_ = cmd.Run()
 	}
 
@@ -94,7 +91,6 @@ func (c *Client) applyDNS(ctx context.Context) error {
 	cmd := exec.CommandContext(ctx, "resolvconf", "-a", c.cfg.TUNIface, "-m", "0", "-x")
 	cmd.Stdin = &stdin
 
-	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("running resolvconf: %w", err)
 	}
@@ -109,7 +105,6 @@ func (c *Client) removeDNS(ctx context.Context) error {
 	}
 
 	cmd := exec.CommandContext(ctx, "resolvconf", "-d", c.cfg.TUNIface, "-f")
-	cmd.Stderr = os.Stderr
 	_ = cmd.Run()
 
 	return nil
