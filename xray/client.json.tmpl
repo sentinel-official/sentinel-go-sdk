@@ -110,6 +110,16 @@
         {{- if ne (sum $index 1) (len $.Outbounds) }},{{- end }}
         {{- end }}
     ],
+    "observatory": {
+        "subjectSelector": [
+            {{- range $index, $outbound := .Outbounds }}
+            "{{ $outbound.Tag }}"
+            {{- if ne (sum $index 1) (len $.Outbounds) }},{{- end }}
+            {{- end }}
+        ],
+        "probeUrl": "https://www.google.com/generate_204",
+        "probeInterval": "10s"
+    },
     "routing": {
         "balancers": [
             {
