@@ -287,21 +287,38 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 
 // DefaultServerConfig creates a default ServerConfig with predefined values.
 func DefaultServerConfig() *ServerConfig {
+	var inbounds []*InboundServerConfig
+
+	// Generate a random number of inbounds, from 2 to 5.
+	for range rand.IntN(4) + 2 {
+		inbounds = append(inbounds, randomInboundServerConfig())
+	}
+
 	return &ServerConfig{
-		Inbounds: []*InboundServerConfig{
-			{
-				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
-				ProxyProtocol:     ProxyProtocolVLess.String(),
-				TransportProtocol: TransportProtocolTCP.String(),
-				TransportSecurity: TransportSecurityNone.String(),
-			},
-			{
-				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
-				ProxyProtocol:     randomProxyProtocol().String(),
-				TransportProtocol: randomTransportProtocol().String(),
-				TransportSecurity: randomTransportSecurity().String(),
-			},
-		},
+		Inbounds: inbounds,
+	}
+}
+
+// randomInboundServerConfig builds an inbound with a random proxy protocol,
+// transport, and security, enabling Vision flow only for the vless+tcp+tls combo.
+func randomInboundServerConfig() *InboundServerConfig {
+	proxyProtocol := randomProxyProtocol()
+	transportProtocol := randomTransportProtocol()
+	transportSecurity := randomTransportSecurity()
+
+	flow := ""
+	if proxyProtocol == ProxyProtocolVLess &&
+		transportProtocol == TransportProtocolTCP &&
+		transportSecurity == TransportSecurityTLS {
+		flow = FlowVision.String()
+	}
+
+	return &InboundServerConfig{
+		Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+		ProxyProtocol:     proxyProtocol.String(),
+		TransportProtocol: transportProtocol.String(),
+		TransportSecurity: transportSecurity.String(),
+		Flow:              flow,
 	}
 }
 

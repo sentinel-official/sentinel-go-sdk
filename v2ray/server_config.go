@@ -243,21 +243,26 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 
 // DefaultServerConfig creates a default ServerConfig with predefined values.
 func DefaultServerConfig() *ServerConfig {
+	var inbounds []*InboundServerConfig
+
+	// Generate a random number of inbounds, from 2 to 5.
+	for range rand.IntN(4) + 2 {
+		inbounds = append(inbounds, randomInboundServerConfig())
+	}
+
 	return &ServerConfig{
-		Inbounds: []*InboundServerConfig{
-			{
-				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
-				ProxyProtocol:     ProxyProtocolVMess.String(),
-				TransportProtocol: TransportProtocolGRPC.String(),
-				TransportSecurity: TransportSecurityNone.String(),
-			},
-			{
-				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
-				ProxyProtocol:     randomProxyProtocol().String(),
-				TransportProtocol: randomTransportProtocol().String(),
-				TransportSecurity: randomTransportSecurity().String(),
-			},
-		},
+		Inbounds: inbounds,
+	}
+}
+
+// randomInboundServerConfig builds an inbound with a random proxy protocol,
+// transport, and security.
+func randomInboundServerConfig() *InboundServerConfig {
+	return &InboundServerConfig{
+		Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+		ProxyProtocol:     randomProxyProtocol().String(),
+		TransportProtocol: randomTransportProtocol().String(),
+		TransportSecurity: randomTransportSecurity().String(),
 	}
 }
 
