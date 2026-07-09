@@ -201,12 +201,12 @@ func (m *Manager) Wait(ctx context.Context, fn func() error) error {
 		if err := m.eg.Wait(); err != nil {
 			// If not stopped, propagate error.
 			if !m.state.Is(internal.StateStopping, internal.StateStopError, internal.StateStopped) {
-				return fmt.Errorf("waiting group: %w", err)
+				return fmt.Errorf("waiting process group: %w", err)
 			}
 
 			// If stopped, ignore context.Canceled errors.
 			if !utils.ErrorIs(context.Cause(ctx), context.Canceled) {
-				return fmt.Errorf("waiting group: %w", err)
+				return fmt.Errorf("waiting process group: %w", err)
 			}
 		}
 	}

@@ -16,8 +16,21 @@ func NewErrNotFound(err error) error {
 	return fmt.Errorf("%w: %w", ErrNotFound, err)
 }
 
+// IsTxInCacheErr checks if the error message indicates a tx already exists in cache error.
+func IsTxInCacheErr(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	return strings.Contains(strings.ToLower(err.Error()), "tx already exists in cache")
+}
+
 // IsWrongSequenceErr checks if the error message indicates an account sequence mismatch error.
 func IsWrongSequenceErr(err error) bool {
+	if err == nil {
+		return false
+	}
+
 	return strings.Contains(strings.ToLower(err.Error()), "incorrect account sequence")
 }
 
@@ -44,13 +57,8 @@ func HandleQueryErr(err error) error {
 }
 
 // HandleBroadcastTxSyncErr processes broadcast transaction errors.
-// Returns nil if transaction already exists in cache, otherwise returns the original error.
 func HandleBroadcastTxSyncErr(err error) error {
 	if err == nil {
-		return nil
-	}
-
-	if strings.Contains(strings.ToLower(err.Error()), "tx already exists in cache") {
 		return nil
 	}
 

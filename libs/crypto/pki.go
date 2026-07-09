@@ -111,7 +111,7 @@ func (p *PKI) Init(opts ...CertOption) (err error) {
 		RevokedCertificateEntries: []x509.RevocationListEntry{},
 		Number:                    big.NewInt(1),
 		ThisUpdate:                timestamp,
-		NextUpdate:                timestamp.AddDate(0, 0, 1), // Valid for 1 day
+		NextUpdate:                timestamp.AddDate(10, 0, 0), // Valid for 10 years
 	}
 
 	// Create and write the CRL to disk
@@ -215,7 +215,7 @@ func (p *PKI) Revoke(name string) (err error) {
 		},
 	)
 	p.RevocationList.ThisUpdate = timestamp
-	p.RevocationList.NextUpdate = timestamp.AddDate(0, 0, 1)
+	p.RevocationList.NextUpdate = timestamp.AddDate(10, 0, 0) // Valid for 10 years
 
 	// Create the updated CRL
 	rlDER, err := x509.CreateRevocationList(rand.Reader, p.RevocationList, p.Certificate, p.Signer)

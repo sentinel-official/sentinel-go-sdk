@@ -1,0 +1,15 @@
+# DNS servers to use while connected to the VPN.
+# Allowed: Valid IP addresses
+dns_addrs = [{{ range $i, $a := .DNSAddrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
+
+# IP ranges excluded from the AmneziaWG tunnel.
+# Allowed: Valid IPv4/IPv6 CIDR notation
+exclude_addrs = [{{ range $i, $a := .ExcludeAddrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
+
+# Maximum transmission unit size for the AmneziaWG interface.
+# Allowed: Non-zero uint16
+mtu = {{ .MTU }}
+
+# Name of the AmneziaWG network interface.
+# Allowed: Valid network interface name
+name = "{{ .Name }}"

@@ -1,0 +1,169 @@
+{
+    "api": {
+        "services": [
+            "StatsService"
+        ],
+        "tag": "api"
+    },
+    "inbounds": [
+        {
+            "listen": "127.0.0.1",
+            "port": {{ .API.Port }},
+            "protocol": "dokodemo-door",
+            "settings": {
+                "address": "127.0.0.1"
+            },
+            "tag": "api"
+        },
+        {
+            "listen": "127.0.0.1",
+            "port": {{ .Proxy.Port }},
+            "protocol": "socks",
+            "settings": {
+                "ip": "127.0.0.1",
+                "udp": true
+            },
+            "sniffing": {
+                "destOverride": [
+                    "http",
+                    "tls"
+                ],
+                "enabled": true
+            },
+            "tag": "proxy"
+        }
+    ],
+    "log": {
+        "access": "none",
+        "error": "none",
+        "loglevel": "none"
+    },
+    "outbounds": [
+        {{- range $index, $outbound := .Outbounds }}
+        {
+            "protocol": "{{ $outbound.GetProxyProtocol.CoreName }}",
+            {{- if or (eq $outbound.ProxyProtocol "vless") (eq $outbound.ProxyProtocol "vmess") }}
+            "settings": {
+                "vnext": [
+                    {
+                        "address": "{{ $outbound.Addr }}",
+                        "port": {{ $outbound.Port }},
+                        "users": [
+                            {
+                                "id": "{{ $.ID }}"
+                                {{- if eq $outbound.ProxyProtocol "vless" }},
+                                "encryption": "none",
+                                "flow": "{{ $outbound.FlowString }}"
+                                {{- end }}
+                                {{- if eq $outbound.ProxyProtocol "vmess" }},
+                                "alterId": 0
+                                {{- end }}
+                            }
+                        ]
+                    }
+                ]
+            },
+            {{- end }}
+            {{- if eq $outbound.ProxyProtocol "trojan" }}
+            "settings": {
+                "servers": [
+                    {
+                        "address": "{{ $outbound.Addr }}",
+                        "password": "{{ $outbound.Password }}",
+                        "port": {{ $outbound.Port }}
+                    }
+                ]
+            },
+            {{- end }}
+            {{- if eq $outbound.ProxyProtocol "shadowsocks-2022" }}
+            "settings": {
+                "servers": [
+                    {
+                        "address": "{{ $outbound.Addr }}",
+                        "method": "{{ $outbound.Method }}",
+                        "password": "{{ $outbound.Password }}",
+                        "port": {{ $outbound.Port }}
+                    }
+                ]
+            },
+            {{- end }}
+            "streamSettings": {
+                "network": "{{ $outbound.TransportProtocol }}",
+                "security": "{{ $outbound.TransportSecurity }}"
+                {{- if eq $outbound.TransportSecurity "tls" }},
+                "tlsSettings": {
+                    "fingerprint": "chrome",
+                    "pinnedPeerCertSha256": "{{ $outbound.TLSPin }}"
+                }
+                {{- end }}
+                {{- if eq $outbound.TransportSecurity "reality" }},
+                "realitySettings": {
+                    "fingerprint": "{{ $outbound.RealityFingerprint }}",
+                    "publicKey": "{{ $outbound.RealityPublicKey }}",
+                    "serverName": "{{ $outbound.RealityServerName }}",
+                    "shortId": "{{ $outbound.RealityShortId }}"
+                }
+                {{- end }}
+            },
+            "tag": "{{ $outbound.Tag }}"
+        }
+        {{- if ne (sum $index 1) (len $.Outbounds) }},{{- end }}
+        {{- end }}
+    ],
+    "observatory": {
+        "subjectSelector": [
+            {{- range $index, $outbound := .Outbounds }}
+            "{{ $outbound.Tag }}"
+            {{- if ne (sum $index 1) (len $.Outbounds) }},{{- end }}
+            {{- end }}
+        ],
+        "probeUrl": "https://www.gstatic.com/generate_204",
+        "probeInterval": "10s"
+    },
+    "routing": {
+        "balancers": [
+            {
+                "selector": [
+                    {{- range $index, $outbound := .Outbounds }}
+                    "{{ $outbound.Tag }}"
+                    {{- if ne (sum $index 1) (len $.Outbounds) }},{{- end }}
+                    {{- end }}
+                ],
+                "strategy": {
+                    "type": "leastping"
+                },
+                "tag": "balancer"
+            }
+        ],
+        "domainStrategy": "IPIfNonMatch",
+        "rules": [
+            {
+                "inboundTag": [
+                    "api"
+                ],
+                "outboundTag": "api",
+                "type": "field"
+            },
+            {
+                "inboundTag": [
+                    "proxy"
+                ],
+                "balancerTag": "balancer",
+                "type": "field"
+            }
+        ]
+    },
+    "policy": {
+        "levels": {
+            "0": {
+                "downlinkOnly": 0,
+                "uplinkOnly": 0
+            }
+        },
+        "system": {
+            "statsOutboundDownlink": true,
+            "statsOutboundUplink": true
+        }
+    },
+    "stats": {}
+}

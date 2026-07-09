@@ -80,7 +80,7 @@ func (p *Prefix) BroadcastAddr() (netip.Addr, error) {
 	}
 
 	buf := p.NetworkAddr().As4()
-	for i := 0; i < len(buf); i++ {
+	for i := range buf {
 		buf[len(buf)-i-1] |= byte(size >> (i * 8))
 	}
 

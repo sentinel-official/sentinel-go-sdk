@@ -68,7 +68,7 @@ type InitHandshakeResult struct {
 }
 
 // InitHandshake adds a session to a node by signing the session data and sending it to the node's API.
-func (c *Client) InitHandshake(ctx context.Context, id uint64, data interface{}) (res *InitHandshakeResult, err error) {
+func (c *Client) InitHandshake(ctx context.Context, id uint64, data any) (res *InitHandshakeResult, err error) {
 	// Initialize the request body with session ID.
 	req := &InitHandshakeRequestBody{
 		ID: id,

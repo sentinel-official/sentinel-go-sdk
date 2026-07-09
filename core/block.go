@@ -15,6 +15,11 @@ import (
 func (c *Client) Block(ctx context.Context, height int64) (*types.BlockID, *types.Block, error) {
 	var result *core.ResultBlock
 
+	var heightP *int64 = nil
+	if height != 0 {
+		heightP = &height
+	}
+
 	// Define the function to perform the block query.
 	retryFunc := func() error {
 		// Get the RPC client for querying.
@@ -24,7 +29,7 @@ func (c *Client) Block(ctx context.Context, height int64) (*types.BlockID, *type
 		}
 
 		// Perform the block query at the specified height.
-		result, err = http.Block(ctx, &height)
+		result, err = http.Block(ctx, heightP)
 		if err != nil {
 			return fmt.Errorf("performing block query: %w", err)
 		}

@@ -10,7 +10,7 @@ import (
 )
 
 // ExecTemplateToFile generates content from a template and writes it to a file.
-func ExecTemplateToFile(text string, data interface{}, filename string) error {
+func ExecTemplateToFile(text string, data any, filename string) error {
 	// Define a map of custom functions to be used in the template.
 	var funcMap = template.FuncMap{
 		"stringsJoin":  strings.Join,

@@ -114,13 +114,13 @@ func (c *ServerConfig) Validate() error {
 	// Validate IPv6Addr if provided.
 	if c.IPv6Addr != "" {
 		if _, err := netip.NewPrefix(c.IPv6Addr); err != nil {
-			return fmt.Errorf("parsing ipv6_addr %q: %w", c.IPv4Addr, err)
+			return fmt.Errorf("parsing ipv6_addr %q: %w", c.IPv6Addr, err)
 		}
 	}
 
-	// Ensure OutInterface is not empty.
-	if c.OutInterface == "" {
-		return errors.New("out_interface is empty")
+	// Ensure OutInterface is a valid interface name (rejects shell metacharacters).
+	if !utils.IsValidInterfaceName(c.OutInterface) {
+		return fmt.Errorf("invalid out_interface %q", c.OutInterface)
 	}
 
 	// Ensure Port is not empty and validate it.

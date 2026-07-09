@@ -6,7 +6,6 @@ import (
 	"math/rand/v2"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -64,14 +63,7 @@ func (c *InboundServerConfig) OutPort() string {
 
 // Tag creates a Tag instance based on the InboundServerConfig configuration.
 func (c *InboundServerConfig) Tag() string {
-	items := []string{
-		c.InPort(),
-		c.GetProxyProtocol().String(),
-		c.GetTransportProtocol().String(),
-		c.GetTransportSecurity().String(),
-	}
-
-	return strings.Join(items, "_")
+	return c.InPort()
 }
 
 // Validate validates the InboundServerConfig fields.
@@ -99,6 +91,10 @@ func (c *InboundServerConfig) Validate() error {
 	// Validate the Transport security.
 	if v := NewTransportSecurityFromString(c.TransportSecurity); !v.IsValid() {
 		return fmt.Errorf("invalid transport_security %q", v)
+	}
+
+	if c.GetTransportProtocol() == TransportProtocolQUIC && c.GetTransportSecurity() != TransportSecurityTLS {
+		return errors.New("quic requires tls")
 	}
 
 	return nil
@@ -142,21 +138,21 @@ func (c *ServerConfig) Validate() error {
 		}
 
 		// Check inbound ports for duplicates.
-		for p := port.InFrom; p <= port.InTo; p++ {
-			if inPortSet[p] {
+		for p := int(port.InFrom); p <= int(port.InTo); p++ {
+			if inPortSet[uint16(p)] {
 				return fmt.Errorf("duplicate in_port %d", p)
 			}
 
-			inPortSet[p] = true
+			inPortSet[uint16(p)] = true
 		}
 
 		// Check outbound ports for duplicates.
-		for p := port.OutFrom; p <= port.OutTo; p++ {
-			if outPortSet[p] {
+		for p := int(port.OutFrom); p <= int(port.OutTo); p++ {
+			if outPortSet[uint16(p)] {
 				return fmt.Errorf("duplicate out_port %d", p)
 			}
 
-			outPortSet[p] = true
+			outPortSet[uint16(p)] = true
 		}
 
 		// Check tags for duplicates.
@@ -251,41 +247,61 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 
 // DefaultServerConfig creates a default ServerConfig with predefined values.
 func DefaultServerConfig() *ServerConfig {
-	return &ServerConfig{
-		Inbounds: []*InboundServerConfig{
-			{
-				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
-				ProxyProtocol:     randomProxyProtocol(),
-				TransportProtocol: randomTransportProtocol(),
-				TransportSecurity: randomTransportSecurity(),
-			},
-			{
-				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
-				ProxyProtocol:     randomProxyProtocol(),
-				TransportProtocol: randomTransportProtocol(),
-				TransportSecurity: randomTransportSecurity(),
-			},
+	// Start with the two strongest inbounds (VLESS over TLS on WebSocket and on
+	// gRPC), then add three random ones.
+	inbounds := make([]*InboundServerConfig, 0, 5)
+	inbounds = append(inbounds,
+		&InboundServerConfig{
+			Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+			ProxyProtocol:     ProxyProtocolVLess.String(),
+			TransportProtocol: TransportProtocolWebSocket.String(),
+			TransportSecurity: TransportSecurityTLS.String(),
 		},
+		&InboundServerConfig{
+			Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+			ProxyProtocol:     ProxyProtocolVLess.String(),
+			TransportProtocol: TransportProtocolGRPC.String(),
+			TransportSecurity: TransportSecurityTLS.String(),
+		},
+	)
+
+	for range 3 {
+		inbounds = append(inbounds, randomInboundServerConfig())
+	}
+
+	return &ServerConfig{
+		Inbounds: inbounds,
+	}
+}
+
+// randomInboundServerConfig builds an inbound with a random proxy protocol and
+// transport, always secured with TLS.
+func randomInboundServerConfig() *InboundServerConfig {
+	return &InboundServerConfig{
+		Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+		ProxyProtocol:     randomProxyProtocol().String(),
+		TransportProtocol: randomTransportProtocol().String(),
+		TransportSecurity: TransportSecurityTLS.String(),
 	}
 }
 
 // randomProxyProtocol returns a random proxy protocol type (vless or vmess).
-func randomProxyProtocol() string {
-	return [...]string{
-		"vless", "vmess",
+func randomProxyProtocol() ProxyProtocol {
+	return [...]ProxyProtocol{
+		ProxyProtocolVLess,
+		ProxyProtocolVMess,
 	}[rand.IntN(2)]
 }
 
 // randomTransportProtocol returns a random transport protocol from available options.
-func randomTransportProtocol() string {
-	return [...]string{
-		"domainsocket", "gun", "grpc", "http", "mkcp", "quic", "tcp", "websocket",
-	}[rand.IntN(8)]
-}
-
-// randomTransportSecurity returns a random security configuration (none or tls).
-func randomTransportSecurity() string {
-	return [...]string{
-		"none", "tls",
-	}[rand.IntN(2)]
+func randomTransportProtocol() TransportProtocol {
+	return [...]TransportProtocol{
+		TransportProtocolGUN,
+		TransportProtocolGRPC,
+		TransportProtocolHTTP,
+		TransportProtocolMKCP,
+		TransportProtocolQUIC,
+		TransportProtocolTCP,
+		TransportProtocolWebSocket,
+	}[rand.IntN(7)]
 }

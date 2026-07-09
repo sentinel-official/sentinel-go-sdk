@@ -1,0 +1,38 @@
+[Interface]
+Address = {{ .Address }}
+ListenPort = {{ .InPort }}
+PrivateKey = {{ .PrivateKey }}
+Jc = {{ .Obfs.Jc }}
+Jmin = {{ .Obfs.Jmin }}
+Jmax = {{ .Obfs.Jmax }}
+S1 = {{ .Obfs.S1 }}
+S2 = {{ .Obfs.S2 }}
+S3 = {{ .Obfs.S3 }}
+S4 = {{ .Obfs.S4 }}
+H1 = {{ .Obfs.H1 }}
+H2 = {{ .Obfs.H2 }}
+H3 = {{ .Obfs.H3 }}
+H4 = {{ .Obfs.H4 }}
+{{- if .Obfs.I1 }}
+I1 = {{ .Obfs.I1 }}
+{{- end }}
+{{- if .Obfs.I2 }}
+I2 = {{ .Obfs.I2 }}
+{{- end }}
+{{- if .Obfs.I3 }}
+I3 = {{ .Obfs.I3 }}
+{{- end }}
+{{- if .Obfs.I4 }}
+I4 = {{ .Obfs.I4 }}
+{{- end }}
+{{- if .Obfs.I5 }}
+I5 = {{ .Obfs.I5 }}
+{{- end }}
+
+{{- range $rule := .PostDown }}
+PostDown = {{ $rule }}
+{{- end }}
+
+{{- range $rule := .PostUp }}
+PostUp = {{ $rule }}
+{{- end }}

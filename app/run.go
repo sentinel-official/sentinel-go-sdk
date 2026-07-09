@@ -38,10 +38,10 @@ func Run(ctx context.Context, buildRootCmd func(userDir string) *cobra.Command) 
 	// Execute the root command.
 	if err := cmd.ExecuteContext(ctx); err != nil {
 		isRunErr := utils.ErrorIs(err, ErrRun)
-		isShutdownErr := utils.ErrorIs(err, ErrShutdown)
+		isStopErr := utils.ErrorIs(err, ErrStop)
 
-		// If not already a RunError or ShutdownError, wrap as RunError.
-		if !isRunErr && !isShutdownErr {
+		// If not already a RunError or StopError, wrap as RunError.
+		if !isRunErr && !isStopErr {
 			err = NewErrRun(err)
 		}
 
@@ -51,8 +51,8 @@ func Run(ctx context.Context, buildRootCmd func(userDir string) *cobra.Command) 
 
 		// Print error if:
 		// - it wasn't a signal error (normal failure), OR
-		// - it was a shutdown error triggered by signal.
-		if !isSigErr || isShutdownErr {
+		// - it was a stop error triggered by signal.
+		if !isSigErr || isStopErr {
 			_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
 

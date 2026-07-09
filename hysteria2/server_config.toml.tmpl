@@ -1,0 +1,29 @@
+# Port for incoming client connections.
+# The UDP port the Hysteria2 server listens on for incoming QUIC connections from clients.
+# Allowed: Non-zero uint16
+# Example: 36712
+port = {{ .Port }}
+
+# Salamander obfuscation password for masking QUIC traffic.
+# Both the server and client must share this password; an empty value disables obfuscation.
+# Allowed: Any string, or empty to disable
+# Example: "a-strong-obfs-password"
+obfs_password = "{{ .ObfsPassword }}"
+
+# Loopback port for the SDK-hosted HTTP authentication backend.
+# Hysteria2 calls this local endpoint to validate each connecting client's credential.
+# Allowed: Non-zero uint16
+# Example: 8080
+auth_port = {{ .AuthPort }}
+
+# Loopback port for Hysteria2's Traffic Stats API.
+# Used by the service to collect per-user traffic usage and to kick disconnected peers.
+# Allowed: Non-zero uint16
+# Example: 8081
+stats_port = {{ .StatsPort }}
+
+# Authorization secret protecting the Traffic Stats API.
+# Sent as the Authorization header on every request to the Traffic Stats API.
+# Allowed: Any non-empty string
+# Example: "a-strong-stats-secret"
+stats_secret = "{{ .StatsSecret }}"

@@ -3,6 +3,7 @@ package wireguard
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -39,7 +40,7 @@ func NewServer(name, appDir string, cfg *ServerConfig) *Server {
 	return &Server{
 		Manager: process.NewManager(name),
 		cfg:     cfg,
-		device:  "wg0",
+		device:  defaultDevice,
 		homeDir: filepath.Join(appDir, "wireguard"),
 		peers:   safe.NewMap[string, Peer](),
 	}
@@ -57,6 +58,9 @@ func (s *Server) Type() types.ServiceType {
 	return types.ServiceTypeWireGuard
 }
 
+// Metadata returns the service metadata of the server.
+func (s *Server) Metadata() any { return s.metadata }
+
 // IsRunning checks if the WireGuard interface is up and active.
 func (s *Server) IsRunning() (bool, error) {
 	// Executes the 'wg show' command to check the interface status.
@@ -73,12 +77,12 @@ func (s *Server) IsRunning() (bool, error) {
 
 	// Run the command and handle errors.
 	if err := cmd.Run(); err != nil {
-		// Check if the error matches "No such device".
-		if strings.Contains(stderr.String(), "No such device") {
+		// Treat a missing interface or absent kernel module (userspace fallback) as not running.
+		if out := stderr.String(); strings.Contains(out, "No such device") || strings.Contains(out, "Protocol not supported") {
 			return false, nil
 		}
 
-		return false, fmt.Errorf("running command: %w", err)
+		return false, fmt.Errorf("running command: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
 
 	return true, nil
@@ -235,7 +239,7 @@ func (s *Server) Cleanup() error {
 }
 
 // AddPeer adds a new peer to the WireGuard server.
-func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interface{}, error) {
+func (s *Server) AddPeer(ctx context.Context, req any) (id string, resp any, err error) {
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {
@@ -247,7 +251,7 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	}
 
 	// Retrieve the identity from the request.
-	id := r.ID()
+	id = r.ID()
 
 	// Acquire addrs from the pool for the new peer.
 	addrs, err := s.pools.Acquire()
@@ -258,8 +262,8 @@ func (s *Server) AddPeer(ctx context.Context, req interface{}) (string, interfac
 	// Ensure addresses are released if peer addition fails.
 	defer func() {
 		if ok := s.peers.Exists(id); !ok {
-			if err := s.pools.Release(addrs); err != nil {
-				panic(fmt.Errorf("releasing peer %q addrs %v: %w", id, addrs, err))
+			if rErr := s.pools.Release(addrs); rErr != nil {
+				err = errors.Join(err, fmt.Errorf("releasing peer %q addrs %v: %w", id, addrs, rErr))
 			}
 		}
 	}()
@@ -391,8 +395,8 @@ func (s *Server) syncPeers(ctx context.Context) error {
 	}
 
 	// Split the command output into lines and process each line.
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(output), "\n")
+	for line := range lines {
 		columns := strings.Split(line, "\t")
 		if len(columns) != 3 {
 			continue

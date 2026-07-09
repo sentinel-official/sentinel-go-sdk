@@ -14,7 +14,7 @@ import (
 )
 
 // do performs an HTTP request with the given parameters and decodes the response.
-func (c *Client) do(ctx context.Context, method, url string, reqBody, result interface{}) error {
+func (c *Client) do(ctx context.Context, method, url string, reqBody, result any) error {
 	// Create a context with timeout for the HTTP request.
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()

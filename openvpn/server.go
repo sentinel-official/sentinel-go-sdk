@@ -55,6 +55,9 @@ func (s *Server) Type() types.ServiceType {
 	return types.ServiceTypeOpenVPN
 }
 
+// Metadata returns the service metadata of the server.
+func (s *Server) Metadata() any { return s.metadata }
+
 // IsRunning checks if the OpenVPN server process is running.
 func (s *Server) IsRunning() (bool, error) {
 	// Read PID from file.
@@ -212,6 +215,9 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 
 		// Write PID to file.
 		if err := s.writePID(s.cmd.Process.Pid); err != nil {
+			_ = s.cmd.Process.Kill()
+			_ = s.cmd.Wait()
+
 			return fmt.Errorf("writing PID: %w", err)
 		}
 
@@ -234,7 +240,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 					// Check if server is up before syncing peers.
 					ok, err := s.IsRunning()
 					if err != nil {
-						return fmt.Errorf("checking serivce status: %w", err)
+						return fmt.Errorf("checking service status: %w", err)
 					}
 
 					if !ok {
@@ -310,7 +316,7 @@ func (s *Server) Cleanup() error {
 }
 
 // AddPeer creates and registers a new VPN peer by issuing a new certificate.
-func (s *Server) AddPeer(_ context.Context, req interface{}) (string, interface{}, error) {
+func (s *Server) AddPeer(_ context.Context, req any) (string, any, error) {
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {
@@ -568,18 +574,20 @@ func (s *Server) syncPeers(ctx context.Context) error {
 
 		rxBytes, err := strconv.ParseInt(fields[5], 10, 64)
 		if err != nil {
-			return fmt.Errorf("parsing peer %q uplink bytes %q: %w", id, fields[5], err)
+			continue
 		}
 
 		txBytes, err := strconv.ParseInt(fields[6], 10, 64)
 		if err != nil {
-			return fmt.Errorf("parsing peer %q downlink bytes %q: %w", id, fields[6], err)
+			continue
 		}
 
-		createdAt, err := time.Parse(time.DateTime, fields[7])
+		sec, err := strconv.ParseInt(fields[8], 10, 64)
 		if err != nil {
-			return fmt.Errorf("parsing peer %q created at %q: %w", id, fields[7], err)
+			continue
 		}
+
+		createdAt := time.Unix(sec, 0)
 
 		now := time.Now()
 

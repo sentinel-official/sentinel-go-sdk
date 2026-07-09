@@ -1,0 +1,26 @@
+client
+dev {{ .TUNIface }}
+dev-type tun
+proto {{ .Protocol }}
+remote {{ .Addr }} {{ .Port }}
+nobind
+ca "{{ filepathJoin .PKIDir "ca.crt" }}"
+cert "{{ filepathJoin .PKIDir "client.crt" }}"
+key "{{ filepathJoin .PKIDir "client.key" }}"
+tls-crypt "{{ filepathJoin .PKIDir "tls.key" }}"
+auth-nocache
+auth SHA256
+data-ciphers AES-256-GCM:AES-128-GCM
+data-ciphers-fallback AES-256-GCM
+tls-cipher TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384
+tls-client
+tls-version-min 1.2
+remote-cert-tls server
+redirect-gateway def1 ipv6 bypass-dhcp
+topology subnet
+{{- if eq .Protocol "udp" }}
+explicit-exit-notify 1
+{{- end }}
+persist-key
+persist-tun
+management 127.0.0.1 2323

@@ -174,11 +174,7 @@ func encodeHex(w io.Writer, b *pem.Block) error {
 
 	// Write hex data in lines
 	for i := 0; i < len(hexData); i += hexLineLen {
-		end := i + hexLineLen
-		if end > len(hexData) {
-			end = len(hexData)
-		}
-
+		end := min(i+hexLineLen, len(hexData))
 		if _, err := w.Write(hexData[i:end]); err != nil {
 			return fmt.Errorf("writing PEM hex data: %w", err)
 		}
@@ -232,6 +228,7 @@ func decodeHex(data []byte) (*pem.Block, []byte) {
 
 	// Gather all hex data lines, excluding END marker
 	var hexBuffer []byte
+
 	for _, line := range lines[1:] {
 		if bytes.HasPrefix(line, []byte(endMarker)) {
 			break

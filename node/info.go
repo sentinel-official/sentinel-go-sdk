@@ -12,15 +12,16 @@ import (
 
 // GetInfoResult represents metadata about a node.
 type GetInfoResult struct {
-	Addr         string          `json:"addr"`          // Node address in Bech32 encoding.
-	Downlink     string          `json:"downlink"`      // Download capacity from server to client (bytes per second).
-	HandshakeDNS bool            `json:"handshake_dns"` // Whether the node supports Handshake (HNS) DNS resolution.
-	Location     *geoip.Location `json:"location"`      // Geographical location of the node.
-	Moniker      string          `json:"moniker"`       // Human-readable name of the node.
-	Peers        int             `json:"peers"`         // Number of connected peers.
-	ServiceType  string          `json:"service_type"`  // Node service type (e.g., V2Ray, WireGuard, OpenVPN).
-	Uplink       string          `json:"uplink"`        // Upload capacity from client to server (bytes per second).
-	Version      *version.Info   `json:"version"`       // Node software version information.
+	Addr            string          `json:"addr"`             // Node address in Bech32 encoding.
+	Downlink        string          `json:"downlink"`         // Download capacity from server to client (bytes per second).
+	HandshakeDNS    bool            `json:"handshake_dns"`    // Whether the node supports Handshake (HNS) DNS resolution.
+	Location        *geoip.Location `json:"location"`         // Geographical location of the node.
+	Moniker         string          `json:"moniker"`          // Human-readable name of the node.
+	Peers           int             `json:"peers"`            // Number of connected peers.
+	ServiceType     string          `json:"service_type"`     // Node service type (e.g., V2Ray, WireGuard, OpenVPN).
+	ServiceMetadata any             `json:"service_metadata"` // Node service metadata
+	Uplink          string          `json:"uplink"`           // Upload capacity from client to server (bytes per second).
+	Version         *version.Info   `json:"version"`          // Node software version information.
 }
 
 // GetServiceType returns the node's service type by converting the ServiceType string into a ServiceType enum.

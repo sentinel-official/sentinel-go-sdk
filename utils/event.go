@@ -10,7 +10,7 @@ import (
 )
 
 // getEventName determines the event name by checking if name is a string or a proto.Message.
-func getEventName(t interface{}) (string, error) {
+func getEventName(t any) (string, error) {
 	switch v := t.(type) {
 	case string:
 		return v, nil
@@ -22,7 +22,7 @@ func getEventName(t interface{}) (string, error) {
 }
 
 // EventFromEvents searches through a list of events and returns the first event that matches the given name.
-func EventFromEvents(items []types.Event, t interface{}) (*types.Event, error) {
+func EventFromEvents(items []types.Event, t any) (*types.Event, error) {
 	// Retrieve the event name
 	name, err := getEventName(t)
 	if err != nil {
@@ -50,7 +50,7 @@ func AttributeValueFromEvent(item *types.Event, key string) (string, error) {
 }
 
 // AttributeValueFromEvents retrieves an attribute's value from a list of events.
-func AttributeValueFromEvents(items []types.Event, t interface{}, key string) (string, error) {
+func AttributeValueFromEvents(items []types.Event, t any, key string) (string, error) {
 	// Find the event with the given type
 	event, err := EventFromEvents(items, t)
 	if err != nil {
@@ -67,7 +67,7 @@ func AttributeValueFromEvents(items []types.Event, t interface{}, key string) (s
 }
 
 // SessionIDFromEvents extracts the "session_id" attribute from an event of the given type in a list of events.
-func SessionIDFromEvents(items []types.Event, t interface{}) (uint64, error) {
+func SessionIDFromEvents(items []types.Event, t any) (uint64, error) {
 	key := "session_id"
 
 	// Retrieve the "id" attribute from the specified event type

@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -15,11 +16,13 @@ import (
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
+var hostRegex = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*$`)
+
 // PeerClientConfig represents the configuration for a single WireGuard peer.
 type PeerClientConfig struct {
 	Addr                string   `mapstructure:"addr"`                 // Addr specifies the IP address or hostname of the peer.
 	AllowAddrs          []string `mapstructure:"allow_addrs"`          // AllowAddrs defines the IP ranges (CIDR notation) that are allowed through this peer.
-	PersistentKeepalive uint     `mapstructure:"persistent_keepalive"` // PersistentKeepalive defines the interval (in seconds).
+	PersistentKeepalive uint16   `mapstructure:"persistent_keepalive"` // PersistentKeepalive defines the interval (in seconds).
 	Port                uint16   `mapstructure:"port"`                 // Port is the listening port of the peer.
 	PublicKey           string   `mapstructure:"public_key"`           // PublicKey is the WireGuard public key for this peer.
 }
@@ -34,6 +37,10 @@ func (c *PeerClientConfig) Validate() error {
 	// Ensure that Addr is not empty.
 	if c.Addr == "" {
 		return errors.New("addr is empty")
+	}
+
+	if net.ParseIP(c.Addr) == nil && !hostRegex.MatchString(c.Addr) {
+		return fmt.Errorf("invalid addr %q", c.Addr)
 	}
 
 	// Validate AllowAddrs (must be in CIDR notation)
@@ -70,7 +77,7 @@ func DefaultPeerClientConfig() *PeerClientConfig {
 	return &PeerClientConfig{
 		Addr:                "",
 		AllowAddrs:          []string{"0.0.0.0/0", "::/0"},
-		PersistentKeepalive: 30,
+		PersistentKeepalive: 25,
 		Port:                0,
 		PublicKey:           "",
 	}
@@ -163,9 +170,9 @@ func (c *ClientConfig) Validate() error {
 		return errors.New("MTU is zero")
 	}
 
-	// Ensure Name is not empty.
-	if c.Name == "" {
-		return errors.New("name is empty")
+	// Ensure Name is a valid interface name (rejects shell metacharacters).
+	if !utils.IsValidInterfaceName(c.Name) {
+		return fmt.Errorf("invalid name %q", c.Name)
 	}
 
 	// Validate Peer (must be non-empty and a valid PeerClientConfig).
@@ -270,7 +277,7 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 	fs.Uint16Var(&c.MTU, prefix+"mtu", c.MTU, "maximum transmission unit size for the wireguard interface")
 	fs.StringVar(&c.Name, prefix+"name", c.Name, "name of the wireguard network interface")
 	fs.StringArrayVar(&c.Peer.AllowAddrs, prefix+"peer.allow-addrs", c.Peer.AllowAddrs, "list of allowed ip addresses to route through wireguard peer")
-	fs.UintVar(&c.Peer.PersistentKeepalive, prefix+"peer.persistent-keepalive", c.Peer.PersistentKeepalive, "interval for keepalive packets to maintain connection")
+	fs.Uint16Var(&c.Peer.PersistentKeepalive, prefix+"peer.persistent-keepalive", c.Peer.PersistentKeepalive, "interval for keepalive packets to maintain connection")
 	fs.Uint16Var(&c.Port, prefix+"port", c.Port, "port number for the wireguard interface")
 
 	// Initialize Viper if it hasn't been already.
@@ -300,7 +307,7 @@ func DefaultClientConfig() *ClientConfig {
 		DNSAddrs:     []string{"208.67.222.222", "208.67.220.220", "2620:119:35::35", "2620:119:53::53"},
 		ExcludeAddrs: []string{"127.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12", "10.0.0.0/8", "::1/128", "fe80::/10", "fd00::/8"},
 		MTU:          1420,
-		Name:         "wg0",
+		Name:         defaultDevice,
 		Peer:         DefaultPeerClientConfig(),
 		Port:         utils.RandomPort(),
 		PrivateKey:   privateKey.String(),
