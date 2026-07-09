@@ -114,7 +114,7 @@ func (c *ServerConfig) Validate() error {
 	// Validate IPv6Addr if provided.
 	if c.IPv6Addr != "" {
 		if _, err := netip.NewPrefix(c.IPv6Addr); err != nil {
-			return fmt.Errorf("parsing ipv6_addr %q: %w", c.IPv4Addr, err)
+			return fmt.Errorf("parsing ipv6_addr %q: %w", c.IPv6Addr, err)
 		}
 	}
 

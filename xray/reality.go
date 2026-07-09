@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
+	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
 
 // Default Reality configuration values.
@@ -70,6 +72,13 @@ func (c *Reality) Validate() error {
 	// Ensure PublicKey is not empty.
 	if c.PublicKey == "" {
 		return errors.New("public_key is empty")
+	}
+
+	// Reject values that could break out of a JSON string literal in the config.
+	for _, v := range append([]string{c.Dest}, c.ServerNames...) {
+		if utils.HasJSONUnsafeChars(v) {
+			return fmt.Errorf("field contains unsafe characters: %q", v)
+		}
 	}
 
 	return nil

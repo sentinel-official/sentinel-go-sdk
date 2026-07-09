@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 const (
@@ -50,7 +51,7 @@ type Obfs struct {
 	I5 string `mapstructure:"i5"` // I5 is the fifth custom protocol signature string.
 
 	// Per-peer flag.
-	AdvancedSecurity bool `mapstructure:"advanced_security"` // AdvancedSecurity enables additional handshake protection.
+	AdvancedSecurity bool `mapstructure:"advanced_security"` // AdvancedSecurity enables additional handshake protection (kernel-module only).
 }
 
 // randUint32 returns a cryptographically random uint32.
@@ -177,7 +178,7 @@ func (o *Obfs) Generate() error {
 //   - Jmin and Jmax: 64–1024; Jmin < Jmax.
 //   - S1, S2, S3: 0–64; S4: 0–32.
 //   - H1–H4: distinct and each > 4.
-//   - I1–I5: optional strings, no numeric constraints.
+//   - I1–I5: optional strings, free of control characters and shell metacharacters.
 func (o *Obfs) Validate() error {
 	// Validate Jc.
 	if o.Jc > obfsJcMax {
@@ -230,6 +231,14 @@ func (o *Obfs) Validate() error {
 		}
 
 		seen[h] = true
+	}
+
+	for i, s := range [5]string{o.I1, o.I2, o.I3, o.I4, o.I5} {
+		for _, r := range s {
+			if r < 0x20 || r == 0x7f || strings.ContainsRune("\"'`$;\\", r) {
+				return fmt.Errorf("i%d contains an unsafe character", i+1)
+			}
+		}
 	}
 
 	return nil

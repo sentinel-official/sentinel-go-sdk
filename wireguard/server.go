@@ -3,6 +3,7 @@ package wireguard
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -238,7 +239,7 @@ func (s *Server) Cleanup() error {
 }
 
 // AddPeer adds a new peer to the WireGuard server.
-func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
+func (s *Server) AddPeer(ctx context.Context, req any) (id string, resp any, err error) {
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {
@@ -250,7 +251,7 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 	}
 
 	// Retrieve the identity from the request.
-	id := r.ID()
+	id = r.ID()
 
 	// Acquire addrs from the pool for the new peer.
 	addrs, err := s.pools.Acquire()
@@ -261,8 +262,8 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 	// Ensure addresses are released if peer addition fails.
 	defer func() {
 		if ok := s.peers.Exists(id); !ok {
-			if err := s.pools.Release(addrs); err != nil {
-				panic(fmt.Errorf("releasing peer %q addrs %v: %w", id, addrs, err))
+			if rErr := s.pools.Release(addrs); rErr != nil {
+				err = errors.Join(err, fmt.Errorf("releasing peer %q addrs %v: %w", id, addrs, rErr))
 			}
 		}
 	}()

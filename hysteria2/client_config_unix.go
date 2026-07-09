@@ -3,8 +3,6 @@
 package hysteria2
 
 import (
-	"context"
-	"fmt"
 	"net"
 )
 
@@ -49,19 +47,11 @@ func (c *ClientConfig) firewallRules(acceptAction, dropAction string, ips []net.
 }
 
 // PostUp generates the iptables kill-switch rules to install after the client starts.
-func (c *ClientConfig) PostUp(ctx context.Context) ([][]string, error) {
-	ips, err := c.serverIPs(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("resolving server ips: %w", err)
-	}
-
-	return c.firewallRules("-I", "-A", ips), nil
+func (c *ClientConfig) PostUp() [][]string {
+	return c.firewallRules("-I", "-A", c.resolvedServerIPs)
 }
 
-// PreDown generates the iptables rules to remove the kill-switch. Server-IP
-// resolution is best-effort so teardown always proceeds.
-func (c *ClientConfig) PreDown(ctx context.Context) ([][]string, error) {
-	ips, _ := c.serverIPs(ctx)
-
-	return c.firewallRules("-D", "-D", ips), nil
+// PreDown generates the iptables rules to remove the kill-switch.
+func (c *ClientConfig) PreDown() [][]string {
+	return c.firewallRules("-D", "-D", c.resolvedServerIPs)
 }

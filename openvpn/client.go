@@ -31,7 +31,8 @@ type Client struct {
 	cfg     *ClientConfig // Configuration settings for the service.
 	homeDir string        // Home directory of the service.
 
-	cmd *exec.Cmd // Command to run the OpenVPN client.
+	cmd      *exec.Cmd  // Command to run the OpenVPN client.
+	firewall [][]string // Cached kill-switch rules applied at PostUp, deleted verbatim at teardown.
 }
 
 // NewClient creates a new Client instance.
@@ -202,6 +203,9 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 
 		// Write PID to file.
 		if err := c.writePID(c.cmd.Process.Pid); err != nil {
+			_ = c.cmd.Process.Kill()
+			_ = c.cmd.Wait()
+
 			return fmt.Errorf("writing PID: %w", err)
 		}
 

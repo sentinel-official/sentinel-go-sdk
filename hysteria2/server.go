@@ -225,6 +225,8 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 
 		// Write PID to file.
 		if err := s.writePID(s.cmd.Process.Pid); err != nil {
+			_ = s.cmd.Process.Kill()
+			_ = s.cmd.Wait()
 			_ = authListener.Close()
 
 			return fmt.Errorf("writing PID: %w", err)

@@ -18,7 +18,7 @@ masquerade:
 {{- if .MasqueradeURL }}
   type: proxy
   proxy:
-    url: {{ .MasqueradeURL }}
+    url: "{{ .MasqueradeURL }}"
     rewriteHost: true
 {{- else }}
   type: string

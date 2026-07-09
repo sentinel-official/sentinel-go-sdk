@@ -214,9 +214,12 @@ func (c *ClientConfig) Validate() error {
 		return fmt.Errorf("validating API config: %w", err)
 	}
 
-	// Ensure the ID is not empty.
-	if c.ID == "" {
-		return errors.New("id is empty")
+	if _, err := uuid.Parse(c.ID); err != nil {
+		return fmt.Errorf("parsing id %q: %w", c.ID, err)
+	}
+
+	if len(c.Outbounds) == 0 {
+		return errors.New("outbounds are empty")
 	}
 
 	// Validate each outbound client configuration.

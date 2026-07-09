@@ -139,6 +139,10 @@ func (c *Client) Setup(ctx context.Context) error {
 			return fmt.Errorf("validating config: %w", err)
 		}
 
+		if err := c.cfg.resolveServerIPs(ctx); err != nil {
+			return fmt.Errorf("resolving server ips: %w", err)
+		}
+
 		// Write configuration to file.
 		cfgFile = c.serviceConfigFile()
 		if err := c.cfg.WriteServiceConfig(cfgFile); err != nil {
@@ -167,6 +171,9 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 
 		// Write PID to file.
 		if err := c.writePID(c.cmd.Process.Pid); err != nil {
+			_ = c.cmd.Process.Kill()
+			_ = c.cmd.Wait()
+
 			return fmt.Errorf("writing PID: %w", err)
 		}
 

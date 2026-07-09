@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -14,6 +15,8 @@ import (
 
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
 )
+
+var hostRegex = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*$`)
 
 // PeerClientConfig represents the configuration for a single WireGuard peer.
 type PeerClientConfig struct {
@@ -34,6 +37,10 @@ func (c *PeerClientConfig) Validate() error {
 	// Ensure that Addr is not empty.
 	if c.Addr == "" {
 		return errors.New("addr is empty")
+	}
+
+	if net.ParseIP(c.Addr) == nil && !hostRegex.MatchString(c.Addr) {
+		return fmt.Errorf("invalid addr %q", c.Addr)
 	}
 
 	// Validate AllowAddrs (must be in CIDR notation)

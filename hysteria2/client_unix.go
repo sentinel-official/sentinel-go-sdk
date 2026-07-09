@@ -18,10 +18,7 @@ func (c *Client) execFile(name string) string {
 
 // applyFirewall installs the kill-switch iptables rules for the client.
 func (c *Client) applyFirewall(ctx context.Context) error {
-	rules, err := c.cfg.PostUp(ctx)
-	if err != nil {
-		return fmt.Errorf("building firewall rules: %w", err)
-	}
+	rules := c.cfg.PostUp()
 
 	for _, rule := range rules {
 		cmd := exec.CommandContext(ctx, rule[0], rule[1:]...)
@@ -41,10 +38,7 @@ func (c *Client) applyFirewall(ctx context.Context) error {
 // removeFirewall removes the kill-switch iptables rules for the client.
 // Teardown is best-effort: individual delete failures are ignored.
 func (c *Client) removeFirewall(ctx context.Context) error {
-	rules, err := c.cfg.PreDown(ctx)
-	if err != nil {
-		return fmt.Errorf("building firewall rules: %w", err)
-	}
+	rules := c.cfg.PreDown()
 
 	for _, rule := range rules {
 		cmd := exec.CommandContext(ctx, rule[0], rule[1:]...)

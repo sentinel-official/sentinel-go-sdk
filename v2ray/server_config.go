@@ -93,6 +93,10 @@ func (c *InboundServerConfig) Validate() error {
 		return fmt.Errorf("invalid transport_security %q", v)
 	}
 
+	if c.GetTransportProtocol() == TransportProtocolQUIC && c.GetTransportSecurity() != TransportSecurityTLS {
+		return errors.New("quic requires tls")
+	}
+
 	return nil
 }
 
@@ -134,21 +138,21 @@ func (c *ServerConfig) Validate() error {
 		}
 
 		// Check inbound ports for duplicates.
-		for p := port.InFrom; p <= port.InTo; p++ {
-			if inPortSet[p] {
+		for p := int(port.InFrom); p <= int(port.InTo); p++ {
+			if inPortSet[uint16(p)] {
 				return fmt.Errorf("duplicate in_port %d", p)
 			}
 
-			inPortSet[p] = true
+			inPortSet[uint16(p)] = true
 		}
 
 		// Check outbound ports for duplicates.
-		for p := port.OutFrom; p <= port.OutTo; p++ {
-			if outPortSet[p] {
+		for p := int(port.OutFrom); p <= int(port.OutTo); p++ {
+			if outPortSet[uint16(p)] {
 				return fmt.Errorf("duplicate out_port %d", p)
 			}
 
-			outPortSet[p] = true
+			outPortSet[uint16(p)] = true
 		}
 
 		// Check tags for duplicates.

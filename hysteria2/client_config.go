@@ -2,12 +2,16 @@ package hysteria2
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
 	"net/netip"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/spf13/pflag"
@@ -19,6 +23,8 @@ import (
 // ClientConfig represents the Hysteria2 client configuration options.
 type ClientConfig struct {
 	viper *viper.Viper `mapstructure:"-"`
+
+	resolvedServerIPs []net.IP `mapstructure:"-"`
 
 	ServerAddr   string   `mapstructure:"server_addr"`   // ServerAddr is the server address (host:port).
 	Auth         string   `mapstructure:"auth"`          // Auth is the UUID used to authenticate with the server.
@@ -103,8 +109,7 @@ func (c *ClientConfig) GetExcludeIPv6Addrs() []string { return ipv6Prefixes(c.Ex
 func (c *ClientConfig) GetRouteExcludeIPv4Addrs() []string {
 	addrs := c.GetExcludeIPv4Addrs()
 
-	ips, _ := c.serverIPs(context.Background())
-	for _, ip := range ips {
+	for _, ip := range c.resolvedServerIPs {
 		if ip.To4() != nil {
 			addrs = append(addrs, ip.String()+"/32")
 		}
@@ -118,14 +123,24 @@ func (c *ClientConfig) GetRouteExcludeIPv4Addrs() []string {
 func (c *ClientConfig) GetRouteExcludeIPv6Addrs() []string {
 	addrs := c.GetExcludeIPv6Addrs()
 
-	ips, _ := c.serverIPs(context.Background())
-	for _, ip := range ips {
+	for _, ip := range c.resolvedServerIPs {
 		if ip.To4() == nil && ip.To16() != nil {
 			addrs = append(addrs, ip.String()+"/128")
 		}
 	}
 
 	return addrs
+}
+
+func isValidTLSPin(s string) bool {
+	s = strings.ReplaceAll(s, ":", "")
+	if len(s) != hex.EncodedLen(sha256.Size) {
+		return false
+	}
+
+	_, err := hex.DecodeString(s)
+
+	return err == nil
 }
 
 // Validate validates the ClientConfig fields.
@@ -135,14 +150,39 @@ func (c *ClientConfig) Validate() error {
 		return errors.New("server_addr is empty")
 	}
 
+	if utils.HasJSONUnsafeChars(c.ServerAddr) {
+		return fmt.Errorf("invalid server_addr %q", c.ServerAddr)
+	}
+
+	host, port, err := net.SplitHostPort(c.ServerAddr)
+	if err != nil {
+		return fmt.Errorf("parsing server_addr %q: %w", c.ServerAddr, err)
+	}
+
+	if host == "" {
+		return errors.New("server_addr host is empty")
+	}
+
+	if _, err := strconv.ParseUint(port, 10, 16); err != nil {
+		return fmt.Errorf("parsing server_addr port %q: %w", port, err)
+	}
+
 	// Ensure Auth is not empty.
 	if c.Auth == "" {
 		return errors.New("auth is empty")
 	}
 
+	if utils.HasJSONUnsafeChars(c.Auth) {
+		return errors.New("auth contains unsafe characters")
+	}
+
 	// Ensure TLSPin is not empty.
 	if c.TLSPin == "" {
 		return errors.New("tls_pin is empty")
+	}
+
+	if !isValidTLSPin(c.TLSPin) {
+		return fmt.Errorf("invalid tls_pin %q", c.TLSPin)
 	}
 
 	// Ensure TUNIface is not empty.
@@ -181,6 +221,10 @@ func (c *ClientConfig) Validate() error {
 		if net.ParseIP(addr) == nil {
 			return fmt.Errorf("invalid DNS addr: parsing DNS addr %q", addr)
 		}
+	}
+
+	if utils.HasJSONUnsafeChars(c.ObfsPassword) {
+		return errors.New("obfs_password contains unsafe characters")
 	}
 
 	// Validate MTU (must be a non-zero value).
@@ -307,6 +351,20 @@ func (c *ClientConfig) serverIPs(ctx context.Context) ([]net.IP, error) {
 	}
 
 	return ips, nil
+}
+
+func (c *ClientConfig) resolveServerIPs(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	ips, err := c.serverIPs(ctx)
+	if err != nil {
+		return fmt.Errorf("resolving server ips: %w", err)
+	}
+
+	c.resolvedServerIPs = ips
+
+	return nil
 }
 
 // DefaultClientConfig creates a default ClientConfig with predefined values.

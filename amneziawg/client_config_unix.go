@@ -4,10 +4,25 @@ package amneziawg
 
 import (
 	"fmt"
+	"net/netip"
 )
+
+func (c *ClientConfig) hasDefaultRoute() bool {
+	for _, addr := range c.Peer.AllowAddrs {
+		if prefix, err := netip.ParsePrefix(addr); err == nil && prefix.Bits() == 0 {
+			return true
+		}
+	}
+
+	return false
+}
 
 // PostUp generates PostUp rules for IPv4 and IPv6 settings.
 func (c *ClientConfig) PostUp() []string {
+	if !c.hasDefaultRoute() {
+		return nil
+	}
+
 	// Get the list of excluded IP addresses.
 	addrs := c.GetExcludeAddrs()
 	matchRule := fmt.Sprintf("! -o %s -m mark ! --mark $(awg show %s fwmark)", c.Name, c.Name)
@@ -32,6 +47,10 @@ func (c *ClientConfig) PostUp() []string {
 
 // PreDown generates PreDown rules to remove the PostUp rules for IPv4 and IPv6.
 func (c *ClientConfig) PreDown() []string {
+	if !c.hasDefaultRoute() {
+		return nil
+	}
+
 	// Get the list of excluded IP addresses.
 	addrs := c.GetExcludeAddrs()
 	matchRule := fmt.Sprintf("! -o %s -m mark ! --mark $(awg show %s fwmark)", c.Name, c.Name)

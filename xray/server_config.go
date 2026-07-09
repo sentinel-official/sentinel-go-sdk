@@ -132,8 +132,22 @@ func (c *InboundServerConfig) Validate() error {
 			return errors.New("reality is nil")
 		}
 
+		if t := c.GetTransportProtocol(); t != TransportProtocolTCP &&
+			t != TransportProtocolGRPC &&
+			t != TransportProtocolXHTTP {
+			return fmt.Errorf("reality is not supported over transport_protocol %q", c.TransportProtocol)
+		}
+
 		if err := c.Reality.Validate(); err != nil {
 			return fmt.Errorf("validating reality: %w", err)
+		}
+	}
+
+	if c.GetFlow() == FlowVision {
+		if c.GetProxyProtocol() != ProxyProtocolVLess ||
+			c.GetTransportProtocol() != TransportProtocolTCP ||
+			(c.GetTransportSecurity() != TransportSecurityTLS && c.GetTransportSecurity() != TransportSecurityReality) {
+			return fmt.Errorf("flow %q is only supported for vless over tcp with tls or reality", c.Flow)
 		}
 	}
 
@@ -178,21 +192,21 @@ func (c *ServerConfig) Validate() error {
 		}
 
 		// Check inbound ports for duplicates.
-		for p := port.InFrom; p <= port.InTo; p++ {
-			if inPortSet[p] {
+		for p := int(port.InFrom); p <= int(port.InTo); p++ {
+			if inPortSet[uint16(p)] {
 				return fmt.Errorf("duplicate in_port %d", p)
 			}
 
-			inPortSet[p] = true
+			inPortSet[uint16(p)] = true
 		}
 
 		// Check outbound ports for duplicates.
-		for p := port.OutFrom; p <= port.OutTo; p++ {
-			if outPortSet[p] {
+		for p := int(port.OutFrom); p <= int(port.OutTo); p++ {
+			if outPortSet[uint16(p)] {
 				return fmt.Errorf("duplicate out_port %d", p)
 			}
 
-			outPortSet[p] = true
+			outPortSet[uint16(p)] = true
 		}
 
 		// Check tags for duplicates.

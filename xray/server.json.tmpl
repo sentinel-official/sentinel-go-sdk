@@ -53,7 +53,6 @@
                 {{- if eq $inbound.TransportSecurity "reality" }},
                 "realitySettings": {
                     "dest": "{{ $inbound.Reality.Dest }}",
-                    "fingerprint": "{{ $inbound.Reality.Fingerprint }}",
                     "privateKey": "{{ $inbound.Reality.PrivateKey }}",
                     "serverNames": [
                         {{- range $i, $name := $inbound.Reality.ServerNames }}

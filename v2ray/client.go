@@ -88,7 +88,7 @@ func (c *Client) IsRunning() (bool, error) {
 		return false, fmt.Errorf("getting process name: %w", err)
 	}
 
-	if name != v2ray {
+	if strings.TrimSuffix(name, ".exe") != v2ray {
 		return false, nil
 	}
 

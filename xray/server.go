@@ -102,7 +102,7 @@ func (s *Server) IsRunning() (bool, error) {
 		return false, fmt.Errorf("getting process name: %w", err)
 	}
 
-	if name != xray {
+	if strings.TrimSuffix(name, ".exe") != xray {
 		return false, nil
 	}
 
@@ -395,11 +395,20 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 
 	defer release()
 
+	var added []string
+
 	for tag, p := range s.proxies {
 		acctType, acctValue := p.Protocol.Account(r.UUID, p.Flow)
 		if err := proxycmd.AddUser(ctx, conn, dialect, tag, id, acctType, acctValue); err != nil {
+			// Roll back the users already added on earlier inbounds.
+			for _, t := range added {
+				_ = proxycmd.RemoveUser(ctx, conn, dialect, t, id)
+			}
+
 			return "", nil, fmt.Errorf("altering peer %q inbound: %w", id, err)
 		}
+
+		added = append(added, tag)
 	}
 
 	// Save the peer details in the local peers map.
