@@ -1,0 +1,52 @@
+# Specifies the IPv4 address block for routing and networking.
+# Used to define the network range that clients will be assigned addresses from for VPN connectivity.
+# Allowed: Valid IPv4 CIDR notation
+# Example: "10.0.0.1/24"
+ipv4_addr = "{{ .IPv4Addr }}"
+
+# Specifies the IPv6 address block for routing and networking.
+# Used to define the IPv6 network range that clients will be assigned addresses from for VPN connectivity.
+# Allowed: Valid IPv6 CIDR notation
+# Example: "fd00::/64"
+ipv6_addr = "{{ .IPv6Addr }}"
+
+# Specifies the outbound network interface for NAT and routing.
+# Defines which network interface the VPN traffic should be routed through for internet access.
+# Allowed: Valid network interface name
+# Example: "eth0"
+out_interface = "{{ .OutInterface }}"
+
+# Port for incoming connections as a single port number or "in_port:out_port" mapping format.
+# The mapping format allows the VPN service to run internally on in_port while being available to clients on out_port.
+# Typically, UDP for AmneziaWG protocol.
+# Allowed: Single port or port mapping format
+# Example: "51820" or "51820:51820"
+port = "{{ .Port }}"
+
+# Specifies the private key for AmneziaWG encryption.
+# The cryptographic private key used for establishing secure connections with clients.
+# Allowed: Valid AmneziaWG private key
+# Example: "AMuDADXXc5S1b8J6wxKhX29AiNKgNej6k6/Ol+Fof0g="
+private_key = "{{ .PrivateKey }}"
+
+# AmneziaWG obfuscation parameters.
+# Handshake-affecting parameters (S1–S4, H1–H4, I1–I5) must match on both server and client.
+# Local-only junk parameters (Jc, Jmin, Jmax) need not match the remote peer.
+[obfs]
+jc = {{ .Obfs.Jc }}
+jmin = {{ .Obfs.Jmin }}
+jmax = {{ .Obfs.Jmax }}
+s1 = {{ .Obfs.S1 }}
+s2 = {{ .Obfs.S2 }}
+s3 = {{ .Obfs.S3 }}
+s4 = {{ .Obfs.S4 }}
+h1 = {{ .Obfs.H1 }}
+h2 = {{ .Obfs.H2 }}
+h3 = {{ .Obfs.H3 }}
+h4 = {{ .Obfs.H4 }}
+i1 = "{{ .Obfs.I1 }}"
+i2 = "{{ .Obfs.I2 }}"
+i3 = "{{ .Obfs.I3 }}"
+i4 = "{{ .Obfs.I4 }}"
+i5 = "{{ .Obfs.I5 }}"
+advanced_security = {{ .Obfs.AdvancedSecurity }}

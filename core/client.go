@@ -46,6 +46,7 @@ type Client struct {
 	txTimeoutHeight          uint64                    // Transaction timeout height
 
 	sealed bool
+	http   *http.HTTP // Cached RPC client reused across calls; rebuilt when the RPC address changes
 
 	fm sync.RWMutex
 }
@@ -104,11 +105,16 @@ func (c *Client) Seal() *Client {
 	return c
 }
 
-// HTTP creates an HTTP client for the given RPC address and timeout configuration.
-// Returns the HTTP client or an error if initialization fails.
+// HTTP returns the RPC client for the configured RPC address, creating and caching it on first use.
+// The cached client is reused by subsequent calls and is rebuilt only when the RPC address changes.
 func (c *Client) HTTP() (*http.HTTP, error) {
-	c.fm.RLock()
-	defer c.fm.RUnlock()
+	c.fm.Lock()
+	defer c.fm.Unlock()
+
+	// Return the cached client if it has already been created
+	if c.http != nil {
+		return c.http, nil
+	}
 
 	// Create an HTTP client with the specified headers and timeout
 	httpClient := newHTTPClient(c.rpcHeaders, c.rpcTimeout)
@@ -118,6 +124,9 @@ func (c *Client) HTTP() (*http.HTTP, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating RPC client: %w", err)
 	}
+
+	// Cache the client for reuse by subsequent calls
+	c.http = v
 
 	return v, nil
 }
@@ -151,7 +160,15 @@ func (c *Client) SetRPCAddr(addr string) {
 	c.fm.Lock()
 	defer c.fm.Unlock()
 
+	// Nothing to do if the address has not changed; keep the cached client
+	if c.rpcAddr == addr {
+		return
+	}
+
 	c.rpcAddr = addr
+
+	// Invalidate the cached client so it is rebuilt for the new address
+	c.http = nil
 }
 
 // WithKeyring assigns the keyring to the Client and returns the updated Client.

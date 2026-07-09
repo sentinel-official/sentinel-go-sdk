@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"github.com/v2fly/v2ray-core/v5/common/uuid"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
 	"github.com/sentinel-official/sentinel-go-sdk/utils"
@@ -44,6 +44,7 @@ type OutboundClientConfig struct {
 	ProxyProtocol     string `mapstructure:"-"` // ProxyProtocol specifies the proxy protocol to use.
 	TransportProtocol string `mapstructure:"-"` // TransportProtocol specifies the transport protocol to use.
 	TransportSecurity string `mapstructure:"-"` // TransportSecurity specifies the transport security type.
+	TLSPin            string `mapstructure:"-"` // TLSPin is the SHA-256 pin of the server's TLS certificate.
 }
 
 // Validate validates the OutboundClientConfig fields.
@@ -71,6 +72,18 @@ func (c *OutboundClientConfig) Validate() error {
 	// Validate the Transport Security.
 	if v := NewTransportSecurityFromString(c.TransportSecurity); !v.IsValid() {
 		return fmt.Errorf("invalid transport_security %q", v)
+	}
+
+	// Ensure the TLS pin is set for TLS outbounds (an empty pin can never match).
+	if c.GetTransportSecurity() == TransportSecurityTLS && c.TLSPin == "" {
+		return errors.New("tls_pin is empty")
+	}
+
+	// Reject values that could break out of a JSON string literal in the config.
+	for _, v := range []string{c.Addr, c.TLSPin} {
+		if utils.HasJSONUnsafeChars(v) {
+			return fmt.Errorf("field contains unsafe characters: %q", v)
+		}
 	}
 
 	return nil
@@ -106,9 +119,6 @@ func (c *OutboundClientConfig) Tag() string {
 	items := []string{
 		c.Addr,
 		strconv.Itoa(int(c.Port)),
-		c.GetProxyProtocol().String(),
-		c.GetTransportProtocol().String(),
-		c.GetTransportSecurity().String(),
 	}
 
 	return strings.Join(items, "_")
@@ -149,7 +159,7 @@ type ClientConfig struct {
 // GetID parses and returns the UUID from the ClientConfig's ID field.
 // It panics if the ID is not a valid UUID string.
 func (c *ClientConfig) GetID() uuid.UUID {
-	id, err := uuid.ParseString(c.ID)
+	id, err := uuid.Parse(c.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -161,12 +171,15 @@ func (c *ClientConfig) GetID() uuid.UUID {
 func (c *ClientConfig) Validate() error {
 	// Validate the API client configuration.
 	if err := c.API.Validate(); err != nil {
-		return fmt.Errorf("validation API config: %w", err)
+		return fmt.Errorf("validating API config: %w", err)
 	}
 
-	// Ensure the ID is not empty.
-	if c.ID == "" {
-		return errors.New("id is empty")
+	if _, err := uuid.Parse(c.ID); err != nil {
+		return fmt.Errorf("parsing id %q: %w", c.ID, err)
+	}
+
+	if len(c.Outbounds) == 0 {
+		return errors.New("outbounds are empty")
 	}
 
 	// Validate each outbound client configuration.
@@ -277,7 +290,7 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 func DefaultClientConfig() *ClientConfig {
 	return &ClientConfig{
 		API:       DefaultAPIClientConfig(),
-		ID:        NewStringUUID(),
+		ID:        uuid.NewString(),
 		Outbounds: []*OutboundClientConfig{},
 		Proxy:     DefaultProxyClientConfig(),
 	}

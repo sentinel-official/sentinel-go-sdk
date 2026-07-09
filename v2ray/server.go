@@ -2,6 +2,9 @@ package v2ray
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -12,14 +15,11 @@ import (
 	"time"
 
 	procutils "github.com/shirou/gopsutil/v4/process"
-	proxymancommand "github.com/v2fly/v2ray-core/v5/app/proxyman/command"
-	statscommand "github.com/v2fly/v2ray-core/v5/app/stats/command"
-	"github.com/v2fly/v2ray-core/v5/common/protocol"
-	"github.com/v2fly/v2ray-core/v5/common/serial"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/sentinel-official/sentinel-go-sdk/libs/crypto"
+	"github.com/sentinel-official/sentinel-go-sdk/libs/proxycmd"
 	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
 	"github.com/sentinel-official/sentinel-go-sdk/process"
 	"github.com/sentinel-official/sentinel-go-sdk/types"
@@ -101,7 +101,7 @@ func (s *Server) IsRunning() (bool, error) {
 		return false, fmt.Errorf("getting process name: %w", err)
 	}
 
-	if name != v2ray {
+	if strings.TrimSuffix(name, ".exe") != v2ray {
 		return false, nil
 	}
 
@@ -173,8 +173,14 @@ func (s *Server) Setup(ctx context.Context) error {
 			return fmt.Errorf("initializing PKI: %w", err)
 		}
 
-		if _, _, err := pki.Issue("tls"); err != nil {
+		_, certDER, err := pki.Issue("tls")
+		if err != nil {
 			return fmt.Errorf("issuing TLS certificate and key: %w", err)
+		}
+
+		tlsPin, err := certPin(certDER)
+		if err != nil {
+			return fmt.Errorf("computing TLS pin: %w", err)
 		}
 
 		// Set the server metadata.
@@ -184,6 +190,10 @@ func (s *Server) Setup(ctx context.Context) error {
 				ProxyProtocol:     inbound.GetProxyProtocol(),
 				TransportProtocol: inbound.GetTransportProtocol(),
 				TransportSecurity: inbound.GetTransportSecurity(),
+			}
+
+			if inbound.GetTransportSecurity() == TransportSecurityTLS {
+				metadata.TLSPin = tlsPin
 			}
 
 			s.metadata = append(s.metadata, metadata)
@@ -244,7 +254,7 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 					// Check if server is up before syncing peers.
 					ok, err := s.IsRunning()
 					if err != nil {
-						return fmt.Errorf("checking serivce status: %w", err)
+						return fmt.Errorf("checking service status: %w", err)
 					}
 
 					if !ok {
@@ -346,26 +356,22 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 
 	defer release()
 
-	client := proxymancommand.NewHandlerServiceClient(conn)
+	var addedTags []string
 
 	for tag, proxy := range s.proxies {
-		// Prepare gRPC request to add a new user to the handler.
-		in := &proxymancommand.AlterInboundRequest{
-			Tag: tag,
-			Operation: serial.ToTypedMessage(
-				&proxymancommand.AddUserOperation{
-					User: &protocol.User{
-						Email:   id,
-						Account: proxy.Account(r.UUID),
-					},
-				},
-			),
-		}
+		acctType, acctValue := proxy.Account(r.UUID)
 
 		// Send the request to add a user to the handler.
-		if _, err := client.AlterInbound(ctx, in); err != nil {
+		if err := proxycmd.AddUser(ctx, conn, dialect, tag, id, acctType, acctValue); err != nil {
+			// Roll back the users already added on earlier inbounds.
+			for _, t := range addedTags {
+				_ = proxycmd.RemoveUser(ctx, conn, dialect, t, id)
+			}
+
 			return "", nil, fmt.Errorf("altering peer %q inbound: %w", id, err)
 		}
+
+		addedTags = append(addedTags, tag)
 	}
 
 	// Save the peer details in the local peers map.
@@ -396,21 +402,9 @@ func (s *Server) RemovePeer(ctx context.Context, id string) error {
 
 	defer release()
 
-	client := proxymancommand.NewHandlerServiceClient(conn)
-
 	for tag := range s.proxies {
-		// Prepare gRPC request to remove a user from the handler.
-		in := &proxymancommand.AlterInboundRequest{
-			Tag: tag,
-			Operation: serial.ToTypedMessage(
-				&proxymancommand.RemoveUserOperation{
-					Email: id,
-				},
-			),
-		}
-
 		// Send the request to remove a user from the handler.
-		if _, err := client.AlterInbound(ctx, in); err != nil {
+		if err := proxycmd.RemoveUser(ctx, conn, dialect, tag, id); err != nil {
 			// If the user is not found, continue without error.
 			if !strings.Contains(err.Error(), "not found") {
 				return fmt.Errorf("altering peer %q inbound: %w", id, err)
@@ -504,8 +498,7 @@ func (s *Server) writePID(pid int) error {
 // syncPeers retrieves the latest peer transfer statistics from the stats service
 // and updates the in-memory peer data accordingly.
 func (s *Server) syncPeers(ctx context.Context) error {
-	// Prepare the response
-	resp := &statscommand.QueryStatsResponse{}
+	var rawStats []proxycmd.Stat
 
 	// Perform the gRPC call to fetch traffic stats
 	fn := func() (err error) {
@@ -516,10 +509,8 @@ func (s *Server) syncPeers(ctx context.Context) error {
 
 		defer release()
 
-		client := statscommand.NewStatsServiceClient(conn)
-
 		// Send the request to get traffic stats
-		resp, err = client.QueryStats(ctx, &statscommand.QueryStatsRequest{})
+		rawStats, err = proxycmd.QueryStats(ctx, conn, dialect, "", false)
 		if err != nil {
 			return fmt.Errorf("querying peer stats: %w", err)
 		}
@@ -536,8 +527,8 @@ func (s *Server) syncPeers(ctx context.Context) error {
 	stats := make(map[string]*types.PeerStatistics)
 
 	// Iterate over every stat entry
-	for _, stat := range resp.GetStat() {
-		name := stat.GetName()
+	for _, stat := range rawStats {
+		name := stat.Name
 
 		// Split the name into 4 parts
 		parts := strings.SplitN(name, ">>>", 4)
@@ -562,9 +553,9 @@ func (s *Server) syncPeers(ctx context.Context) error {
 		// Assign Rx/Tx values based on direction
 		switch parts[3] {
 		case "uplink":
-			pt.RxBytes = stat.GetValue()
+			pt.RxBytes = stat.Value
 		case "downlink":
-			pt.TxBytes = stat.GetValue()
+			pt.TxBytes = stat.Value
 		default:
 			continue
 		}
@@ -601,4 +592,16 @@ func (s *Server) syncPeers(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// certPin returns the base64-encoded SHA-256 pin of the given DER certificate.
+func certPin(certDER []byte) (string, error) {
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		return "", fmt.Errorf("parsing certificate: %w", err)
+	}
+
+	sum := sha256.Sum256(cert.Raw)
+
+	return base64.StdEncoding.EncodeToString(sum[:]), nil
 }

@@ -1,0 +1,107 @@
+{
+    "api": {
+        "services": [
+            "HandlerService",
+            "StatsService"
+        ],
+        "tag": "api"
+    },
+    "inbounds": [
+        {
+            "listen": "127.0.0.1",
+            "port": 2323,
+            "protocol": "dokodemo-door",
+            "settings": {
+                "address": "127.0.0.1"
+            },
+            "tag": "api"
+        },
+        {{- range $index, $inbound := .Inbounds }}
+        {
+            "port": "{{ $inbound.InPort }}",
+            "protocol": "{{ $inbound.GetProxyProtocol.CoreName }}",
+            {{- if eq $inbound.ProxyProtocol "vless" }}
+            "settings": {
+                "decryption": "none"
+            },
+            {{- end }}
+            {{- if eq $inbound.ProxyProtocol "shadowsocks-2022" }}
+            "settings": {
+                "clients": [
+                    {
+                        "email": "seed",
+                        "password": "{{ $inbound.SeedKey }}"
+                    }
+                ],
+                "method": "{{ $inbound.Method }}",
+                "password": "{{ $inbound.Key }}"
+            },
+            {{- end }}
+            "streamSettings": {
+                "network": "{{ $inbound.TransportProtocol }}",
+                "security": "{{ $inbound.TransportSecurity }}"
+                {{- if eq $inbound.TransportSecurity "tls" }},
+                "tlsSettings": {
+                    "certificates": [
+                        {
+                            "certificateFile": "{{ $.TLSCertFile }}",
+                            "keyFile": "{{ $.TLSKeyFile }}"
+                        }
+                    ]
+                }
+                {{- end }}
+                {{- if eq $inbound.TransportSecurity "reality" }},
+                "realitySettings": {
+                    "dest": "{{ $inbound.Reality.Dest }}",
+                    "privateKey": "{{ $inbound.Reality.PrivateKey }}",
+                    "serverNames": [
+                        {{- range $i, $name := $inbound.Reality.ServerNames }}
+                        "{{ $name }}"
+                        {{- if ne (sum $i 1) (len $inbound.Reality.ServerNames) }},{{- end }}
+                        {{- end }}
+                    ],
+                    "shortIds": [
+                        {{- range $i, $id := $inbound.Reality.ShortIds }}
+                        "{{ $id }}"
+                        {{- if ne (sum $i 1) (len $inbound.Reality.ShortIds) }},{{- end }}
+                        {{- end }}
+                    ]
+                }
+                {{- end }}
+            },
+            "tag": "{{ $inbound.Tag }}"
+        }
+        {{- if ne (sum $index 1) (len $.Inbounds) }},{{- end }}
+        {{- end }}
+    ],
+    "log": {
+        "access": "none",
+        "error": "none",
+        "loglevel": "none"
+    },
+    "outbounds": [
+        {
+            "protocol": "freedom"
+        }
+    ],
+    "policy": {
+        "levels": {
+            "0": {
+                "statsUserDownlink": true,
+                "statsUserUplink": true
+            }
+        }
+    },
+    "routing": {
+        "rules": [
+            {
+                "inboundTag": [
+                    "api"
+                ],
+                "outboundTag": "api",
+                "type": "field"
+            }
+        ]
+    },
+    "stats": {}
+}

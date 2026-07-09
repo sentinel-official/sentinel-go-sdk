@@ -10,6 +10,7 @@ type ServerMetadata struct {
 	ProxyProtocol     ProxyProtocol     `json:"proxy_protocol"`     // ProxyProtocol specifies the proxy protocol type.
 	TransportProtocol TransportProtocol `json:"transport_protocol"` // TransportProtocol specifies the transport protocol type.
 	TransportSecurity TransportSecurity `json:"transport_security"` // TransportSecurity specifies the transport security type.
+	TLSPin            string            `json:"tls_pin"`            // TLSPin specifies the SHA-256 pin of the server's TLS certificate.
 }
 
 // GetPort parses the Port field and returns it as a netip.Port.

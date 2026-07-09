@@ -32,7 +32,7 @@ func NewClient(name, appDir string, cfg *ClientConfig) *Client {
 	return &Client{
 		Manager: process.NewManager(name),
 		cfg:     cfg,
-		device:  "wg0",
+		device:  defaultDevice,
 		homeDir: filepath.Join(appDir, "wireguard"),
 	}
 }
@@ -65,12 +65,12 @@ func (c *Client) IsRunning() (bool, error) {
 
 	// Run the command and handle errors.
 	if err := cmd.Run(); err != nil {
-		// Check if the error matches "No such device".
-		if strings.Contains(stderr.String(), "No such device") {
+		// Treat a missing interface or absent kernel module (userspace fallback) as not running.
+		if out := stderr.String(); strings.Contains(out, "No such device") || strings.Contains(out, "Protocol not supported") {
 			return false, nil
 		}
 
-		return false, fmt.Errorf("running command: %w", err)
+		return false, fmt.Errorf("running command: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
 
 	return true, nil

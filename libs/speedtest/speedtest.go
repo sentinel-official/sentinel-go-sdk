@@ -10,26 +10,36 @@ import (
 )
 
 // performTests runs the ping, download, and upload tests on the target server.
+// The library ignores the context for test termination, so it is honored here.
 func performTests(ctx context.Context, s *speedtest.Server) error {
-	// Perform the ping test
-	if err := s.PingTestContext(ctx, nil); err != nil {
-		return fmt.Errorf("performing ping test on server %q: %w", s.Name, err)
+	done := make(chan error, 1)
+
+	go func() {
+		done <- func() error {
+			if err := s.PingTestContext(ctx, nil); err != nil {
+				return fmt.Errorf("performing ping test on server %q: %w", s.Name, err)
+			}
+
+			if err := s.DownloadTestContext(ctx); err != nil {
+				return fmt.Errorf("performing download test on server %q: %w", s.Name, err)
+			}
+
+			if err := s.UploadTestContext(ctx); err != nil {
+				return fmt.Errorf("performing upload test on server %q: %w", s.Name, err)
+			}
+
+			s.Context.Wait()
+
+			return nil
+		}()
+	}()
+
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("context canceled during tests: %w", ctx.Err())
+	case err := <-done:
+		return err
 	}
-
-	// Perform the download test
-	if err := s.DownloadTestContext(ctx); err != nil {
-		return fmt.Errorf("performing download test on server %q: %w", s.Name, err)
-	}
-
-	// Perform the upload test
-	if err := s.UploadTestContext(ctx); err != nil {
-		return fmt.Errorf("performing upload test on server %q: %w", s.Name, err)
-	}
-
-	// Wait for the context to be ready after the tests
-	s.Context.Wait()
-
-	return nil
 }
 
 // Run performs a speed test and returns download and upload speeds.
@@ -51,8 +61,18 @@ func Run(ctx context.Context) (dlSpeed, ulSpeed math.Int, err error) {
 
 	// Iterate through the list of target servers to find a valid result
 	for _, target := range targets {
+		// Stop if the context has been canceled.
+		if err := ctx.Err(); err != nil {
+			return math.Int{}, math.Int{}, fmt.Errorf("context canceled: %w", err)
+		}
+
 		// Perform the tests on the target server
 		if err := performTests(ctx, target); err != nil {
+			// Abort on cancellation instead of trying the next server.
+			if ctx.Err() != nil {
+				return math.Int{}, math.Int{}, err
+			}
+
 			target.Context.Reset()
 
 			continue

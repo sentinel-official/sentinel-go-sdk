@@ -30,7 +30,7 @@ func (s *Server) stopCmd() (*exec.Cmd, error) {
 	cmd := exec.CommandContext(
 		context.Background(),
 		s.execFile("wireguard"),
-		"/uninstalltunnelservice", c.device,
+		"/uninstalltunnelservice", s.device,
 	)
 
 	return cmd, nil

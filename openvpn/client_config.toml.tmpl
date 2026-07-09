@@ -1,0 +1,17 @@
+# Name of the TUN network interface created by the client.
+# The local virtual network interface through which the client routes tunneled traffic.
+# Allowed: Valid network interface name
+# Example: "ovpn0"
+tun_iface = "{{ .TUNIface }}"
+
+# IP ranges excluded from the tunnel.
+# Traffic matching these ranges bypasses the tunnel and uses the default route.
+# Allowed: Valid IPv4/IPv6 CIDR notation
+# Example: "192.168.0.0/16"
+exclude_addrs = [{{ range $i, $a := .ExcludeAddrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
+
+# DNS servers to use while connected to the VPN.
+# Set as the top-priority system resolver so DNS queries go through the tunnel.
+# Allowed: Valid IP addresses
+# Example: "208.67.222.222"
+dns_addrs = [{{ range $i, $a := .DNSAddrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
