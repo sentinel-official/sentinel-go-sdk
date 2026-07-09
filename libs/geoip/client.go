@@ -3,7 +3,7 @@ package geoip
 import (
 	"context"
 
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // Location represents geographical location information associated with an IP address.

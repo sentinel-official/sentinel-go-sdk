@@ -9,7 +9,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // InitHandshakeRequestBody represents the request payload for adding a session.

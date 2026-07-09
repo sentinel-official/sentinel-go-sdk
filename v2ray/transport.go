@@ -1,7 +1,7 @@
 package v2ray
 
 import (
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
 )
 
 // TransportProtocol is a custom type used to represent different transport protocols.

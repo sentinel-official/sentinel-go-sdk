@@ -3,8 +3,8 @@ package v2ray
 import (
 	"github.com/google/uuid"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/proxycmd"
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/proxycmd"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
 )
 
 // ProxyProtocol is a custom type used to represent different proxy protocols.

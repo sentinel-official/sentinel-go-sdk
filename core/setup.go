@@ -5,7 +5,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
-	"github.com/sentinel-official/sentinel-go-sdk/core/config"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/core/config"
 )
 
 // SetupKeyring initializes and configures a keyring for cryptographic key management.

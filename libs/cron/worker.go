@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/log"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/log"
 )
 
 // Worker defines the interface for a scheduler worker.

@@ -1,7 +1,7 @@
 package amneziawg
 
 import (
-	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/netip"
 )
 
 // AddPeerResponse represents the response for adding a peer to the AmneziaWG server.

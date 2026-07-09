@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
 )
 
 // writeJSON formats the output as JSON and writes it to the provided writer.

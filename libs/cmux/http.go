@@ -13,7 +13,7 @@ import (
 
 	"github.com/soheilhy/cmux"
 
-	"github.com/sentinel-official/sentinel-go-sdk/process"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/process"
 )
 
 // Server is a multiprotocol HTTP server that supports both
