@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/encoding/pem"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/encoding/pem"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // PKI manages a public key infrastructure including CA certificate, key, and revocation list.

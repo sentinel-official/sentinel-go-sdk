@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/proxycmd"
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/proxycmd"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
 )
 
 // ShadowsocksMethod is the Shadowsocks 2022 method used for multi-user inbounds.

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/geoip"
-	"github.com/sentinel-official/sentinel-go-sdk/types"
-	"github.com/sentinel-official/sentinel-go-sdk/version"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/geoip"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/version"
 )
 
 // GetInfoResult represents metadata about a node.

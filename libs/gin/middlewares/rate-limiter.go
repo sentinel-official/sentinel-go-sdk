@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/safe"
 )
 
 // RateLimiterOptions defines configuration for the rate limiter middleware.

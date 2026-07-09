@@ -10,7 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/go-bip39"
 
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // NewMnemonic generates a new mnemonic phrase using bip39 with 256 bits of entropy.

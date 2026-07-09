@@ -1,7 +1,7 @@
 package v2ray
 
 import (
-	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/netip"
 )
 
 // ServerMetadata represents metadata for a V2Ray server's inbound connection.

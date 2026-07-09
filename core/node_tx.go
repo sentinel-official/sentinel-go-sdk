@@ -9,7 +9,7 @@ import (
 	"github.com/sentinel-official/sentinelhub/v12/types/v1"
 	"github.com/sentinel-official/sentinelhub/v12/x/node/types/v3"
 
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // NodeStartSession initiates a new session on a specified node. On success, it returns the session ID.
