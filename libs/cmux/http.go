@@ -69,6 +69,9 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 		// Create a cmux multiplexer to distinguish between TLS and non-TLS traffic
 		s.cMux = cmux.New(listener)
 
+		// Bound connection sniffing so idle or half-open connections cannot block shutdown
+		s.cMux.SetReadTimeout(5 * time.Second)
+
 		// Use TLS matcher to separate TLS traffic
 		tlsMux := s.cMux.Match(cmux.TLS())
 
