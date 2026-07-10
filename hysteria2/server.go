@@ -520,8 +520,8 @@ func (s *Server) kickPeer(ctx context.Context, id string) error {
 
 // trafficEntry holds the per-user traffic stats returned by the Hysteria2 stats API.
 type trafficEntry struct {
-	Tx uint64 `json:"tx"` // Downlink bytes sent to the client.
-	Rx uint64 `json:"rx"` // Uplink bytes received from the client.
+	Tx uint64 `json:"tx"` // Uplink bytes uploaded by the client.
+	Rx uint64 `json:"rx"` // Downlink bytes downloaded by the client.
 }
 
 // syncPeers retrieves the latest peer transfer statistics from Hysteria2's Traffic Stats API
@@ -566,8 +566,8 @@ func (s *Server) syncPeers(ctx context.Context) error {
 			continue
 		}
 
-		rxBytes := int64(entry.Rx)
-		txBytes := int64(entry.Tx)
+		rxBytes := int64(entry.Tx)
+		txBytes := int64(entry.Rx)
 
 		s.peers.Update(id, func(v Peer, ok bool) (Peer, bool) {
 			if !ok {
