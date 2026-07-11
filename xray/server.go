@@ -398,7 +398,7 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 	var added []string
 
 	for tag, p := range s.proxies {
-		acctType, acctValue := p.Protocol.Account(r.UUID, p.Flow)
+		acctType, acctValue := p.Protocol.Account(r.UUID.Raw(), p.Flow)
 		if err := proxycmd.AddUser(ctx, conn, dialect, tag, id, acctType, acctValue); err != nil {
 			// Roll back the users already added on earlier inbounds.
 			for _, t := range added {

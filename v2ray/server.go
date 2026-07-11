@@ -359,7 +359,7 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 	var addedTags []string
 
 	for tag, proxy := range s.proxies {
-		acctType, acctValue := proxy.Account(r.UUID)
+		acctType, acctValue := proxy.Account(r.UUID.Raw())
 
 		// Send the request to add a user to the handler.
 		if err := proxycmd.AddUser(ctx, conn, dialect, tag, id, acctType, acctValue); err != nil {
