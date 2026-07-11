@@ -7,9 +7,9 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/log"
-	"github.com/sentinel-official/sentinel-go-sdk/process/internal"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/log"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/process/internal"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // Manager controls the lifecycle of a process, including start, stop, and cleanup.
@@ -149,8 +149,9 @@ func (m *Manager) Start(parent context.Context, fn func(ctx context.Context) err
 	return ctx, nil
 }
 
-// Stop cancels the process context and transitions the manager's state
-// to "stopping", then to either "stopped" or "stop error" based on success or failure.
+// Stop cancels the process context, waits for all goroutines started with Go()
+// to finish, and transitions the manager's state to "stopping", then to either
+// "stopped" or "stop error" based on success or failure.
 func (m *Manager) Stop(fn func() error) (err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -182,6 +183,10 @@ func (m *Manager) Stop(fn func() error) (err error) {
 		if err := fn(); err != nil {
 			return fmt.Errorf("calling: %w", err)
 		}
+	}
+
+	if m.eg != nil {
+		_ = m.eg.Wait()
 	}
 
 	return nil

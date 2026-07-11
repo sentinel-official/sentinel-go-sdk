@@ -12,14 +12,14 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // PeerClientConfig represents the configuration for a single AmneziaWG peer.
 type PeerClientConfig struct {
 	Addr                string   `mapstructure:"addr"`                 // Addr specifies the IP address or hostname of the peer.
 	AllowAddrs          []string `mapstructure:"allow_addrs"`          // AllowAddrs defines the IP ranges (CIDR notation) that are allowed through this peer.
-	PersistentKeepalive uint     `mapstructure:"persistent_keepalive"` // PersistentKeepalive defines the interval (in seconds).
+	PersistentKeepalive uint16   `mapstructure:"persistent_keepalive"` // PersistentKeepalive defines the interval (in seconds).
 	Port                uint16   `mapstructure:"port"`                 // Port is the listening port of the peer.
 	PublicKey           string   `mapstructure:"public_key"`           // PublicKey is the AmneziaWG public key for this peer.
 }
@@ -70,7 +70,7 @@ func DefaultPeerClientConfig() *PeerClientConfig {
 	return &PeerClientConfig{
 		Addr:                "",
 		AllowAddrs:          []string{"0.0.0.0/0", "::/0"},
-		PersistentKeepalive: 30,
+		PersistentKeepalive: 25,
 		Port:                0,
 		PublicKey:           "",
 	}
@@ -165,9 +165,9 @@ func (c *ClientConfig) Validate() error {
 		return errors.New("MTU is zero")
 	}
 
-	// Ensure Name is not empty.
-	if c.Name == "" {
-		return errors.New("name is empty")
+	// Ensure Name is a valid interface name (rejects shell metacharacters).
+	if !utils.IsValidInterfaceName(c.Name) {
+		return fmt.Errorf("invalid name %q", c.Name)
 	}
 
 	// Validate Peer (must be non-empty and a valid PeerClientConfig).
@@ -277,7 +277,7 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 	fs.Uint16Var(&c.MTU, prefix+"mtu", c.MTU, "maximum transmission unit size for the amneziawg interface")
 	fs.StringVar(&c.Name, prefix+"name", c.Name, "name of the amneziawg network interface")
 	fs.StringArrayVar(&c.Peer.AllowAddrs, prefix+"peer.allow-addrs", c.Peer.AllowAddrs, "list of allowed ip addresses to route through amneziawg peer")
-	fs.UintVar(&c.Peer.PersistentKeepalive, prefix+"peer.persistent-keepalive", c.Peer.PersistentKeepalive, "interval for keepalive packets to maintain connection")
+	fs.Uint16Var(&c.Peer.PersistentKeepalive, prefix+"peer.persistent-keepalive", c.Peer.PersistentKeepalive, "interval for keepalive packets to maintain connection")
 	fs.Uint16Var(&c.Port, prefix+"port", c.Port, "port number for the amneziawg interface")
 
 	// Initialize Viper if it hasn't been already.

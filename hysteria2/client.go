@@ -12,9 +12,9 @@ import (
 	netutils "github.com/shirou/gopsutil/v4/net"
 	procutils "github.com/shirou/gopsutil/v4/process"
 
-	"github.com/sentinel-official/sentinel-go-sdk/process"
-	"github.com/sentinel-official/sentinel-go-sdk/types"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/process"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // Ensure Client implements types.ClientService interface.
@@ -139,6 +139,10 @@ func (c *Client) Setup(ctx context.Context) error {
 			return fmt.Errorf("validating config: %w", err)
 		}
 
+		if err := c.cfg.resolveServerIPs(ctx); err != nil {
+			return fmt.Errorf("resolving server ips: %w", err)
+		}
+
 		// Write configuration to file.
 		cfgFile = c.serviceConfigFile()
 		if err := c.cfg.WriteServiceConfig(cfgFile); err != nil {
@@ -167,7 +171,18 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 
 		// Write PID to file.
 		if err := c.writePID(c.cmd.Process.Pid); err != nil {
+			_ = c.cmd.Process.Kill()
+			_ = c.cmd.Wait()
+
 			return fmt.Errorf("writing PID: %w", err)
+		}
+
+		// Install the kill-switch firewall rules.
+		if err := c.applyFirewall(ctx); err != nil {
+			_ = c.cmd.Process.Kill()
+			_ = c.cmd.Wait()
+
+			return fmt.Errorf("applying firewall rules: %w", err)
 		}
 
 		// Wait for the Hysteria2 process to finish in a separate goroutine.
@@ -179,6 +194,15 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 			return fmt.Errorf("waiting command: %w", err)
 		})
 
+		// Set the system DNS once the TUN interface is up.
+		c.Go(ctx, func() error {
+			if err := c.applyDNS(ctx); err != nil && ctx.Err() == nil {
+				return fmt.Errorf("applying dns: %w", err)
+			}
+
+			return nil
+		})
+
 		return nil
 	})
 }
@@ -186,6 +210,16 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 // Stop stops the Hysteria2 client service.
 func (c *Client) Stop() error {
 	return c.Manager.Stop(func() error { //nolint:wrapcheck
+		// Revert the system DNS (best-effort).
+		if err := c.removeDNS(context.Background()); err != nil {
+			return fmt.Errorf("removing dns: %w", err)
+		}
+
+		// Remove the kill-switch firewall rules (best-effort).
+		if err := c.removeFirewall(context.Background()); err != nil {
+			return fmt.Errorf("removing firewall rules: %w", err)
+		}
+
 		// Read PID from file.
 		pid, err := c.readPID()
 		if err != nil {

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/geoip"
-	"github.com/sentinel-official/sentinel-go-sdk/version"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/geoip"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/version"
 )
 
 // ServiceInfo describes one protocol a node serves.

@@ -3,7 +3,7 @@ package v2ray
 import (
 	"time"
 
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
 )
 
 // Peer represents a V2Ray peer with identifying information and network statistics.

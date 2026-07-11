@@ -20,11 +20,11 @@ import (
 
 	procutils "github.com/shirou/gopsutil/v4/process"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/crypto"
-	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
-	"github.com/sentinel-official/sentinel-go-sdk/process"
-	"github.com/sentinel-official/sentinel-go-sdk/types"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/crypto"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/safe"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/process"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // Ensure Server implements types.ServerService interface.
@@ -225,6 +225,8 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 
 		// Write PID to file.
 		if err := s.writePID(s.cmd.Process.Pid); err != nil {
+			_ = s.cmd.Process.Kill()
+			_ = s.cmd.Wait()
 			_ = authListener.Close()
 
 			return fmt.Errorf("writing PID: %w", err)
@@ -518,8 +520,8 @@ func (s *Server) kickPeer(ctx context.Context, id string) error {
 
 // trafficEntry holds the per-user traffic stats returned by the Hysteria2 stats API.
 type trafficEntry struct {
-	Tx uint64 `json:"tx"` // Downlink bytes sent to the client.
-	Rx uint64 `json:"rx"` // Uplink bytes received from the client.
+	Tx uint64 `json:"tx"` // Uplink bytes uploaded by the client.
+	Rx uint64 `json:"rx"` // Downlink bytes downloaded by the client.
 }
 
 // syncPeers retrieves the latest peer transfer statistics from Hysteria2's Traffic Stats API
@@ -564,8 +566,8 @@ func (s *Server) syncPeers(ctx context.Context) error {
 			continue
 		}
 
-		rxBytes := int64(entry.Rx)
-		txBytes := int64(entry.Tx)
+		rxBytes := int64(entry.Tx)
+		txBytes := int64(entry.Rx)
 
 		s.peers.Update(id, func(v Peer, ok bool) (Peer, bool) {
 			if !ok {

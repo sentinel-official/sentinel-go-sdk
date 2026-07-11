@@ -18,12 +18,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/crypto"
-	"github.com/sentinel-official/sentinel-go-sdk/libs/proxycmd"
-	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
-	"github.com/sentinel-official/sentinel-go-sdk/process"
-	"github.com/sentinel-official/sentinel-go-sdk/types"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/crypto"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/proxycmd"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/safe"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/process"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // Ensure Server implements types.ServerService interface.
@@ -101,7 +101,7 @@ func (s *Server) IsRunning() (bool, error) {
 		return false, fmt.Errorf("getting process name: %w", err)
 	}
 
-	if name != v2ray {
+	if strings.TrimSuffix(name, ".exe") != v2ray {
 		return false, nil
 	}
 
@@ -356,13 +356,22 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 
 	defer release()
 
+	var addedTags []string
+
 	for tag, proxy := range s.proxies {
-		acctType, acctValue := proxy.Account(r.UUID)
+		acctType, acctValue := proxy.Account(r.UUID.Raw())
 
 		// Send the request to add a user to the handler.
 		if err := proxycmd.AddUser(ctx, conn, dialect, tag, id, acctType, acctValue); err != nil {
+			// Roll back the users already added on earlier inbounds.
+			for _, t := range addedTags {
+				_ = proxycmd.RemoveUser(ctx, conn, dialect, t, id)
+			}
+
 			return "", nil, fmt.Errorf("altering peer %q inbound: %w", id, err)
 		}
+
+		addedTags = append(addedTags, tag)
 	}
 
 	// Save the peer details in the local peers map.

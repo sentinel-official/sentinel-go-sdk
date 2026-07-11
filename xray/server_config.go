@@ -6,13 +6,12 @@ import (
 	"math/rand/v2"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/netip"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // InboundServerConfig represents the Xray inbound server configuration options.
@@ -83,18 +82,7 @@ func (c *InboundServerConfig) OutPort() string {
 
 // Tag creates a Tag instance based on the InboundServerConfig configuration.
 func (c *InboundServerConfig) Tag() string {
-	items := []string{
-		c.InPort(),
-		c.GetProxyProtocol().String(),
-		c.GetTransportProtocol().String(),
-		c.GetTransportSecurity().String(),
-	}
-
-	if c.Flow != "" {
-		items = append(items, c.GetFlow().String())
-	}
-
-	return strings.Join(items, "_")
+	return c.InPort()
 }
 
 // Validate validates the InboundServerConfig fields.
@@ -144,8 +132,22 @@ func (c *InboundServerConfig) Validate() error {
 			return errors.New("reality is nil")
 		}
 
+		if t := c.GetTransportProtocol(); t != TransportProtocolTCP &&
+			t != TransportProtocolGRPC &&
+			t != TransportProtocolXHTTP {
+			return fmt.Errorf("reality is not supported over transport_protocol %q", c.TransportProtocol)
+		}
+
 		if err := c.Reality.Validate(); err != nil {
 			return fmt.Errorf("validating reality: %w", err)
+		}
+	}
+
+	if c.GetFlow() == FlowVision {
+		if c.GetProxyProtocol() != ProxyProtocolVLess ||
+			c.GetTransportProtocol() != TransportProtocolTCP ||
+			(c.GetTransportSecurity() != TransportSecurityTLS && c.GetTransportSecurity() != TransportSecurityReality) {
+			return fmt.Errorf("flow %q is only supported for vless over tcp with tls or reality", c.Flow)
 		}
 	}
 
@@ -190,21 +192,21 @@ func (c *ServerConfig) Validate() error {
 		}
 
 		// Check inbound ports for duplicates.
-		for p := port.InFrom; p <= port.InTo; p++ {
-			if inPortSet[p] {
+		for p := int(port.InFrom); p <= int(port.InTo); p++ {
+			if inPortSet[uint16(p)] {
 				return fmt.Errorf("duplicate in_port %d", p)
 			}
 
-			inPortSet[p] = true
+			inPortSet[uint16(p)] = true
 		}
 
 		// Check outbound ports for duplicates.
-		for p := port.OutFrom; p <= port.OutTo; p++ {
-			if outPortSet[p] {
+		for p := int(port.OutFrom); p <= int(port.OutTo); p++ {
+			if outPortSet[uint16(p)] {
 				return fmt.Errorf("duplicate out_port %d", p)
 			}
 
-			outPortSet[p] = true
+			outPortSet[uint16(p)] = true
 		}
 
 		// Check tags for duplicates.
@@ -299,30 +301,77 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 
 // DefaultServerConfig creates a default ServerConfig with predefined values.
 func DefaultServerConfig() *ServerConfig {
-	return &ServerConfig{
-		Inbounds: []*InboundServerConfig{
-			{
-				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
-				ProxyProtocol:     ProxyProtocolVLess.String(),
-				TransportProtocol: TransportProtocolTCP.String(),
-				TransportSecurity: TransportSecurityNone.String(),
-			},
-			{
-				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
-				ProxyProtocol:     randomProxyProtocol().String(),
-				TransportProtocol: randomTransportProtocol().String(),
-				TransportSecurity: randomTransportSecurity().String(),
-			},
+	// Start with the two strongest inbounds (VLESS+Reality with Vision over raw
+	// TCP, and VLESS+Reality over XHTTP), then add three random ones.
+	inbounds := make([]*InboundServerConfig, 0, 5)
+	inbounds = append(inbounds,
+		&InboundServerConfig{
+			Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+			ProxyProtocol:     ProxyProtocolVLess.String(),
+			TransportProtocol: TransportProtocolTCP.String(),
+			TransportSecurity: TransportSecurityReality.String(),
+			Flow:              FlowVision.String(),
 		},
+		&InboundServerConfig{
+			Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+			ProxyProtocol:     ProxyProtocolVLess.String(),
+			TransportProtocol: TransportProtocolXHTTP.String(),
+			TransportSecurity: TransportSecurityReality.String(),
+		},
+	)
+
+	for range 3 {
+		inbounds = append(inbounds, randomInboundServerConfig())
+	}
+
+	return &ServerConfig{
+		Inbounds: inbounds,
 	}
 }
 
-// randomProxyProtocol returns a random proxy protocol type (vless or vmess).
+// randomInboundServerConfig builds an inbound with a random proxy protocol,
+// transport, and security, enabling Vision flow only for vless over raw TCP.
+func randomInboundServerConfig() *InboundServerConfig {
+	proxyProtocol := randomProxyProtocol()
+
+	// Shadowsocks 2022 encrypts at the proxy layer, so it runs over raw TCP with
+	// no stream-level security.
+	if proxyProtocol == ProxyProtocolShadowsocks2022 {
+		return &InboundServerConfig{
+			Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+			ProxyProtocol:     proxyProtocol.String(),
+			TransportProtocol: TransportProtocolTCP.String(),
+			TransportSecurity: TransportSecurityNone.String(),
+		}
+	}
+
+	transportProtocol := randomTransportProtocol()
+	transportSecurity := randomTransportSecurity(transportProtocol)
+
+	flow := ""
+	if proxyProtocol == ProxyProtocolVLess &&
+		transportProtocol == TransportProtocolTCP &&
+		(transportSecurity == TransportSecurityTLS || transportSecurity == TransportSecurityReality) {
+		flow = FlowVision.String()
+	}
+
+	return &InboundServerConfig{
+		Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+		ProxyProtocol:     proxyProtocol.String(),
+		TransportProtocol: transportProtocol.String(),
+		TransportSecurity: transportSecurity.String(),
+		Flow:              flow,
+	}
+}
+
+// randomProxyProtocol returns a random proxy protocol type.
 func randomProxyProtocol() ProxyProtocol {
 	return [...]ProxyProtocol{
 		ProxyProtocolVLess,
 		ProxyProtocolVMess,
-	}[rand.IntN(2)]
+		ProxyProtocolTrojan,
+		ProxyProtocolShadowsocks2022,
+	}[rand.IntN(4)]
 }
 
 // randomTransportProtocol returns a random transport protocol from available options.
@@ -336,10 +385,14 @@ func randomTransportProtocol() TransportProtocol {
 	}[rand.IntN(5)]
 }
 
-// randomTransportSecurity returns a random security configuration (none or tls).
-func randomTransportSecurity() TransportSecurity {
-	return [...]TransportSecurity{
-		TransportSecurityNone,
-		TransportSecurityTLS,
-	}[rand.IntN(2)]
+// randomTransportSecurity returns tls, or reality when the transport supports it.
+func randomTransportSecurity(transport TransportProtocol) TransportSecurity {
+	options := []TransportSecurity{TransportSecurityTLS}
+	if transport == TransportProtocolTCP ||
+		transport == TransportProtocolGRPC ||
+		transport == TransportProtocolXHTTP {
+		options = append(options, TransportSecurityReality)
+	}
+
+	return options[rand.IntN(len(options))]
 }

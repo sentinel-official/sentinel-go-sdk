@@ -16,12 +16,12 @@ import (
 
 	procutils "github.com/shirou/gopsutil/v4/process"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/crypto"
-	"github.com/sentinel-official/sentinel-go-sdk/libs/encoding/pem"
-	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
-	"github.com/sentinel-official/sentinel-go-sdk/process"
-	"github.com/sentinel-official/sentinel-go-sdk/types"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/crypto"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/encoding/pem"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/safe"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/process"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // Ensure Server implements types.ServerService interface.
@@ -215,6 +215,9 @@ func (s *Server) Start(parent context.Context) (context.Context, error) {
 
 		// Write PID to file.
 		if err := s.writePID(s.cmd.Process.Pid); err != nil {
+			_ = s.cmd.Process.Kill()
+			_ = s.cmd.Wait()
+
 			return fmt.Errorf("writing PID: %w", err)
 		}
 
@@ -571,18 +574,20 @@ func (s *Server) syncPeers(ctx context.Context) error {
 
 		rxBytes, err := strconv.ParseInt(fields[5], 10, 64)
 		if err != nil {
-			return fmt.Errorf("parsing peer %q uplink bytes %q: %w", id, fields[5], err)
+			continue
 		}
 
 		txBytes, err := strconv.ParseInt(fields[6], 10, 64)
 		if err != nil {
-			return fmt.Errorf("parsing peer %q downlink bytes %q: %w", id, fields[6], err)
+			continue
 		}
 
-		createdAt, err := time.Parse(time.DateTime, fields[7])
+		sec, err := strconv.ParseInt(fields[8], 10, 64)
 		if err != nil {
-			return fmt.Errorf("parsing peer %q created at %q: %w", id, fields[7], err)
+			continue
 		}
+
+		createdAt := time.Unix(sec, 0)
 
 		now := time.Now()
 

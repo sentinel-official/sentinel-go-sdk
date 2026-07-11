@@ -8,7 +8,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // PeerRequest wraps one protocol-specific peer request with a self-describing service type.

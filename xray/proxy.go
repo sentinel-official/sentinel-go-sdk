@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/proxycmd"
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/proxycmd"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
 )
 
 // ShadowsocksMethod is the Shadowsocks 2022 method used for multi-user inbounds.
@@ -18,6 +18,10 @@ const ShadowsocksMethod = "2022-blake3-aes-256-gcm"
 
 // shadowsocksKeyLength is the byte length of a Shadowsocks 2022 aes-256-gcm key.
 const shadowsocksKeyLength = 32
+
+// shadowsocksProtocol is xray-core's protocol id for Shadowsocks; the 2022 variant
+// is selected through the method field rather than a distinct protocol id.
+const shadowsocksProtocol = "shadowsocks"
 
 // ProxyProtocol is a custom type used to represent different proxy protocols.
 type ProxyProtocol byte
@@ -84,6 +88,16 @@ func (p ProxyProtocol) String() string {
 // IsValid checks if the ProxyProtocol value is valid.
 func (p ProxyProtocol) IsValid() bool {
 	return p != ProxyProtocolUnspecified && p.String() != ""
+}
+
+// CoreName returns the xray-core protocol identifier. Shadowsocks 2022 maps to
+// xray's "shadowsocks" id; every other protocol matches its String value.
+func (p ProxyProtocol) CoreName() string {
+	if p == ProxyProtocolShadowsocks2022 {
+		return shadowsocksProtocol
+	}
+
+	return p.String()
 }
 
 // Account returns the type URL and encoded account bytes for the given UUID and flow.

@@ -41,7 +41,7 @@
     "outbounds": [
         {{- range $index, $outbound := .Outbounds }}
         {
-            "protocol": "{{ $outbound.ProxyProtocol }}",
+            "protocol": "{{ $outbound.GetProxyProtocol.CoreName }}",
             {{- if or (eq $outbound.ProxyProtocol "vless") (eq $outbound.ProxyProtocol "vmess") }}
             "settings": {
                 "vnext": [
@@ -92,7 +92,7 @@
                 "security": "{{ $outbound.TransportSecurity }}"
                 {{- if eq $outbound.TransportSecurity "tls" }},
                 "tlsSettings": {
-                    "allowInsecure": true,
+                    "fingerprint": "chrome",
                     "pinnedPeerCertSha256": "{{ $outbound.TLSPin }}"
                 }
                 {{- end }}
@@ -110,6 +110,16 @@
         {{- if ne (sum $index 1) (len $.Outbounds) }},{{- end }}
         {{- end }}
     ],
+    "observatory": {
+        "subjectSelector": [
+            {{- range $index, $outbound := .Outbounds }}
+            "{{ $outbound.Tag }}"
+            {{- if ne (sum $index 1) (len $.Outbounds) }},{{- end }}
+            {{- end }}
+        ],
+        "probeUrl": "https://www.gstatic.com/generate_204",
+        "probeInterval": "10s"
+    },
     "routing": {
         "balancers": [
             {

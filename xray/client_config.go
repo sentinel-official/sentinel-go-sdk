@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/netip"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // APIClientConfig represents the configuration for the API client.
@@ -91,6 +91,18 @@ func (c *OutboundClientConfig) Validate() error {
 		}
 	}
 
+	// Ensure the TLS pin is set for TLS outbounds (an empty pin can never match).
+	if c.GetTransportSecurity() == TransportSecurityTLS && c.TLSPin == "" {
+		return errors.New("tls_pin is empty")
+	}
+
+	// Reject values that could break out of a JSON string literal in the config.
+	for _, v := range []string{c.Addr, c.TLSPin, c.Method, c.ServerKey, c.RealityServerName, c.RealityShortId, c.RealityPublicKey, c.RealityFingerprint} {
+		if utils.HasJSONUnsafeChars(v) {
+			return fmt.Errorf("field contains unsafe characters: %q", v)
+		}
+	}
+
 	return nil
 }
 
@@ -134,9 +146,6 @@ func (c *OutboundClientConfig) Tag() string {
 	items := []string{
 		c.Addr,
 		strconv.Itoa(int(c.Port)),
-		c.GetProxyProtocol().String(),
-		c.GetTransportProtocol().String(),
-		c.GetTransportSecurity().String(),
 	}
 
 	return strings.Join(items, "_")
@@ -205,9 +214,12 @@ func (c *ClientConfig) Validate() error {
 		return fmt.Errorf("validating API config: %w", err)
 	}
 
-	// Ensure the ID is not empty.
-	if c.ID == "" {
-		return errors.New("id is empty")
+	if _, err := uuid.Parse(c.ID); err != nil {
+		return fmt.Errorf("parsing id %q: %w", c.ID, err)
+	}
+
+	if len(c.Outbounds) == 0 {
+		return errors.New("outbounds are empty")
 	}
 
 	// Validate each outbound client configuration.
@@ -318,7 +330,7 @@ func (c *ClientConfig) SetForFlags(fs *pflag.FlagSet, prefix string) {
 func DefaultClientConfig() *ClientConfig {
 	return &ClientConfig{
 		API:       DefaultAPIClientConfig(),
-		ID:        NewStringUUID(),
+		ID:        uuid.NewString(),
 		Outbounds: []*OutboundClientConfig{},
 		Proxy:     DefaultProxyClientConfig(),
 	}

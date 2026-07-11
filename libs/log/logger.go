@@ -8,7 +8,7 @@ import (
 	"cosmossdk.io/log"
 	"github.com/rs/zerolog"
 
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
 )
 
 type Logger = log.Logger // An alias for the log.Logger type

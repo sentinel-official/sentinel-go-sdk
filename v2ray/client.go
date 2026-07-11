@@ -14,11 +14,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/proxycmd"
-	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
-	"github.com/sentinel-official/sentinel-go-sdk/process"
-	"github.com/sentinel-official/sentinel-go-sdk/types"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/proxycmd"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/safe"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/process"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // Ensure Client implements types.ClientService interface.
@@ -88,7 +88,7 @@ func (c *Client) IsRunning() (bool, error) {
 		return false, fmt.Errorf("getting process name: %w", err)
 	}
 
-	if name != v2ray {
+	if strings.TrimSuffix(name, ".exe") != v2ray {
 		return false, nil
 	}
 

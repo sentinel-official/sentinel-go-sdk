@@ -6,13 +6,12 @@ import (
 	"math/rand/v2"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/netip"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // InboundServerConfig represents the V2Ray inbound server configuration options.
@@ -64,14 +63,7 @@ func (c *InboundServerConfig) OutPort() string {
 
 // Tag creates a Tag instance based on the InboundServerConfig configuration.
 func (c *InboundServerConfig) Tag() string {
-	items := []string{
-		c.InPort(),
-		c.GetProxyProtocol().String(),
-		c.GetTransportProtocol().String(),
-		c.GetTransportSecurity().String(),
-	}
-
-	return strings.Join(items, "_")
+	return c.InPort()
 }
 
 // Validate validates the InboundServerConfig fields.
@@ -99,6 +91,10 @@ func (c *InboundServerConfig) Validate() error {
 	// Validate the Transport security.
 	if v := NewTransportSecurityFromString(c.TransportSecurity); !v.IsValid() {
 		return fmt.Errorf("invalid transport_security %q", v)
+	}
+
+	if c.GetTransportProtocol() == TransportProtocolQUIC && c.GetTransportSecurity() != TransportSecurityTLS {
+		return errors.New("quic requires tls")
 	}
 
 	return nil
@@ -142,21 +138,21 @@ func (c *ServerConfig) Validate() error {
 		}
 
 		// Check inbound ports for duplicates.
-		for p := port.InFrom; p <= port.InTo; p++ {
-			if inPortSet[p] {
+		for p := int(port.InFrom); p <= int(port.InTo); p++ {
+			if inPortSet[uint16(p)] {
 				return fmt.Errorf("duplicate in_port %d", p)
 			}
 
-			inPortSet[p] = true
+			inPortSet[uint16(p)] = true
 		}
 
 		// Check outbound ports for duplicates.
-		for p := port.OutFrom; p <= port.OutTo; p++ {
-			if outPortSet[p] {
+		for p := int(port.OutFrom); p <= int(port.OutTo); p++ {
+			if outPortSet[uint16(p)] {
 				return fmt.Errorf("duplicate out_port %d", p)
 			}
 
-			outPortSet[p] = true
+			outPortSet[uint16(p)] = true
 		}
 
 		// Check tags for duplicates.
@@ -251,21 +247,41 @@ func (c *ServerConfig) SetForFlags(_ *pflag.FlagSet, _ string) {}
 
 // DefaultServerConfig creates a default ServerConfig with predefined values.
 func DefaultServerConfig() *ServerConfig {
-	return &ServerConfig{
-		Inbounds: []*InboundServerConfig{
-			{
-				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
-				ProxyProtocol:     ProxyProtocolVMess.String(),
-				TransportProtocol: TransportProtocolGRPC.String(),
-				TransportSecurity: TransportSecurityNone.String(),
-			},
-			{
-				Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
-				ProxyProtocol:     randomProxyProtocol().String(),
-				TransportProtocol: randomTransportProtocol().String(),
-				TransportSecurity: randomTransportSecurity().String(),
-			},
+	// Start with the two strongest inbounds (VLESS over TLS on WebSocket and on
+	// gRPC), then add three random ones.
+	inbounds := make([]*InboundServerConfig, 0, 5)
+	inbounds = append(inbounds,
+		&InboundServerConfig{
+			Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+			ProxyProtocol:     ProxyProtocolVLess.String(),
+			TransportProtocol: TransportProtocolWebSocket.String(),
+			TransportSecurity: TransportSecurityTLS.String(),
 		},
+		&InboundServerConfig{
+			Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+			ProxyProtocol:     ProxyProtocolVLess.String(),
+			TransportProtocol: TransportProtocolGRPC.String(),
+			TransportSecurity: TransportSecurityTLS.String(),
+		},
+	)
+
+	for range 3 {
+		inbounds = append(inbounds, randomInboundServerConfig())
+	}
+
+	return &ServerConfig{
+		Inbounds: inbounds,
+	}
+}
+
+// randomInboundServerConfig builds an inbound with a random proxy protocol and
+// transport, always secured with TLS.
+func randomInboundServerConfig() *InboundServerConfig {
+	return &InboundServerConfig{
+		Port:              strconv.FormatUint(uint64(utils.RandomPort()), 10),
+		ProxyProtocol:     randomProxyProtocol().String(),
+		TransportProtocol: randomTransportProtocol().String(),
+		TransportSecurity: TransportSecurityTLS.String(),
 	}
 }
 
@@ -288,12 +304,4 @@ func randomTransportProtocol() TransportProtocol {
 		TransportProtocolTCP,
 		TransportProtocolWebSocket,
 	}[rand.IntN(7)]
-}
-
-// randomTransportSecurity returns a random security configuration (none or tls).
-func randomTransportSecurity() TransportSecurity {
-	return [...]TransportSecurity{
-		TransportSecurityNone,
-		TransportSecurityTLS,
-	}[rand.IntN(2)]
 }

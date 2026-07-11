@@ -5,6 +5,7 @@ package amneziawg
 import (
 	"context"
 	"os/exec"
+	"syscall"
 )
 
 // execFile returns the executable name.
@@ -21,6 +22,7 @@ func (s *Server) startCmd(ctx context.Context) (*exec.Cmd, error) {
 		s.execFile("awg-quick"),
 		"up", cfgFile,
 	)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	return cmd, nil
 }

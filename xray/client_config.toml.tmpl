@@ -1,0 +1,15 @@
+# Port for the Xray statistics and management operations.
+# Local port the client exposes for querying traffic statistics and managing users.
+# Must be unique and not conflict with other services on the same machine.
+# Allowed: Non-zero uint16
+# Example: 2323
+[api]
+port = {{ .API.Port }}
+
+# Port for the Xray SOCKS5 proxy server.
+# Local port the client listens on to accept SOCKS5 proxy connections for tunneled traffic.
+# Must be unique and not conflict with other services on the same machine.
+# Allowed: Non-zero uint16
+# Example: 1080
+[proxy]
+port = {{ .Proxy.Port }}

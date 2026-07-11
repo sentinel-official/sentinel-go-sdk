@@ -13,6 +13,19 @@ auth:
 trafficStats:
   listen: "127.0.0.1:{{ .StatsPort }}"
   secret: "{{ .StatsSecret }}"
+
+masquerade:
+{{- if .MasqueradeURL }}
+  type: proxy
+  proxy:
+    url: "{{ .MasqueradeURL }}"
+    rewriteHost: true
+{{- else }}
+  type: string
+  string:
+    content: "not found"
+    statusCode: 404
+{{- end }}
 {{- if .ObfsPassword }}
 
 obfs:

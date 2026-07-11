@@ -1,7 +1,7 @@
 package xray
 
 import (
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
 )
 
 // stringNone is the string representation shared by the none transport security and flow.

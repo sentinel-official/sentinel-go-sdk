@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/google/uuid"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/uuid"
 )
 
 // PeerRequest represents a V2Ray peer request.

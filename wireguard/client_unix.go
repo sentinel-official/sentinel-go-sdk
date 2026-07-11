@@ -5,6 +5,7 @@ package wireguard
 import (
 	"context"
 	"os/exec"
+	"syscall"
 )
 
 // execFile returns the executable name.
@@ -21,6 +22,7 @@ func (c *Client) startCmd(ctx context.Context) (*exec.Cmd, error) {
 		c.execFile("wg-quick"),
 		"up", cfgFile,
 	)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	return cmd, nil
 }

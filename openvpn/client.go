@@ -15,10 +15,10 @@ import (
 
 	procutils "github.com/shirou/gopsutil/v4/process"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/encoding/pem"
-	"github.com/sentinel-official/sentinel-go-sdk/process"
-	"github.com/sentinel-official/sentinel-go-sdk/types"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/encoding/pem"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/process"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // Ensure Client implements types.ClientService interface.
@@ -31,7 +31,8 @@ type Client struct {
 	cfg     *ClientConfig // Configuration settings for the service.
 	homeDir string        // Home directory of the service.
 
-	cmd *exec.Cmd // Command to run the OpenVPN client.
+	cmd      *exec.Cmd  // Command to run the OpenVPN client.
+	firewall [][]string // Cached kill-switch rules applied at PostUp, deleted verbatim at teardown.
 }
 
 // NewClient creates a new Client instance.
@@ -202,7 +203,18 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 
 		// Write PID to file.
 		if err := c.writePID(c.cmd.Process.Pid); err != nil {
+			_ = c.cmd.Process.Kill()
+			_ = c.cmd.Wait()
+
 			return fmt.Errorf("writing PID: %w", err)
+		}
+
+		// Install the kill-switch firewall rules.
+		if err := c.applyFirewall(ctx); err != nil {
+			_ = c.cmd.Process.Kill()
+			_ = c.cmd.Wait()
+
+			return fmt.Errorf("applying firewall rules: %w", err)
 		}
 
 		// Wait for the OpenVPN process to finish in a separate goroutine.
@@ -214,6 +226,15 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 			return fmt.Errorf("waiting command: %w", err)
 		})
 
+		// Set the system DNS once the TUN interface is up.
+		c.Go(ctx, func() error {
+			if err := c.applyDNS(ctx); err != nil && ctx.Err() == nil {
+				return fmt.Errorf("applying dns: %w", err)
+			}
+
+			return nil
+		})
+
 		return nil
 	})
 }
@@ -221,6 +242,16 @@ func (c *Client) Start(parent context.Context) (context.Context, error) {
 // Stop stops the OpenVPN client service.
 func (c *Client) Stop() error {
 	return c.Manager.Stop(func() error { //nolint:wrapcheck
+		// Revert the system DNS (best-effort).
+		if err := c.removeDNS(context.Background()); err != nil {
+			return fmt.Errorf("removing dns: %w", err)
+		}
+
+		// Remove the kill-switch firewall rules (best-effort).
+		if err := c.removeFirewall(context.Background()); err != nil {
+			return fmt.Errorf("removing firewall rules: %w", err)
+		}
+
 		// Read PID from file.
 		pid, err := c.readPID()
 		if err != nil {

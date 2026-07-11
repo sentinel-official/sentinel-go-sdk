@@ -8,6 +8,7 @@
     },
     "inbounds": [
         {
+            "listen": "127.0.0.1",
             "port": 2323,
             "protocol": "dokodemo-door",
             "settings": {
@@ -18,7 +19,7 @@
         {{- range $index, $inbound := .Inbounds }}
         {
             "port": "{{ $inbound.InPort }}",
-            "protocol": "{{ $inbound.ProxyProtocol }}",
+            "protocol": "{{ $inbound.GetProxyProtocol.CoreName }}",
             {{- if eq $inbound.ProxyProtocol "vless" }}
             "settings": {
                 "decryption": "none"
@@ -52,7 +53,6 @@
                 {{- if eq $inbound.TransportSecurity "reality" }},
                 "realitySettings": {
                     "dest": "{{ $inbound.Reality.Dest }}",
-                    "fingerprint": "{{ $inbound.Reality.Fingerprint }}",
                     "privateKey": "{{ $inbound.Reality.PrivateKey }}",
                     "serverNames": [
                         {{- range $i, $name := $inbound.Reality.ServerNames }}

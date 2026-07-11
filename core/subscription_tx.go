@@ -8,7 +8,7 @@ import (
 	"github.com/sentinel-official/sentinelhub/v12/types"
 	"github.com/sentinel-official/sentinelhub/v12/x/subscription/types/v3"
 
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // SubscriptionStartSession initiates a session for a subscription. On success, it returns the session ID.

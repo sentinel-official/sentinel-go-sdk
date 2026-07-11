@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/netip"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // ServerConfig represents the AmneziaWG server configuration.
@@ -120,9 +120,9 @@ func (c *ServerConfig) Validate() error {
 		}
 	}
 
-	// Ensure OutInterface is not empty.
-	if c.OutInterface == "" {
-		return errors.New("out_interface is empty")
+	// Ensure OutInterface is a valid interface name (rejects shell metacharacters).
+	if !utils.IsValidInterfaceName(c.OutInterface) {
+		return fmt.Errorf("invalid out_interface %q", c.OutInterface)
 	}
 
 	// Ensure Port is not empty and validate it.

@@ -1,7 +1,3 @@
-# IP addresses assigned to this client in CIDR notation.
-# Allowed: Valid IPv4/IPv6 CIDR notation
-addrs = [{{ range $i, $a := .Addrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
-
 # DNS servers to use while connected to the VPN.
 # Allowed: Valid IP addresses
 dns_addrs = [{{ range $i, $a := .DNSAddrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
@@ -17,40 +13,3 @@ mtu = {{ .MTU }}
 # Name of the AmneziaWG network interface.
 # Allowed: Valid network interface name
 name = "{{ .Name }}"
-
-# Port number for the AmneziaWG interface.
-# Allowed: Non-zero uint16
-port = {{ .Port }}
-
-# Specifies the private key for AmneziaWG encryption.
-# Allowed: Valid AmneziaWG private key
-private_key = "{{ .PrivateKey }}"
-
-# AmneziaWG obfuscation parameters.
-# Handshake-affecting parameters (S1–S4, H1–H4, I1–I5) must match the server.
-# Local-only junk parameters (Jc, Jmin, Jmax) need not match the remote peer.
-[obfs]
-jc = {{ .Obfs.Jc }}
-jmin = {{ .Obfs.Jmin }}
-jmax = {{ .Obfs.Jmax }}
-s1 = {{ .Obfs.S1 }}
-s2 = {{ .Obfs.S2 }}
-s3 = {{ .Obfs.S3 }}
-s4 = {{ .Obfs.S4 }}
-h1 = {{ .Obfs.H1 }}
-h2 = {{ .Obfs.H2 }}
-h3 = {{ .Obfs.H3 }}
-h4 = {{ .Obfs.H4 }}
-i1 = "{{ .Obfs.I1 }}"
-i2 = "{{ .Obfs.I2 }}"
-i3 = "{{ .Obfs.I3 }}"
-i4 = "{{ .Obfs.I4 }}"
-i5 = "{{ .Obfs.I5 }}"
-advanced_security = {{ .Obfs.AdvancedSecurity }}
-
-[peer]
-addr = "{{ .Peer.Addr }}"
-allow_addrs = [{{ range $i, $a := .Peer.AllowAddrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
-persistent_keepalive = {{ .Peer.PersistentKeepalive }}
-port = {{ .Peer.Port }}
-public_key = "{{ .Peer.PublicKey }}"

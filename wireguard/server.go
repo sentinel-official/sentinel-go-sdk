@@ -3,6 +3,7 @@ package wireguard
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
-	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
-	"github.com/sentinel-official/sentinel-go-sdk/process"
-	"github.com/sentinel-official/sentinel-go-sdk/types"
-	"github.com/sentinel-official/sentinel-go-sdk/utils"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/netip"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/safe"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/process"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/utils"
 )
 
 // Ensure Server implements types.ServerService interface.
@@ -76,12 +77,12 @@ func (s *Server) IsRunning() (bool, error) {
 
 	// Run the command and handle errors.
 	if err := cmd.Run(); err != nil {
-		// Check if the error matches "No such device".
-		if strings.Contains(stderr.String(), "No such device") {
+		// Treat a missing interface or absent kernel module (userspace fallback) as not running.
+		if out := stderr.String(); strings.Contains(out, "No such device") || strings.Contains(out, "Protocol not supported") {
 			return false, nil
 		}
 
-		return false, fmt.Errorf("running command: %w", err)
+		return false, fmt.Errorf("running command: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
 
 	return true, nil
@@ -238,7 +239,7 @@ func (s *Server) Cleanup() error {
 }
 
 // AddPeer adds a new peer to the WireGuard server.
-func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
+func (s *Server) AddPeer(ctx context.Context, req any) (id string, resp any, err error) {
 	// Parse the request to PeerRequest type.
 	r, err := parsePeerRequest(req)
 	if err != nil {
@@ -250,7 +251,7 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 	}
 
 	// Retrieve the identity from the request.
-	id := r.ID()
+	id = r.ID()
 
 	// Acquire addrs from the pool for the new peer.
 	addrs, err := s.pools.Acquire()
@@ -261,8 +262,8 @@ func (s *Server) AddPeer(ctx context.Context, req any) (string, any, error) {
 	// Ensure addresses are released if peer addition fails.
 	defer func() {
 		if ok := s.peers.Exists(id); !ok {
-			if err := s.pools.Release(addrs); err != nil {
-				panic(fmt.Errorf("releasing peer %q addrs %v: %w", id, addrs, err))
+			if rErr := s.pools.Release(addrs); rErr != nil {
+				err = errors.Join(err, fmt.Errorf("releasing peer %q addrs %v: %w", id, addrs, rErr))
 			}
 		}
 	}()

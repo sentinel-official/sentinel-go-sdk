@@ -1,7 +1,7 @@
 package xray
 
 import (
-	"github.com/sentinel-official/sentinel-go-sdk/libs/netip"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/netip"
 )
 
 // ServerMetadata represents metadata for an Xray server's inbound connection.

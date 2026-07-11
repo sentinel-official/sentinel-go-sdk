@@ -13,8 +13,8 @@ import (
 	cosmossdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 
-	"github.com/sentinel-official/sentinel-go-sdk/core/config"
-	"github.com/sentinel-official/sentinel-go-sdk/types"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/core/config"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/types"
 )
 
 // Client contains all necessary components for transaction handling, query management, and configuration settings.

@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/sentinel-official/sentinel-go-sdk/libs/safe"
+	"github.com/sentinel-official/sentinel-go-sdk/v2/libs/safe"
 )
 
 // authRequest represents the JSON body sent by Hysteria2 on each connection attempt.

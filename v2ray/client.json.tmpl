@@ -67,7 +67,23 @@
                 {{- if eq $outbound.TransportSecurity "tls" }},
                 "tlsSettings": {
                     "allowInsecure": true,
+                    "fingerprint": "chrome",
                     "pinnedPeerCertificateChainSha256": ["{{ $outbound.TLSPin }}"]
+                }
+                {{- end }}
+                {{- if eq $outbound.TransportProtocol "mkcp" }},
+                "kcpSettings": {
+                    "header": {
+                        "type": "none"
+                    }
+                }
+                {{- end }}
+                {{- if eq $outbound.TransportProtocol "quic" }},
+                "quicSettings": {
+                    "security": "none",
+                    "header": {
+                        "type": "none"
+                    }
                 }
                 {{- end }}
             },
@@ -121,17 +137,5 @@
             "statsOutboundUplink": true
         }
     },
-    "stats": {},
-    "transport": {
-        "dsSettings": {},
-        "grpcSettings": {},
-        "gunSettings": {},
-        "httpSettings": {},
-        "kcpSettings": {},
-        "quicSettings": {
-            "security": "chacha20-poly1305"
-        },
-        "tcpSettings": {},
-        "wsSettings": {}
-    }
+    "stats": {}
 }

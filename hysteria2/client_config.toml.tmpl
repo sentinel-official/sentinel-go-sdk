@@ -22,6 +22,36 @@ tls_pin = "{{ .TLSPin }}"
 # Example: "hyst0"
 tun_iface = "{{ .TUNIface }}"
 
+# IP addresses assigned to the client's TUN interface in CIDR notation.
+# The local addresses configured on the virtual interface for tunneled traffic.
+# Allowed: Valid IPv4/IPv6 CIDR notation
+# Example: "100.100.100.101/30"
+addrs = [{{ range $i, $a := .Addrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
+
+# IP ranges routed through the tunnel.
+# Traffic matching these ranges is sent through the Hysteria2 TUN interface.
+# Allowed: Valid IPv4/IPv6 CIDR notation
+# Example: "0.0.0.0/0"
+route_addrs = [{{ range $i, $a := .RouteAddrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
+
+# IP ranges excluded from the tunnel.
+# Traffic matching these ranges bypasses the tunnel and uses the default route.
+# Allowed: Valid IPv4/IPv6 CIDR notation
+# Example: "192.168.0.0/16"
+exclude_addrs = [{{ range $i, $a := .ExcludeAddrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
+
+# DNS servers to use while connected to the VPN.
+# Set as the top-priority system resolver so DNS queries go through the tunnel.
+# Allowed: Valid IP addresses
+# Example: "208.67.222.222"
+dns_addrs = [{{ range $i, $a := .DNSAddrs }}{{ if $i }}, {{ end }}"{{ $a }}"{{ end }}]
+
+# Maximum transmission unit size for the TUN interface.
+# The MTU applied to the virtual interface created by the client.
+# Allowed: Non-zero uint16
+# Example: 1420
+mtu = {{ .MTU }}
+
 # Salamander obfuscation password for masking QUIC traffic.
 # Must match the server's obfs password; an empty value disables obfuscation.
 # Allowed: Any string, or empty to disable
