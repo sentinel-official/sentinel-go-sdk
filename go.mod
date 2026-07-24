@@ -13,7 +13,7 @@ require (
 	github.com/cosmos/gogoproto v1.7.2
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/uuid v1.6.0
-	github.com/mattn/go-isatty v0.0.22
+	github.com/mattn/go-isatty v0.0.24
 	github.com/rs/zerolog v1.35.1
 	github.com/sentinel-official/sentinelhub/v12 v12.0.2
 	github.com/shirou/gopsutil/v4 v4.26.6
