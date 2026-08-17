@@ -502,8 +502,8 @@ github.com/sentinel-official/sentinelhub/v12 v12.0.2 h1://d2WROQbVeyiEYUOCEHexWs
 github.com/sentinel-official/sentinelhub/v12 v12.0.2/go.mod h1:GenenmPyfwM38k60iFC6QVjKY9lJAQ2agNYpUahvuSs=
 github.com/shirou/gopsutil/v4 v4.26.7 h1:IXzpHz/dkMRYAhKkOXr1HB6SuzWU3eoyyeWe7g3bNZc=
 github.com/shirou/gopsutil/v4 v4.26.7/go.mod h1:5O9FjBiXoTDFatIWjZZosqj4pV0DRtLx598xGbBehzM=
-github.com/showwin/speedtest-go v1.7.10 h1:9o5zb7KsuzZKn+IE2//z5btLKJ870JwO6ETayUkqRFw=
-github.com/showwin/speedtest-go v1.7.10/go.mod h1:Ei7OCTmNPdWofMadzcfgq1rUO7mvJy9Jycj//G7vyfA=
+github.com/showwin/speedtest-go v1.7.11 h1:IMm3MSDewzOmgZSg6+It9AlxKYT9JBK1cxb0PF52DYE=
+github.com/showwin/speedtest-go v1.7.11/go.mod h1:MAtq5zxTo0kbqC90RStARJV6DQwDzvtPM6VF5AKzpYc=
 github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
 github.com/sirupsen/logrus v1.4.2/go.mod h1:tLMulIdttU9McNUspp0xgXVQah82FyeX6MwdIuYE2rE=
 github.com/soheilhy/cmux v0.1.5 h1:jjzc5WVemNEDTLwv9tlmemhC73tI08BNOIGwBOo10Js=
