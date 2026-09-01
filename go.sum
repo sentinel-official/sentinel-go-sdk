@@ -500,8 +500,8 @@ github.com/sasha-s/go-deadlock v0.3.5 h1:tNCOEEDG6tBqrNDOX35j/7hL5FcFViG6awUGROb
 github.com/sasha-s/go-deadlock v0.3.5/go.mod h1:bugP6EGbdGYObIlx7pUZtWqlvo8k9H6vCBBsiChJQ5U=
 github.com/sentinel-official/sentinelhub/v12 v12.0.2 h1://d2WROQbVeyiEYUOCEHexWsuVdizyksjO5c1c0RWfI=
 github.com/sentinel-official/sentinelhub/v12 v12.0.2/go.mod h1:GenenmPyfwM38k60iFC6QVjKY9lJAQ2agNYpUahvuSs=
-github.com/shirou/gopsutil/v4 v4.26.7 h1:IXzpHz/dkMRYAhKkOXr1HB6SuzWU3eoyyeWe7g3bNZc=
-github.com/shirou/gopsutil/v4 v4.26.7/go.mod h1:5O9FjBiXoTDFatIWjZZosqj4pV0DRtLx598xGbBehzM=
+github.com/shirou/gopsutil/v4 v4.26.8 h1:YQMTF/1J50B5+Y0vlo1eDRf5DoR7Gk69hY+8wjYkQeo=
+github.com/shirou/gopsutil/v4 v4.26.8/go.mod h1:5O9FjBiXoTDFatIWjZZosqj4pV0DRtLx598xGbBehzM=
 github.com/showwin/speedtest-go v1.7.10 h1:9o5zb7KsuzZKn+IE2//z5btLKJ870JwO6ETayUkqRFw=
 github.com/showwin/speedtest-go v1.7.10/go.mod h1:Ei7OCTmNPdWofMadzcfgq1rUO7mvJy9Jycj//G7vyfA=
 github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
